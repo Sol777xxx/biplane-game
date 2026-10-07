@@ -1,7 +1,7 @@
 import { drawStrut, drawWing } from "./parts.js";
 import { getPilot } from "./pilots/index.js";
 
-// точка, де сидить пілот (центр кабіни) у координатах літака
+// точка сидіння пілота в координатах літака
 const SEAT = { x: 8, y: -10 };
 
 // ---------- хвіст ----------
@@ -9,7 +9,7 @@ function drawTail(ctx) {
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
 
-  // хвостовий костиль: стійка, пружина, «черевичок»
+  // хвостовий костиль
   ctx.strokeStyle = "#8f78c4";
   ctx.lineWidth = 1.6;
   ctx.beginPath();
@@ -44,7 +44,7 @@ function drawTail(ctx) {
   ctx.save();
   stabilizer();
   ctx.clip();
-  // руль висоти (рожевий)
+  // руль висоти
   ctx.fillStyle = "#f7a8cf";
   ctx.fillRect(-80, -6, 20, 12);
   ctx.strokeStyle = "rgba(216, 112, 159, 0.6)";
@@ -89,7 +89,7 @@ function drawTail(ctx) {
   fin();
   ctx.clip();
 
-  // стерно напрямку (рожеве)
+  // стерно напрямку
   const rudder = ctx.createLinearGradient(-76, -34, -62, 0);
   rudder.addColorStop(0, "#ffd0e6");
   rudder.addColorStop(1, "#f092bd");
@@ -176,7 +176,7 @@ function drawNose(ctx, time) {
   ctx.quadraticCurveTo(31, 14.4, 22, 13.4);
   ctx.stroke();
 
-  // головки циліндрів зверху
+  // головки циліндрів
   ctx.fillStyle = "#d9c9f5";
   ctx.strokeStyle = "#8f78c4";
   ctx.lineWidth = 0.8;
@@ -204,7 +204,7 @@ function drawNose(ctx, time) {
   cowling();
   ctx.clip();
 
-  // дві смуги
+  // смуги
   ctx.fillStyle = "#8f78c4";
   ctx.fillRect(35, -13, 2.6, 26);
   ctx.globalAlpha = 0.7;
@@ -233,7 +233,7 @@ function drawNose(ctx, time) {
   ctx.lineWidth = 1.2;
   ctx.stroke();
 
-  // кільце радіатора спереду
+  // кільце радіатора
   ctx.fillStyle = "#efe6fb";
   ctx.strokeStyle = "#8f78c4";
   ctx.lineWidth = 1.2;
@@ -250,7 +250,7 @@ function drawNose(ctx, time) {
   }
   ctx.stroke();
 
-  // пропелер: розмитий диск і дві лопаті
+  // пропелер
   const blade = 6 + 16 * Math.abs(Math.sin(time * 0.03));
   ctx.fillStyle = "rgba(155, 127, 199, 0.16)";
   ctx.beginPath();
@@ -268,7 +268,7 @@ function drawNose(ctx, time) {
     ctx.stroke();
   }
 
-  // обтічник (конус)
+  // обтічник
   const spinner = ctx.createLinearGradient(0, -5, 0, 5);
   spinner.addColorStop(0, "#ffffff");
   spinner.addColorStop(1, "#d9c9f5");
@@ -291,19 +291,81 @@ function drawNose(ctx, time) {
   ctx.stroke();
 }
 
+// ---------- кабіна ----------
+function drawCockpit(ctx, time, pilotId) {
+  // чаша закриває обводку фюзеляжу в отворі
+  ctx.fillStyle = "#9b86c9";
+  ctx.beginPath();
+  ctx.moveTo(-5, -13.8);
+  ctx.quadraticCurveTo(9, -16.4, 23, -13.8);
+  ctx.quadraticCurveTo(21, -3, 8, -3);
+  ctx.quadraticCurveTo(-3, -3, -5, -13.8);
+  ctx.closePath();
+  ctx.fill();
+
+  // внутрішня тінь
+  ctx.fillStyle = "rgba(90, 70, 140, 0.35)";
+  ctx.beginPath();
+  ctx.ellipse(9, -6, 9, 2.4, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // підголівник
+  ctx.fillStyle = "#f7a8cf";
+  ctx.beginPath();
+  ctx.roundRect(-8, -18, 7, 8, 3);
+  ctx.fill();
+
+  // верхній край чаші (за героєм)
+  ctx.strokeStyle = "#b79fe8";
+  ctx.lineWidth = 1.6;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(-5, -13.8);
+  ctx.quadraticCurveTo(9, -16.4, 23, -13.8);
+  ctx.stroke();
+
+  // герой у чаші
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(-40, -80);
+  ctx.lineTo(40, -80);
+  ctx.lineTo(40, -13.8);
+  ctx.lineTo(23, -13.8);
+  ctx.quadraticCurveTo(21, -3, 8, -3);
+  ctx.quadraticCurveTo(-3, -3, -5, -13.8);
+  ctx.lineTo(-40, -13.8);
+  ctx.closePath();
+  ctx.clip();
+  ctx.translate(SEAT.x, SEAT.y);
+  getPilot(pilotId).draw(ctx, time);
+  ctx.restore();
+
+  // лобове скло
+  ctx.fillStyle = "rgba(207, 232, 255, 0.85)";
+  ctx.strokeStyle = "#8f78c4";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(24, -13);
+  ctx.lineTo(29, -20);
+  ctx.lineTo(32, -20);
+  ctx.lineTo(28, -12);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+}
+
 // ---------- літак ----------
 export function drawBiplane(ctx, time, pilotId) {
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
 
-  // дальні крила: світліші, зсунуті, для глибини
+  // дальні крила
   drawWing(ctx, -12, -46, 66, 8, "#d4f3e6", "#f2fcf8", "#a6d9c6");
   drawWing(ctx, -42, 12, 56, 7, "#fbd3e6", "#fff0f7", "#e8a7c6");
 
-  // хвіст (кіль, стерно, стабілізатор, костиль)
   drawTail(ctx);
 
-  // шасі: короткі стійки, колесо притиснуте до літака
+  // шасі
   ctx.strokeStyle = "#8f78c4";
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -341,7 +403,6 @@ export function drawBiplane(ctx, time, pilotId) {
   ctx.fillStyle = body;
   ctx.fill();
 
-  // деталі всередині фюзеляжу
   ctx.save();
   fuselage();
   ctx.clip();
@@ -356,7 +417,7 @@ export function drawBiplane(ctx, time, pilotId) {
   }
   ctx.stroke();
 
-  // широка смужка
+  // смужка
   ctx.strokeStyle = "#f7a8cf";
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -364,7 +425,7 @@ export function drawBiplane(ctx, time, pilotId) {
   ctx.bezierCurveTo(-30, 3, 0, 6, 32, 6);
   ctx.stroke();
 
-  // пунктирна «строчка»
+  // пунктир
   ctx.setLineDash([1.5, 4]);
   ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
   ctx.lineWidth = 1.2;
@@ -400,60 +461,16 @@ export function drawBiplane(ctx, time, pilotId) {
   drawStrut(ctx, 4, -13, 14, -35, 1.8);
   drawStrut(ctx, 26, -13, 32, -35, 1.8);
 
-  // кабіна, задня частина: чаша й підголівник
-  ctx.fillStyle = "#9b86c9";
-  ctx.beginPath();
-  ctx.moveTo(-5, -13.5);
-  ctx.quadraticCurveTo(-3, -3, 8, -3);
-  ctx.quadraticCurveTo(21, -3, 23, -13.5);
-  ctx.closePath();
-  ctx.fill();
+  drawCockpit(ctx, time, pilotId);
 
-  ctx.fillStyle = "rgba(90, 70, 140, 0.35)";
-  ctx.beginPath();
-  ctx.ellipse(9, -6, 9, 2.4, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = "#f7a8cf";
-  ctx.beginPath();
-  ctx.roundRect(-8, -18, 7, 8, 3);
-  ctx.fill();
-
-  // пілот: малює обраний герой у точці SEAT
-  ctx.save();
-  ctx.translate(SEAT.x, SEAT.y);
-  getPilot(pilotId).draw(ctx, time);
-  ctx.restore();
-
-  // кабіна, передня частина: обідок і лобове скло
-  ctx.strokeStyle = "#e58ab9";
-  ctx.lineWidth = 2.2;
-  ctx.beginPath();
-  ctx.moveTo(-6, -13);
-  ctx.quadraticCurveTo(9, -17, 24, -13);
-  ctx.stroke();
-
-  ctx.fillStyle = "rgba(207, 232, 255, 0.85)";
-  ctx.strokeStyle = "#8f78c4";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(24, -13);
-  ctx.lineTo(29, -20);
-  ctx.lineTo(32, -20);
-  ctx.lineTo(28, -12);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-
-  // міжкрилові стійки: паралельні діагоналі й вертикаль
+  // міжкрилові стійки
   drawStrut(ctx, 52, -35, 22, 10, 2.6);
   drawStrut(ctx, 40, -35, 10, 10, 2.6);
   drawStrut(ctx, 0, -35, 0, 9, 1.8);
 
-  // ближні крила: верхнє винесене вперед, нижнє назад
+  // ближні крила
   drawWing(ctx, -4, -42, 66, 8, "#a8e6cf", "#e6fbf2", "#5fb89a");
   drawWing(ctx, -34, 9, 56, 7, "#f7a8cf", "#ffe3f0", "#d8709f");
 
-  // ніс: капот, радіатор, пропелер
   drawNose(ctx, time);
 }
