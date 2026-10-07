@@ -1,7 +1,9 @@
-
 import { empty } from "./empty.js";
+import { mushroom } from "./mushroom.js";
+import { alien } from "./alien.js";
 
-export const PILOTS = { empty,};
+// реєстр героїв
+export const PILOTS = { mushroom,alien,empty };
 export const DEFAULT_PILOT = "empty";
 
 export function getPilot(id) {

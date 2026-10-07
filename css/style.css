@@ -30,3 +30,39 @@ canvas {
   font-size: 14px;
   white-space: pre;
 }
+
+#pilots {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 180px;
+  padding: 4px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.pilot-btn {
+  padding: 1px;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  line-height: 0;
+}
+
+.pilot-btn:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.pilot-btn.active {
+  border-color: #f08ab4;
+  background: #fff;
+}
+
+.pilot-btn canvas {
+  width: auto;
+  height: auto;
+}
