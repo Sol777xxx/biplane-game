@@ -1,0 +1,32 @@
+:root {
+  --sky-top: #cfe8ff;
+  --sky-bottom: #fde4f1;
+  --hud-text: #6b5b8a;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: linear-gradient(var(--sky-top), var(--sky-bottom));
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+canvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+}
+
+#hud {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--hud-text);
+  font-size: 14px;
+  white-space: pre;
+}
