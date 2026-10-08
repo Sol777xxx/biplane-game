@@ -1,68 +1,68 @@
 :root {
-  --sky-top: #cfe8ff;
-  --sky-bottom: #fde4f1;
-  --hud-text: #6b5b8a;
+	--sky-top: #cfe8ff;
+	--sky-bottom: #fde4f1;
+	--hud-text: #6b5b8a;
 }
 
 html,
 body {
-  margin: 0;
-  height: 100%;
-  overflow: hidden;
-  background: linear-gradient(var(--sky-top), var(--sky-bottom));
-  font-family: ui-monospace, Consolas, monospace;
+	margin: 0;
+	height: 100%;
+	overflow: hidden;
+	background: linear-gradient(to bottom, var(--sky-top), var(--sky-bottom));
+	font-family: ui-monospace, Consolas, monospace;
 }
 
 canvas {
-  display: block;
-  width: 100vw;
-  height: 100vh;
+	display: block;
+	width: 100vw;
+	height: 100vh;
 }
 
 #hud {
-  position: fixed;
-  top: 8px;
-  left: 8px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.6);
-  color: var(--hud-text);
-  font-size: 14px;
-  white-space: pre;
+	position: fixed;
+	top: 8px;
+	left: 8px;
+	padding: 6px 10px;
+	border-radius: 8px;
+	background: rgba(255, 255, 255, 0.6);
+	color: var(--hud-text);
+	font-size: 14px;
+	white-space: pre;
 }
 
 #pilots {
-  position: fixed;
-  top: 8px;
-  right: 8px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  max-width: 180px;
-  padding: 4px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.45);
+	position: fixed;
+	top: 8px;
+	right: 8px;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	max-width: 180px;
+	padding: 4px;
+	border-radius: 8px;
+	background: rgba(255, 255, 255, 0.45);
 }
 
 .pilot-btn {
-  padding: 1px;
-  border: 2px solid transparent;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.5);
-  cursor: pointer;
-  line-height: 0;
+	padding: 1px;
+	border: 2px solid transparent;
+	border-radius: 6px;
+	background: rgba(255, 255, 255, 0.5);
+	cursor: pointer;
+	line-height: 0;
 }
 
 .pilot-btn:hover {
-  background: rgba(255, 255, 255, 0.9);
+	background: rgba(255, 255, 255, 0.9);
 }
 
 .pilot-btn.active {
-  border-color: #f08ab4;
-  background: #fff;
+	border-color: #f08ab4;
+	background: #fff;
 }
 
 .pilot-btn canvas {
-  width: auto;
-  height: auto;
+	width: auto;
+	height: auto;
 }

@@ -1,5 +1,5 @@
 export const empty = {
-  id: "empty",
-  name: "Без пілота",
-  draw() {},
+	id: "empty",
+	name: "Без пілота",
+	draw() {},
 };
