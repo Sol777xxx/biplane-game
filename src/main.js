@@ -1,8 +1,8 @@
 import { createInput } from "./input.js";
 import { createLoop } from "./loop.js";
-import { createShip, integrate } from "./physics.js";
 import { DEFAULT_PILOT, PILOTS } from "./render/pilots/index.js";
 import { createRenderer } from "./render/renderer.js";
+import { Biplane } from "./sim/biplane.js";
 import { createPilotPicker } from "./ui/pilotPicker.js";
 
 const STORAGE_KEY = "biplane-pilot";
@@ -43,7 +43,7 @@ const hud = document.querySelector("#hud");
 const pilotId = loadPilot();
 const input = createInput();
 const renderer = createRenderer(canvas, { pilotId });
-let ship = createShip();
+let plane = new Biplane();
 let probe = null;
 let frameCount = 0;
 
@@ -63,20 +63,20 @@ const loop = createLoop({
 
 		// вимірювання: 5 с симуляційного часу з постійним «вправо»
 		if (input.justPressed("probe")) {
-			ship = createShip();
+			plane = new Biplane();
 			probe = { time: 0, steps: 0 };
 		}
 		let state = input.snapshot();
 		if (probe) state = { ...state, right: true };
 
-		ship = integrate(ship, state, dt);
+		plane.update(dt, state);
 
 		if (probe) {
 			probe.time += dt;
 			probe.steps++;
 			if (probe.time >= PROBE_SECONDS) {
 				console.log(
-					`probe [${exp ?? "fixed"}]: x=${ship.x.toFixed(2)} y=${ship.y.toFixed(2)} steps=${probe.steps}`,
+					`probe [${exp ?? "fixed"}]: x=${plane.pos.x.toFixed(2)} y=${plane.pos.y.toFixed(2)} steps=${probe.steps}`,
 				);
 				probe = null;
 			}
@@ -87,7 +87,7 @@ const loop = createLoop({
 		frameCount++;
 		// експеримент 1: блокування 100 мс кожен 60-й кадр
 		if (exp === "block" && frameCount % 60 === 0) busyWait(100);
-		renderer.draw(ship, alpha, performance.now());
+		renderer.draw(plane, alpha, performance.now());
 	},
 	onStats({ stepsPerSec, framesPerSec, frameMs, minMs, maxMs, jitterMs }) {
 		let text =

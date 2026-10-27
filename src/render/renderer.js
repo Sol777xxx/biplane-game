@@ -1,4 +1,4 @@
-import { ARENA } from "../physics.js";
+import { ARENA } from "../sim/arena.js";
 import { drawBiplane } from "./biplane.js";
 import { CLOUDS, drawCloud } from "./clouds.js";
 
@@ -14,26 +14,26 @@ export function createRenderer(canvas, { pilotId = "empty" } = {}) {
 		const w = window.innerWidth;
 		const h = window.innerHeight;
 
-		// внутрішній розмір буфера в фізичних пікселях, CSS-розмір лишається w x h
+		// розмір буфера у фізичних пікселях
 		canvas.width = Math.round(w * dpr);
 		canvas.height = Math.round(h * dpr);
 
-		// арена масштабується, щоб поміститись у вікно, і центрується
+		// масштаб і центрування арени
 		scale = Math.min(w / ARENA.width, h / ARENA.height);
 		offsetX = (w - ARENA.width * scale) / 2;
 		offsetY = (h - ARENA.height * scale) / 2;
 
-		// далі малюємо в CSS-пікселях, а canvas сам домножує на dpr
+		// подальше малювання в CSS-пікселях
 		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 	}
 
-	// інтерполяція; якщо літак «загорнувся» через край, не інтерполюємо
+	// інтерполяція без стрибка при загортанні країв
 	function lerp(prev, curr, alpha, max) {
 		if (Math.abs(curr - prev) > max / 2) return curr;
 		return prev + (curr - prev) * alpha;
 	}
 
-	function draw(ship, alpha, time) {
+	function draw(plane, alpha, time) {
 		ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
 		ctx.save();
@@ -49,12 +49,12 @@ export function createRenderer(canvas, { pilotId = "empty" } = {}) {
 
 		for (const cloud of CLOUDS) drawCloud(ctx, cloud);
 
-		const x = lerp(ship.prevX, ship.x, alpha, ARENA.width);
-		const y = lerp(ship.prevY, ship.y, alpha, ARENA.height);
-		const pitch = ship.prevPitch + (ship.pitch - ship.prevPitch) * alpha;
+		const x = lerp(plane.prevPos.x, plane.pos.x, alpha, ARENA.width);
+		const y = lerp(plane.prevPos.y, plane.pos.y, alpha, ARENA.height);
+		const pitch = plane.prevPitch + (plane.pitch - plane.prevPitch) * alpha;
 
 		ctx.translate(x, y);
-		ctx.scale(ship.facing * 1.6, 1.6); // дзеркалимо, коли летить вліво
+		ctx.scale(plane.facing * 1.6, 1.6); // дзеркалення при русі вліво
 		ctx.rotate(pitch);
 		drawBiplane(ctx, time, currentPilot);
 
