@@ -3,13 +3,15 @@ import { createLoop } from "./loop.js";
 import { DEFAULT_PILOT, PILOTS } from "./render/pilots/index.js";
 import { createRenderer } from "./render/renderer.js";
 import { Biplane } from "./sim/biplane.js";
+import { Game } from "./sim/game.js";
 import { createPilotPicker } from "./ui/pilotPicker.js";
 
 const STORAGE_KEY = "biplane-pilot";
 const PROBE_SECONDS = 5;
 
+const params = new URLSearchParams(location.search);
 // режим експерименту з адреси: ?exp=block | interval | variable
-const exp = new URLSearchParams(location.search).get("exp");
+const exp = params.get("exp");
 
 // читання збереженого героя
 function loadPilot() {
@@ -39,13 +41,18 @@ function busyWait(ms) {
 
 const canvas = document.querySelector("#game");
 const hud = document.querySelector("#hud");
+const status = document.querySelector("#status");
 
 const pilotId = loadPilot();
 const input = createInput();
 const renderer = createRenderer(canvas, { pilotId });
-let plane = new Biplane();
-let probe = null;
+const game = new Game();
+let probe = null; // вимірювання: окремий біплан поза світом
 let frameCount = 0;
+let lastStatus = "";
+
+// доступ із консолі для експериментів: ?debug
+if (params.has("debug")) window.game = game;
 
 createPilotPicker(document.querySelector("#pilots"), {
 	current: pilotId,
@@ -63,31 +70,34 @@ const loop = createLoop({
 
 		// вимірювання: 5 с симуляційного часу з постійним «вправо»
 		if (input.justPressed("probe")) {
-			plane = new Biplane();
-			probe = { time: 0, steps: 0 };
+			probe = { plane: new Biplane(), time: 0, steps: 0 };
 		}
-		let state = input.snapshot();
-		if (probe) state = { ...state, right: true };
-
-		plane.update(dt, state);
-
 		if (probe) {
+			probe.plane.update(dt, { right: true });
 			probe.time += dt;
 			probe.steps++;
 			if (probe.time >= PROBE_SECONDS) {
 				console.log(
-					`probe [${exp ?? "fixed"}]: x=${plane.pos.x.toFixed(2)} y=${plane.pos.y.toFixed(2)} steps=${probe.steps}`,
+					`probe [${exp ?? "fixed"}]: x=${probe.plane.pos.x.toFixed(2)} y=${probe.plane.pos.y.toFixed(2)} steps=${probe.steps}`,
 				);
 				probe = null;
 			}
 		}
+
+		game.step(dt, input.snapshot());
 		input.endStep();
 	},
 	render(alpha) {
 		frameCount++;
 		// експеримент 1: блокування 100 мс кожен 60-й кадр
 		if (exp === "block" && frameCount % 60 === 0) busyWait(100);
-		renderer.draw(plane, alpha, performance.now());
+		renderer.draw(game, alpha, performance.now());
+
+		const text = `зіткнень: ${game.crashes}`;
+		if (text !== lastStatus) {
+			status.textContent = text;
+			lastStatus = text;
+		}
 	},
 	onStats({ stepsPerSec, framesPerSec, frameMs, minMs, maxMs, jitterMs }) {
 		let text =
