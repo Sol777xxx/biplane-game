@@ -59,7 +59,7 @@ export function createRenderer(canvas, { pilotId = "empty" } = {}) {
 			// центр спрайта зміщений до хвоста, при дзеркаленні зміщення теж
 			drawShield(
 				ctx,
-				x - 4 * plane.facing, 
+				x - 4 * plane.facing,
 				y - 8,
 				SHIELD_RX,
 				SHIELD_RY,
@@ -99,6 +99,16 @@ export function createRenderer(canvas, { pilotId = "empty" } = {}) {
 				const x = lerp(e.prevPos.x, e.pos.x, alpha, ARENA.width);
 				const y = lerp(e.prevPos.y, e.pos.y, alpha, ARENA.height);
 				if (kind === "obstacle") drawObstacle(ctx, e, x, y, time);
+				// if (kind === "obstacle" && e.has("homing")) {
+				// ctx.save();
+				// ctx.strokeStyle = "rgba(255, 90, 140, 0.7)";
+				// ctx.lineWidth = 3;
+				// ctx.setLineDash([8, 8]);
+				// ctx.beginPath();
+				// ctx.arc(x, y, e.radius * 1.15, 0, Math.PI * 2);
+				// ctx.stroke();
+				// ctx.restore();
+				// }демонстрація самонаведених хмарок
 				else if (kind === "pickup") drawPickup(ctx, e, x, y, time);
 				else if (kind === "bullet") drawBullet(ctx, e, x, y);
 				else if (kind === "particle") drawParticle(ctx, e, x, y);
