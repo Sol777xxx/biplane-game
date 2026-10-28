@@ -54,7 +54,10 @@ export class Biplane extends Entity {
 		this.cooldown = this.effects.rapid > 0 ? RAPID_COOLDOWN : FIRE_COOLDOWN;
 
 		// напрямок носа: дзеркалення (facing) і нахил (pitch), як у рендері
-		const dir = new Vector2(this.facing * Math.cos(this.pitch), Math.sin(this.pitch));
+		const dir = new Vector2(
+			this.facing * Math.cos(this.pitch),
+			Math.sin(this.pitch),
+		);
 		const muzzle = this.pos.add(dir.scale(NOSE));
 		const vel = dir.scale(BULLET_SPEED).add(this.vel); // успадкована швидкість
 

@@ -14,7 +14,8 @@ export class Entity {
 		vy = 0,
 		angle = 0,
 		radius = 0,
-		edges = "wrap", // "wrap" | "bounce"
+		inset = radius, // відступ від краю для режиму "clamp"
+		edges = "wrap", // "wrap" | "bounce" | "clamp" | "die"
 	} = {}) {
 		this.kind = kind;
 		this.pos = new Vector2(x, y);
@@ -22,6 +23,7 @@ export class Entity {
 		this.vel = new Vector2(vx, vy);
 		this.angle = angle;
 		this.radius = radius;
+		this.inset = inset;
 		this.edges = edges;
 		this.alive = true;
 		this.world = null; // заповнює World.spawn
@@ -32,7 +34,7 @@ export class Entity {
 		return this.#id;
 	}
 
-		add(behavior) {
+	add(behavior) {
 		this.behaviors.push(behavior);
 		behavior.attach?.(this);
 		return this;
@@ -66,6 +68,31 @@ export class Entity {
 
 	#applyEdges() {
 		const { width, height } = ARENA;
+		if (this.edges === "die") {
+			const { x, y } = this.pos;
+			if (x < 0 || x > width || y < 0 || y > height) this.kill();
+			return;
+		}
+		if (this.edges === "clamp") {
+			const m = this.inset;
+			const p = this.pos;
+			const v = this.vel;
+			if (p.x < m) {
+				p.x = m;
+				v.x = Math.max(0, v.x);
+			} else if (p.x > width - m) {
+				p.x = width - m;
+				v.x = Math.min(0, v.x);
+			}
+			if (p.y < m) {
+				p.y = m;
+				v.y = Math.max(0, v.y);
+			} else if (p.y > height - m) {
+				p.y = height - m;
+				v.y = Math.min(0, v.y);
+			}
+			return;
+		}
 		if (this.edges === "bounce") {
 			const r = this.radius;
 			if (this.pos.x < r) {

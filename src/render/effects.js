@@ -1,51 +1,64 @@
 const TAU = Math.PI * 2;
-const RGB = { pink: "255, 150, 200", storm: "140, 170, 255" };
 
-export function drawParticle(ctx, p, x, y) {
-	ctx.fillStyle = `rgba(${RGB[p.color] ?? RGB.pink}, ${p.life})`;
-	ctx.beginPath();
-	ctx.arc(x, y, 2 + 5 * p.life, 0, TAU);
-	ctx.fill();
-}
-
-export function drawExplosion(ctx, e, x, y) {
-	const t = 1 - e.life;
-	ctx.fillStyle = `rgba(255, 255, 255, ${0.6 * e.life})`;
-	ctx.beginPath();
-	ctx.arc(x, y, e.size * 0.5 * (0.4 + t), 0, TAU);
-	ctx.fill();
-	ctx.strokeStyle = `rgba(${RGB[e.color] ?? RGB.pink}, ${e.life})`;
-	ctx.lineWidth = 2 + 8 * e.life;
-	ctx.beginPath();
-	ctx.arc(x, y, e.size * (0.3 + 0.7 * t), 0, TAU);
-	ctx.stroke();
-}
-
-const PICKUP_STYLE = {
-	shield: { color: "#a8e6cf", icon: "🛡" },
-	rapid: { color: "#ffe27a", icon: "⚡" },
-	homing: { color: "#f7a8cf", icon: "🎯" },
+const COLORS = {
+	pink: { core: "255, 179, 217", edge: "247, 168, 207" },
+	storm: { core: "201, 194, 226", edge: "157, 149, 191" },
 };
 
-export function drawPickup(ctx, p, x, y, time) {
-	const { color, icon } = PICKUP_STYLE[p.type];
-	const r = p.radius * (1 + 0.08 * Math.sin(time * 0.006));
-	ctx.save();
-	// мигає наприкінці життя
-	if (p.life < 0.25 && Math.floor(time / 150) % 2) ctx.globalAlpha = 0.35;
-	const g = ctx.createRadialGradient(x - 6, y - 6, 2, x, y, r);
-	g.addColorStop(0, "#ffffff");
-	g.addColorStop(1, color);
+const PICKUPS = {
+	shield: { color: "#82dcbe", label: "S" },
+	rapid: { color: "#ffd27a", label: "R" },
+	homing: { color: "#b79fe8", label: "H" },
+};
+
+// частинка: p.life 1 → 0
+export function drawParticle(ctx, p, x, y) {
+	const c = COLORS[p.color] ?? COLORS.pink;
+	ctx.fillStyle = `rgba(${c.core}, ${p.life})`;
+	ctx.beginPath();
+	ctx.arc(x, y, 2 + 4 * p.life, 0, TAU);
+	ctx.fill();
+}
+
+// вибух: спалах + кільце, що розширюється
+export function drawExplosion(ctx, e, x, y) {
+	const c = COLORS[e.color] ?? COLORS.pink;
+	const t = 1 - e.life;
+	const r = e.size * (0.4 + 0.9 * t);
+
+	const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+	g.addColorStop(0, `rgba(255, 255, 255, ${0.9 * e.life})`);
+	g.addColorStop(0.5, `rgba(${c.core}, ${0.5 * e.life})`);
+	g.addColorStop(1, `rgba(${c.edge}, 0)`);
 	ctx.fillStyle = g;
-	ctx.strokeStyle = "#8f78c4";
-	ctx.lineWidth = 3;
 	ctx.beginPath();
 	ctx.arc(x, y, r, 0, TAU);
 	ctx.fill();
+
+	ctx.strokeStyle = `rgba(${c.edge}, ${e.life})`;
+	ctx.lineWidth = 4 * e.life + 1;
+	ctx.beginPath();
+	ctx.arc(x, y, r * 0.9, 0, TAU);
 	ctx.stroke();
-	ctx.font = `${Math.round(r)}px sans-serif`;
+}
+
+// pickup: кружок з літерою, блимає перед зникненням
+export function drawPickup(ctx, e, x, y, time) {
+	if (e.life < 0.25 && Math.floor(time / 120) % 2 === 0) return;
+	const s = PICKUPS[e.type] ?? PICKUPS.shield;
+	const cy = y + Math.sin(time * 0.004) * 4;
+
+	ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+	ctx.strokeStyle = s.color;
+	ctx.lineWidth = 4;
+	ctx.beginPath();
+	ctx.arc(x, cy, e.radius, 0, TAU);
+	ctx.fill();
+	ctx.stroke();
+
+	ctx.fillStyle = s.color;
+	ctx.font = "bold 28px ui-monospace, Consolas, monospace";
 	ctx.textAlign = "center";
 	ctx.textBaseline = "middle";
-	ctx.fillText(icon, x, y + 2);
-	ctx.restore();
+	ctx.fillText(s.label, x, cy + 1);
 }

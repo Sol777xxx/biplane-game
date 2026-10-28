@@ -1,7 +1,13 @@
 import { ARENA } from "./arena.js";
-import { Biplane } from "./biplane.js";
 import { homing } from "./behaviors.js";
-import {createParticle,Explosion,Obstacle,PICKUP_TYPES,Pickup,} from "./objects.js";
+import { Biplane } from "./biplane.js";
+import {
+	createParticle,
+	Explosion,
+	Obstacle,
+	PICKUP_TYPES,
+	Pickup,
+} from "./objects.js";
 import { World } from "./world.js";
 
 const OBSTACLE_TARGET = 5;
@@ -96,7 +102,6 @@ export class Game {
 			);
 		}
 	}
-	
 
 	#explode(entity, color, count) {
 		const { x, y } = entity.pos;
@@ -162,7 +167,10 @@ export class Game {
 			y = margin + Math.random() * (ARENA.height - margin * 2);
 			const clear = kinds.every((kind) => {
 				for (const e of this.world.ofKind(kind)) {
-					if (e.alive && Math.hypot(x - e.pos.x, y - e.pos.y) < minDist + e.radius) {
+					if (
+						e.alive &&
+						Math.hypot(x - e.pos.x, y - e.pos.y) < minDist + e.radius
+					) {
 						return false;
 					}
 				}

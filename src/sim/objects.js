@@ -7,8 +7,24 @@ const BULLET_TTL = 1.6; // с
 const CRASH_DAMAGE = 35;
 
 export class Bullet extends Entity {
-	constructor({ owner, x, y, vx, vy, damage = BULLET_DAMAGE, ttl = BULLET_TTL }) {
-		super({ kind: "bullet", x, y, vx, vy, radius: BULLET_RADIUS, edges: "die" });
+	constructor({
+		owner,
+		x,
+		y,
+		vx,
+		vy,
+		damage = BULLET_DAMAGE,
+		ttl = BULLET_TTL,
+	}) {
+		super({
+			kind: "bullet",
+			x,
+			y,
+			vx,
+			vy,
+			radius: BULLET_RADIUS,
+			edges: "die",
+		});
 		this.owner = owner;
 		this.damage = damage;
 		this.ttl = ttl;
@@ -28,7 +44,11 @@ export class Bullet extends Entity {
 		if (other === this.owner) return;
 		if (other.kind === "obstacle" || other.kind === "biplane") {
 			other.takeDamage(this.damage, this.owner);
-			this.world?.events.push({ type: "hit", at: this.pos.clone(), target: other });
+			this.world?.events.push({
+				type: "hit",
+				at: this.pos.clone(),
+				target: other,
+			});
 			this.kill();
 		}
 	}

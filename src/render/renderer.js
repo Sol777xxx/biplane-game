@@ -2,10 +2,17 @@ import { ARENA } from "../sim/arena.js";
 import { drawBiplane } from "./biplane.js";
 import { drawBullet } from "./bullets.js";
 import { CLOUDS, drawCloud } from "./clouds.js";
-import { drawObstacle } from "./obstacles.js";
 import { drawExplosion, drawParticle, drawPickup } from "./effects.js";
+import { drawObstacle } from "./obstacles.js";
 
-const LAYERS = ["obstacle", "pickup", "bullet", "particle", "biplane", "explosion"];
+const LAYERS = [
+	"obstacle",
+	"pickup",
+	"bullet",
+	"particle",
+	"biplane",
+	"explosion",
+];
 
 export function createRenderer(canvas, { pilotId = "empty" } = {}) {
 	const ctx = canvas.getContext("2d");
