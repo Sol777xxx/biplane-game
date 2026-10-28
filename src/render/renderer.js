@@ -1,10 +1,11 @@
 import { ARENA } from "../sim/arena.js";
 import { drawBiplane } from "./biplane.js";
+import { drawBullet } from "./bullets.js";
 import { CLOUDS, drawCloud } from "./clouds.js";
 import { drawObstacle } from "./obstacles.js";
 
 // порядок шарів: що пізніше, те зверху
-const LAYERS = ["obstacle", "biplane"];
+const LAYERS = ["obstacle", "bullet", "biplane"];
 
 export function createRenderer(canvas, { pilotId = "empty" } = {}) {
 	const ctx = canvas.getContext("2d");
@@ -78,6 +79,7 @@ export function createRenderer(canvas, { pilotId = "empty" } = {}) {
 				const x = lerp(e.prevPos.x, e.pos.x, alpha, ARENA.width);
 				const y = lerp(e.prevPos.y, e.pos.y, alpha, ARENA.height);
 				if (kind === "obstacle") drawObstacle(ctx, e, x, y, time);
+				else if (kind === "bullet") drawBullet(ctx, e, x, y);
 				else if (kind === "biplane") drawPlane(e, x, y, alpha, time);
 				if (debug) drawHitbox(e, x, y);
 			}

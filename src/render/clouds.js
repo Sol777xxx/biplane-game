@@ -99,7 +99,7 @@ export function drawCloud(ctx, { x, y, s }, alpha = 0.7) {
 		x - (SPRITE_W / 2) * s,
 		y - (SPRITE_H / 2) * s,
 		SPRITE_W * s,
-		SPRITE_H * s
+		SPRITE_H * s,
 	);
 	ctx.restore();
 }

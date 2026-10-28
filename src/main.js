@@ -42,6 +42,7 @@ function busyWait(ms) {
 const canvas = document.querySelector("#game");
 const hud = document.querySelector("#hud");
 const status = document.querySelector("#status");
+const fireBtn = document.querySelector("#fire-btn");
 
 const pilotId = loadPilot();
 const input = createInput();
@@ -60,6 +61,14 @@ createPilotPicker(document.querySelector("#pilots"), {
 		renderer.setPilot(id);
 		savePilot(id);
 	},
+});
+
+// БАГ this: fireBtn.addEventListener("click", game.plane.fire);
+// слухач викликає функцію без об'єкта, тому this стає кнопкою і постріл не відбувається.
+// Фікс: стрілка, що бере поточний біплан у момент кліку
+fireBtn.addEventListener("click", () => {
+	game.plane.fire();
+	fireBtn.blur(); // щоб пробіл не «натискав» кнопку
 });
 
 const loop = createLoop({
@@ -93,7 +102,7 @@ const loop = createLoop({
 		if (exp === "block" && frameCount % 60 === 0) busyWait(100);
 		renderer.draw(game, alpha, performance.now());
 
-		const text = `зіткнень: ${game.crashes}`;
+		const text = `зіткнень: ${game.crashes}   збито: ${game.destroyed}`;
 		if (text !== lastStatus) {
 			status.textContent = text;
 			lastStatus = text;

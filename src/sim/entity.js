@@ -43,6 +43,11 @@ export class Entity {
 		// нічого
 	}
 
+	// шкода; за замовчуванням сутність її ігнорує
+	takeDamage(_amount, _by = null) {
+		// нічого
+	}
+
 	kill() {
 		this.alive = false;
 	}
