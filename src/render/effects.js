@@ -41,24 +41,52 @@ export function drawExplosion(ctx, e, x, y) {
 	ctx.arc(x, y, r * 0.9, 0, TAU);
 	ctx.stroke();
 }
-
-// pickup: кружок з літерою, блимає перед зникненням
+// зірка з n променями; outer — радіус кінчиків, inner — радіус западин
+function starPath(ctx, x, y, outer, inner, n = 5, rot = -Math.PI / 2) {
+	ctx.beginPath();
+	for (let i = 0; i < n * 2; i++) {
+		const r = i % 2 === 0 ? outer : inner;
+		const a = rot + (i * Math.PI) / n;
+		const px = x + Math.cos(a) * r;
+		const py = y + Math.sin(a) * r;
+		if (i === 0) ctx.moveTo(px, py);
+		else ctx.lineTo(px, py);
+	}
+	ctx.closePath();
+}
+// pickup: зірка з літерою, блимає перед зникненням
 export function drawPickup(ctx, e, x, y, time) {
 	if (e.life < 0.25 && Math.floor(time / 120) % 2 === 0) return;
 	const s = PICKUPS[e.type] ?? PICKUPS.shield;
 	const cy = y + Math.sin(time * 0.004) * 4;
+	const spin = Math.sin(time * 0.003) * 0.12; // легке погойдування
+	const R = e.radius; // кінчики впритик до хітбокса
 
-	ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+	ctx.save();
+	ctx.lineJoin = "round";
+
+	// світіння
+	starPath(ctx, x, cy, R, R * 0.5, 5, -Math.PI / 2 + spin);
+	ctx.strokeStyle = s.color;
+	ctx.globalAlpha = 0.35;
+	ctx.lineWidth = 10;
+	ctx.stroke();
+	ctx.globalAlpha = 1;
+
+	// тіло зірки
+	ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
 	ctx.strokeStyle = s.color;
 	ctx.lineWidth = 4;
-	ctx.beginPath();
-	ctx.arc(x, cy, e.radius, 0, TAU);
+	starPath(ctx, x, cy, R, R * 0.5, 5, -Math.PI / 2 + spin);
 	ctx.fill();
 	ctx.stroke();
 
+	// літера
 	ctx.fillStyle = s.color;
-	ctx.font = "bold 28px ui-monospace, Consolas, monospace";
+	ctx.font = "bold 22px ui-monospace, Consolas, monospace";
 	ctx.textAlign = "center";
 	ctx.textBaseline = "middle";
-	ctx.fillText(s.label, x, cy + 1);
+	ctx.fillText(s.label, x, cy + 3);
+
+	ctx.restore();
 }

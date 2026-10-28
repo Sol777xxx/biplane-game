@@ -4,6 +4,7 @@ import { drawBullet } from "./bullets.js";
 import { CLOUDS, drawCloud } from "./clouds.js";
 import { drawExplosion, drawParticle, drawPickup } from "./effects.js";
 import { drawObstacle } from "./obstacles.js";
+import { drawShield, SHIELD_RX, SHIELD_RY } from "./shield.js";
 
 const LAYERS = [
 	"obstacle",
@@ -55,11 +56,16 @@ export function createRenderer(canvas, { pilotId = "empty" } = {}) {
 		drawBiplane(ctx, time, currentPilot);
 		ctx.restore();
 		if (plane.effects.shield > 0) {
-			ctx.strokeStyle = "rgba(130, 220, 190, 0.85)";
-			ctx.lineWidth = 4;
-			ctx.beginPath();
-			ctx.arc(x, y, plane.radius + 10, 0, Math.PI * 2);
-			ctx.stroke();
+			// центр спрайта зміщений до хвоста, при дзеркаленні зміщення теж
+			drawShield(
+				ctx,
+				x - 4 * plane.facing, 
+				y - 8,
+				SHIELD_RX,
+				SHIELD_RY,
+				time,
+				plane.effects.shield,
+			);
 		}
 	}
 
