@@ -25,22 +25,34 @@ export class Entity {
 		this.edges = edges;
 		this.alive = true;
 		this.world = null; // заповнює World.spawn
+		this.behaviors = [];
 	}
 
 	get id() {
 		return this.#id;
 	}
 
+		add(behavior) {
+		this.behaviors.push(behavior);
+		behavior.attach?.(this);
+		return this;
+	}
+
+	has(name) {
+		return this.behaviors.some((b) => b.name === name);
+	}
+
 	update(dt) {
+		for (const b of this.behaviors) b.update?.(this, dt);
 		this.prevPos.copy(this.pos);
 		this.pos.x += this.vel.x * dt;
 		this.pos.y += this.vel.y * dt;
 		this.#applyEdges();
 	}
 
-	// реакція на зіткнення; за замовчуванням її немає
-	onCollide(_other) {
-		// нічого
+	// підкласи, які перевизначають onCollide, мають викликати super.onCollide(other)
+	onCollide(other) {
+		for (const b of this.behaviors) b.onCollide?.(this, other);
 	}
 
 	// шкода; за замовчуванням сутність її ігнорує

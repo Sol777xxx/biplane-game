@@ -3,9 +3,9 @@ import { drawBiplane } from "./biplane.js";
 import { drawBullet } from "./bullets.js";
 import { CLOUDS, drawCloud } from "./clouds.js";
 import { drawObstacle } from "./obstacles.js";
+import { drawExplosion, drawParticle, drawPickup } from "./effects.js";
 
-// порядок шарів: що пізніше, те зверху
-const LAYERS = ["obstacle", "bullet", "biplane"];
+const LAYERS = ["obstacle", "pickup", "bullet", "particle", "biplane", "explosion"];
 
 export function createRenderer(canvas, { pilotId = "empty" } = {}) {
 	const ctx = canvas.getContext("2d");
@@ -47,6 +47,13 @@ export function createRenderer(canvas, { pilotId = "empty" } = {}) {
 		ctx.rotate(pitch);
 		drawBiplane(ctx, time, currentPilot);
 		ctx.restore();
+		if (plane.effects.shield > 0) {
+			ctx.strokeStyle = "rgba(130, 220, 190, 0.85)";
+			ctx.lineWidth = 4;
+			ctx.beginPath();
+			ctx.arc(x, y, plane.radius + 10, 0, Math.PI * 2);
+			ctx.stroke();
+		}
 	}
 
 	// коло зіткнення: лише для налагодження (?debug)
@@ -79,9 +86,12 @@ export function createRenderer(canvas, { pilotId = "empty" } = {}) {
 				const x = lerp(e.prevPos.x, e.pos.x, alpha, ARENA.width);
 				const y = lerp(e.prevPos.y, e.pos.y, alpha, ARENA.height);
 				if (kind === "obstacle") drawObstacle(ctx, e, x, y, time);
+				else if (kind === "pickup") drawPickup(ctx, e, x, y, time);
 				else if (kind === "bullet") drawBullet(ctx, e, x, y);
+				else if (kind === "particle") drawParticle(ctx, e, x, y);
+				else if (kind === "explosion") drawExplosion(ctx, e, x, y);
 				else if (kind === "biplane") drawPlane(e, x, y, alpha, time);
-				if (debug) drawHitbox(e, x, y);
+				if (debug && e.radius > 0) drawHitbox(e, x, y);
 			}
 		}
 

@@ -102,7 +102,15 @@ const loop = createLoop({
 		if (exp === "block" && frameCount % 60 === 0) busyWait(100);
 		renderer.draw(game, alpha, performance.now());
 
-		const text = `зіткнень: ${game.crashes}   збито: ${game.destroyed}`;
+		const p = game.plane;
+		const fx = Object.entries(p.effects)
+			.filter(([, t]) => t > 0)
+			.map(([name, t]) => `${name} ${Math.ceil(t)}`)
+			.join(" ");
+		const text =
+			`HP: ${p.alive ? p.hp : "—"}   рахунок: ${game.score}   ` +
+			`збито: ${game.destroyed}   зіткнень: ${game.crashes}` +
+			(fx ? `   [${fx}]` : "");
 		if (text !== lastStatus) {
 			status.textContent = text;
 			lastStatus = text;
