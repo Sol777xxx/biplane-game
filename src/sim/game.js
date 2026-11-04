@@ -68,6 +68,7 @@ export class Game {
 				this.#sparks(ev.at, color, 8);
 			} else if (ev.type === "crash") {
 				this.crashes++;
+				this.world.emit("crash", { at: ev.entity.pos.clone() });
 				this.shake = 0.25;
 				this.#explode(ev.entity, "storm", 14);
 			} else if (ev.type === "destroyed") {
@@ -87,6 +88,8 @@ export class Game {
 					this.shake = 0.5;
 					this.#explode(ev.entity, "pink", 50);
 				}
+			} else if (ev.type === "pickup") {
+				this.world.emit("pickup", { type: ev.entity.type, by: ev.by });
 			}
 		}
 		this.world.events.length = 0;
@@ -154,6 +157,7 @@ export class Game {
 		const { x, y } = this.#safePoint(250, ["obstacle"]);
 		this.plane = this.world.spawn(new Biplane({ x, y }));
 		this.plane.grant("shield", RESPAWN_SHIELD);
+		this.world.emit("respawned", { at: this.plane.pos.clone() });
 	}
 
 	#spawnPickups(dt) {

@@ -5,6 +5,8 @@ import { createRenderer } from "./render/renderer.js";
 import { Biplane } from "./sim/biplane.js";
 import { Game } from "./sim/game.js";
 import { createPilotPicker } from "./ui/pilotPicker.js";
+import { fetchJson, loadAll } from "./assets/loader.js";
+import { createAudio } from "./assets/audio/audio.js";
 
 const STORAGE_KEY = "biplane-pilot";
 const PROBE_SECONDS = 5;
@@ -47,6 +49,17 @@ const pilotId = loadPilot();
 const input = createInput();
 const renderer = createRenderer(canvas, { pilotId });
 const game = new Game();
+const audio = createAudio();
+audio.attach(game.world.bus);
+
+// тимчасово (екран завантаження буде в коміті 4): ассети вантажаться у фоні
+fetchJson("/assets/manifest.json")
+	.then((manifest) => loadAll(manifest, { ctx: audio.ctx }))
+	.then(({ assets, failures }) => {
+		audio.setBuffers(assets);
+		for (const f of failures) console.warn("ассет не завантажено:", f.id);
+	})
+	.catch((err) => console.error("помилка завантаження ассетів", err));
 let probe = null; // вимірювання: окремий біплан поза світом
 let frameCount = 0;
 let lastStatus = "";

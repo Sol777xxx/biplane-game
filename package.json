@@ -7,7 +7,8 @@
 		"dev": "vite",
 		"build": "vite build",
 		"preview": "vite preview",
-		"test": "node --test \"test/*.test.mjs\""
+		"test": "node --test \"test/*.test.mjs\"",
+		"sounds": "node tools/make-sounds.mjs"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.15",
