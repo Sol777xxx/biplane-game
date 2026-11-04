@@ -49,6 +49,7 @@ export class Bullet extends Entity {
 				at: this.pos.clone(),
 				target: other,
 			});
+			this.world?.emit("hit", { at: this.pos.clone(), target: other });
 			this.kill();
 		}
 	}

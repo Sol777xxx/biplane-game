@@ -14,7 +14,7 @@ npm run dev
 ```
 
 Потрібен Node.js 24 (див. `.nvmrc`). Гра: `http://localhost:5173/`.
-Перевірка коду: `npx biome check .` · демонстрація `this`-бага: `node demo/this-bug.mjs`.
+Перевірка коду: `npx biome check .` 
 
 ## Керування
 

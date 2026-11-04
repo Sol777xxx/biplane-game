@@ -3,6 +3,12 @@ import { findCollisions } from "./collision.js";
 export class World {
 	#entities = new Map(); // id -> Entity
 	events = []; // події кроку; їх читає Game
+	// шина для відв'язаних підписників (audio, HUD): сим їх не імпортує
+	bus = new EventTarget();
+
+	emit(type, detail) {
+		this.bus.dispatchEvent(new CustomEvent(type, { detail }));
+	}
 
 	spawn(entity) {
 		entity.world = this;

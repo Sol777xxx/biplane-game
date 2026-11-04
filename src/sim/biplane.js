@@ -71,7 +71,9 @@ export class Biplane extends Entity {
 		if (this.effects.homing > 0) {
 			bullet.add(homing({ kinds: ["obstacle"], turnRate: 4, range: 700 }));
 		}
-		return this.world.spawn(bullet);
+		this.world.spawn(bullet);
+		this.world.emit("fired", { by: this, at: muzzle });
+		return bullet;
 	}
 
 	update(dt, input = {}) {

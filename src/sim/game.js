@@ -73,7 +73,13 @@ export class Game {
 			} else if (ev.type === "destroyed") {
 				if (ev.entity.kind === "obstacle") {
 					this.destroyed++;
-					this.score += Math.round(ev.entity.radius);
+					const delta = Math.round(ev.entity.radius);
+					this.score += delta;
+					this.world.emit("scored", {
+						delta,
+						total: this.score,
+						at: ev.entity.pos.clone(),
+					});
 					this.#explode(ev.entity, "storm", 26);
 				} else if (ev.entity.kind === "biplane") {
 					this.deaths++;
@@ -104,6 +110,12 @@ export class Game {
 	}
 
 	#explode(entity, color, count) {
+		this.world.emit("exploded", {
+			kind: entity.kind,
+			pos: entity.pos.clone(),
+			size: entity.radius,
+			color,
+		});
 		const { x, y } = entity.pos;
 		this.world.spawn(new Explosion({ x, y, size: entity.radius * 1.8, color }));
 		for (let i = 0; i < count; i++) {
