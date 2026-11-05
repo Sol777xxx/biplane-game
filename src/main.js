@@ -1,3 +1,5 @@
+import { createAudio } from "./assets/audio/audio.js";
+import { fetchJson, loadAll } from "./assets/loader.js";
 import { createInput } from "./input.js";
 import { createLoop } from "./loop.js";
 import { DEFAULT_PILOT, PILOTS } from "./render/pilots/index.js";
@@ -5,8 +7,6 @@ import { createRenderer } from "./render/renderer.js";
 import { Biplane } from "./sim/biplane.js";
 import { Game } from "./sim/game.js";
 import { createPilotPicker } from "./ui/pilotPicker.js";
-import { fetchJson, loadAll } from "./assets/loader.js";
-import { createAudio } from "./assets/audio/audio.js";
 
 const STORAGE_KEY = "biplane-pilot";
 const PROBE_SECONDS = 5;

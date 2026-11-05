@@ -1,0 +1,58 @@
+{
+	"assets": [
+		{
+			"id": "arena",
+			"type": "json",
+			"url": "/assets/arena.json",
+			"optional": true,
+			"fallback": {
+				"obstacles": 5,
+				"pickupEvery": 8,
+				"homingChance": 0.3,
+				"speed": 1
+			}
+		},
+		{
+			"id": "shoot",
+			"type": "audio",
+			"url": "/assets/shoot.wav",
+			"optional": true
+		},
+		{
+			"id": "hit",
+			"type": "audio",
+			"url": "/assets/hit.wav",
+			"optional": true
+		},
+		{
+			"id": "cloudPop",
+			"type": "audio",
+			"url": "/assets/cloudPop.wav",
+			"optional": true
+		},
+		{
+			"id": "planeBoom",
+			"type": "audio",
+			"url": "/assets/planeBoom.wav",
+			"optional": true
+		},
+		{
+			"id": "bump",
+			"type": "audio",
+			"url": "/assets/bump.wav",
+			"optional": true
+		},
+		{
+			"id": "pickup",
+			"type": "audio",
+			"url": "/assets/pickup.wav",
+			"optional": true
+		},
+		{
+			"id": "respawn",
+			"type": "audio",
+			"url": "/assets/respawn.wav",
+			"optional": true
+		}
+	]
+}
