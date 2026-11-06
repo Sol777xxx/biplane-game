@@ -2,6 +2,9 @@
 	--sky-top: #cfe8ff;
 	--sky-bottom: #fde4f1;
 	--hud-text: #6b5b8a;
+	--popup-fill: #3d8ee8;
+	--popup-stroke: rgba(255, 255, 255, 0.9);
+	--popup-font: ui-monospace, Consolas, monospace;
 }
 
 html,

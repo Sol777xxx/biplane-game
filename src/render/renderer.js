@@ -14,7 +14,10 @@ const LAYERS = [
 	"explosion",
 ];
 
-export function createRenderer(canvas, { pilotId = "empty" } = {}) {
+export function createRenderer(
+	canvas,
+	{ pilotId = "empty", overlay = null } = {},
+) {
 	const ctx = canvas.getContext("2d");
 	const debug = new URLSearchParams(location.search).has("debug");
 	let currentPilot = pilotId;
@@ -117,6 +120,7 @@ export function createRenderer(canvas, { pilotId = "empty" } = {}) {
 			}
 		}
 
+		overlay?.draw(ctx, time);
 		ctx.restore();
 	}
 

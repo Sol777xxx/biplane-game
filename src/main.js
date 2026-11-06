@@ -1,5 +1,6 @@
 import { createAudio } from "./assets/audio/audio.js";
 import { fetchJson, loadAll, sleep, withRetry } from "./assets/loader.js";
+import { createHud } from "./hud.js";
 import { createInput } from "./input.js";
 import { createLoadingScreen } from "./loadingScreen.js";
 import { createLoop } from "./loop.js";
@@ -145,8 +146,9 @@ async function loadEverything(audioCtx, screen) {
 function startGame(audio) {
 	const pilotId = loadPilot();
 	const input = createInput();
-	const renderer = createRenderer(canvas, { pilotId });
 	const game = new Game();
+	const floaters = createHud(game.world.bus);
+	const renderer = createRenderer(canvas, { pilotId, overlay: floaters });
 	audio.attach(game.world.bus);
 	let probe = null; // вимірювання: окремий біплан поза світом
 	let frameCount = 0;
