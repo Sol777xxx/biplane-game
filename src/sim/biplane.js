@@ -20,7 +20,7 @@ export class Biplane extends Entity {
 	#hp = MAX_HP;
 
 	constructor({ x = ARENA.width / 2, y = ARENA.height / 2 } = {}) {
-		super({ kind: "biplane", x, y, radius: 46 }); 
+		super({ kind: "biplane", x, y, radius: 46 });
 		this.facing = 1;
 		this.pitch = 0;
 		this.prevPitch = 0;

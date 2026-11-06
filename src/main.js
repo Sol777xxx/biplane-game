@@ -1,6 +1,7 @@
 import { createAudio } from "./assets/audio/audio.js";
-import { fetchJson, loadAll } from "./assets/loader.js";
+import { fetchJson, loadAll, sleep, withRetry } from "./assets/loader.js";
 import { createInput } from "./input.js";
+import { createLoadingScreen } from "./loadingScreen.js";
 import { createLoop } from "./loop.js";
 import { DEFAULT_PILOT, PILOTS } from "./render/pilots/index.js";
 import { createRenderer } from "./render/renderer.js";
@@ -12,8 +13,12 @@ const STORAGE_KEY = "biplane-pilot";
 const PROBE_SECONDS = 5;
 
 const params = new URLSearchParams(location.search);
-// режим експерименту з адреси: ?exp=block | interval | variable
+// режим експерименту з лаб 1: ?exp=block | interval | variable
 const exp = params.get("exp");
+// лаб 3: ?chaos=404|404hard|timeout|abort|badjson, ?latency=300 (мс на файл), ?seq
+const chaos = params.get("chaos");
+const latency = Number(params.get("latency") ?? 0);
+const sequential = params.has("seq");
 
 // читання збереженого героя
 function loadPilot() {
@@ -44,97 +49,199 @@ function busyWait(ms) {
 const canvas = document.querySelector("#game");
 const hud = document.querySelector("#hud");
 const status = document.querySelector("#status");
+const retryBtn = document.querySelector("#retry");
 
-const pilotId = loadPilot();
-const input = createInput();
-const renderer = createRenderer(canvas, { pilotId });
-const game = new Game();
-const audio = createAudio();
-audio.attach(game.world.bus);
-
-// тимчасово (екран завантаження буде в коміті 4): ассети вантажаться у фоні
-fetchJson("/assets/manifest.json")
-	.then((manifest) => loadAll(manifest, { ctx: audio.ctx }))
-	.then(({ assets, failures }) => {
-		audio.setBuffers(assets);
-		for (const f of failures) console.warn("ассет не завантажено:", f.id);
-	})
-	.catch((err) => console.error("помилка завантаження ассетів", err));
-let probe = null; // вимірювання: окремий біплан поза світом
-let frameCount = 0;
-let lastStatus = "";
-
-// доступ із консолі для експериментів: ?debug
-if (params.has("debug")) window.game = game;
-
-createPilotPicker(document.querySelector("#pilots"), {
-	current: pilotId,
-	onSelect(id) {
-		renderer.setPilot(id);
-		savePilot(id);
-	},
-});
-
-const loop = createLoop({
-	mode: exp === "variable" ? "variable" : "fixed",
-	driver: exp === "interval" ? "interval" : "raf",
-	update(dt) {
-		if (input.justPressed("hud")) hud.hidden = !hud.hidden;
-
-		// вимірювання: 5 с симуляційного часу з постійним «вправо»
-		if (input.justPressed("probe")) {
-			probe = { plane: new Biplane(), time: 0, steps: 0 };
+// ---------- збої для галереї (діють лише на першу спробу, Retry йде вже чисто) ----------
+function withChaos(manifest, mode) {
+	const m = structuredClone(manifest);
+	const find = (id) => m.assets.find((a) => a.id === id);
+	if (latency || mode === "abort") {
+		const ms = latency || 1500;
+		for (const a of m.assets) {
+			a.url += `${a.url.includes("?") ? "&" : "?"}delay=${ms}`;
 		}
-		if (probe) {
-			probe.plane.update(dt, { right: true });
-			probe.time += dt;
-			probe.steps++;
-			if (probe.time >= PROBE_SECONDS) {
-				console.log(
-					`probe [${exp ?? "fixed"}]: x=${probe.plane.pos.x.toFixed(2)} y=${probe.plane.pos.y.toFixed(2)} steps=${probe.steps}`,
+	}
+	if (mode === "404") {
+		// необов'язковий: гра стартує без нього
+		m.assets.push({
+			id: "bonus-sprites",
+			type: "image",
+			url: "/assets/missing.png",
+			optional: true,
+		});
+	} else if (mode === "404hard") {
+		// обов'язковий: екран помилки і Retry
+		m.assets.push({
+			id: "required-sprite",
+			type: "image",
+			url: "/assets/missing.png",
+		});
+	} else if (mode === "timeout") {
+		m.assets.push({
+			id: "slow",
+			type: "json",
+			url: "/assets/slow.json?delay=60000",
+			timeoutMs: 1200,
+			attempts: 2,
+		});
+	} else if (mode === "badjson") {
+		find("arena").url = "/assets/broken.json";
+	}
+	return m;
+}
+
+// ---------- завантаження з екрана, з Retry ----------
+async function loadEverything(audioCtx, screen) {
+	let mode = chaos;
+	for (;;) {
+		const ctl = new AbortController();
+		screen.start();
+		if (mode === "abort") setTimeout(() => ctl.abort(), 600);
+		try {
+			const raw = await withRetry(
+				() =>
+					fetchJson("/assets/manifest.json", {
+						signal: ctl.signal,
+						timeoutMs: 5000,
+					}),
+				{ signal: ctl.signal },
+			);
+			const manifest = withChaos(raw, mode);
+			const result = await loadAll(manifest, {
+				ctx: audioCtx,
+				signal: ctl.signal,
+				onProgress: (e) => screen.progress(e),
+				mode: sequential ? "sequential" : "concurrent",
+			});
+			const kind = sequential ? "sequential" : "concurrent";
+			console.log(
+				`assets [${kind}${latency ? `, +${latency}мс/файл` : ""}]: ${result.ms.toFixed(0)} мс, ${manifest.assets.length} файлів, пропущено ${result.failures.length}`,
+			);
+			if (result.failures.length) {
+				for (const f of result.failures) {
+					console.warn(`пропущено ${f.id}:`, f.error);
+				}
+				screen.setWarnings(
+					result.failures.map(
+						(f) =>
+							`${f.id}: ${f.error.name === "HttpError" ? `HTTP ${f.error.status}` : f.error.name}`,
+					),
 				);
-				probe = null;
+				await sleep(1800); // даємо прочитати, гра все одно стартує
+			} else {
+				await sleep(250);
 			}
+			return result;
+		} catch (error) {
+			console.error("завантаження не вдалось:", error);
+			mode = null; // Retry без навмисного збою
+			await screen.fail(error); // чекаємо натискання Retry
 		}
+	}
+}
 
-		game.step(dt, input.snapshot());
-		input.endStep();
-	},
-	render(alpha) {
-		frameCount++;
-		// експеримент 1: блокування 100 мс кожен 60-й кадр
-		if (exp === "block" && frameCount % 60 === 0) busyWait(100);
-		renderer.draw(game, alpha, performance.now());
+// ---------- гра (код лаб 1-2 без змін, лише загорнутий у функцію) ----------
+function startGame(audio) {
+	const pilotId = loadPilot();
+	const input = createInput();
+	const renderer = createRenderer(canvas, { pilotId });
+	const game = new Game();
+	audio.attach(game.world.bus);
+	let probe = null; // вимірювання: окремий біплан поза світом
+	let frameCount = 0;
+	let lastStatus = "";
 
-		const p = game.plane;
-		const fx = Object.entries(p.effects)
-			.filter(([, t]) => t > 0)
-			.map(([name, t]) => `${name} ${Math.ceil(t)}`)
-			.join(" ");
-		const text =
-			`HP: ${p.alive ? p.hp : "—"}   рахунок: ${game.score}   ` +
-			`збито: ${game.destroyed}   зіткнень: ${game.crashes}` +
-			(fx ? `   [${fx}]` : "");
-		if (text !== lastStatus) {
-			status.textContent = text;
-			lastStatus = text;
-		}
-	},
-	onStats({ stepsPerSec, framesPerSec, frameMs, minMs, maxMs, jitterMs }) {
-		let text =
-			`steps/s:  ${stepsPerSec.toFixed(1)}\n` +
-			`frames/s: ${framesPerSec.toFixed(1)}\n` +
-			`frame:    ${frameMs.toFixed(1)} ms`;
+	// доступ із консолі для експериментів: ?debug
+	if (params.has("debug")) window.game = game;
 
-		// додаткові метрики лише в режимах експериментів
-		if (exp) {
-			text =
-				`mode:     ${exp}\n${text}\n` +
-				`min/max:  ${minMs.toFixed(1)} / ${maxMs.toFixed(1)} ms\n` +
-				`jitter:   ${jitterMs.toFixed(2)} ms`;
-		}
-		hud.textContent = text;
-	},
+	createPilotPicker(document.querySelector("#pilots"), {
+		current: pilotId,
+		onSelect(id) {
+			renderer.setPilot(id);
+			savePilot(id);
+		},
+	});
+
+	const loop = createLoop({
+		mode: exp === "variable" ? "variable" : "fixed",
+		driver: exp === "interval" ? "interval" : "raf",
+		update(dt) {
+			if (input.justPressed("hud")) hud.hidden = !hud.hidden;
+
+			// вимірювання: 5 с симуляційного часу з постійним «вправо»
+			if (input.justPressed("probe")) {
+				probe = { plane: new Biplane(), time: 0, steps: 0 };
+			}
+			if (probe) {
+				probe.plane.update(dt, { right: true });
+				probe.time += dt;
+				probe.steps++;
+				if (probe.time >= PROBE_SECONDS) {
+					console.log(
+						`probe [${exp ?? "fixed"}]: x=${probe.plane.pos.x.toFixed(2)} y=${probe.plane.pos.y.toFixed(2)} steps=${probe.steps}`,
+					);
+					probe = null;
+				}
+			}
+
+			game.step(dt, input.snapshot());
+			input.endStep();
+		},
+		render(alpha) {
+			frameCount++;
+			// експеримент 1: блокування 100 мс кожен 60-й кадр
+			if (exp === "block" && frameCount % 60 === 0) busyWait(100);
+			renderer.draw(game, alpha, performance.now());
+
+			const p = game.plane;
+			const fx = Object.entries(p.effects)
+				.filter(([, t]) => t > 0)
+				.map(([name, t]) => `${name} ${Math.ceil(t)}`)
+				.join(" ");
+			const text =
+				`HP: ${p.alive ? p.hp : "—"}   рахунок: ${game.score}   ` +
+				`збито: ${game.destroyed}   зіткнень: ${game.crashes}` +
+				(fx ? `   [${fx}]` : "");
+			if (text !== lastStatus) {
+				status.textContent = text;
+				lastStatus = text;
+			}
+		},
+		onStats({ stepsPerSec, framesPerSec, frameMs, minMs, maxMs, jitterMs }) {
+			let text =
+				`steps/s:  ${stepsPerSec.toFixed(1)}\n` +
+				`frames/s: ${framesPerSec.toFixed(1)}\n` +
+				`frame:    ${frameMs.toFixed(1)} ms`;
+
+			// додаткові метрики лише в режимах експериментів
+			if (exp) {
+				text =
+					`mode:     ${exp}\n${text}\n` +
+					`min/max:  ${minMs.toFixed(1)} / ${maxMs.toFixed(1)} ms\n` +
+					`jitter:   ${jitterMs.toFixed(2)} ms`;
+			}
+			hud.textContent = text;
+		},
+	});
+
+	loop.start();
+}
+
+// ---------- точка входу: loading → game ----------
+async function main() {
+	// AudioContext створюється тут: decodeAudioData декодує звуки на екрані завантаження,
+	// а запускається контекст лише після жесту гравця (див. audio.js)
+	const audio = createAudio();
+	const screen = createLoadingScreen(canvas, retryBtn);
+
+	const result = await loadEverything(audio.ctx, screen);
+	screen.stop();
+	audio.setBuffers(result.assets);
+	if (params.has("debug")) window.assets = result.assets;
+	startGame(audio);
+}
+
+main().catch((error) => {
+	console.error(error);
+	status.textContent = `Помилка запуску: ${error.message}`;
 });
-
-loop.start();

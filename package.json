@@ -8,7 +8,8 @@
 		"build": "vite build",
 		"preview": "vite preview",
 		"test": "node --test \"test/*.test.mjs\"",
-		"sounds": "node tools/make-sounds.mjs"
+		"sounds": "node tools/make-sounds.mjs",
+		"timing": "node demo/timing.mjs"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.15",
