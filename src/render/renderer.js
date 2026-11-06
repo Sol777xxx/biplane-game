@@ -1,10 +1,9 @@
 import { ARENA } from "../sim/arena.js";
-import { drawBiplane } from "./biplane.js";
-import { drawBullet } from "./bullets.js";
 import { CLOUDS, drawCloud } from "./clouds.js";
-import { drawExplosion, drawParticle, drawPickup } from "./effects.js";
+import { drawExplosion, drawParticle } from "./effects.js";
 import { drawObstacle } from "./obstacles.js";
 import { drawShield, SHIELD_RX, SHIELD_RY } from "./shield.js";
+import { drawBiplane, drawBullet, drawPickup } from "./sprites.js";
 
 const LAYERS = [
 	"obstacle",

@@ -53,6 +53,18 @@
 			"type": "audio",
 			"url": "/assets/respawn.wav",
 			"optional": true
+		},
+		{
+			"id": "spritesheet",
+			"type": "image",
+			"url": "/assets/sprites.png",
+			"optional": true
+		},
+		{
+			"id": "atlas",
+			"type": "json",
+			"url": "/assets/sprites.json",
+			"optional": true
 		}
 	]
 }

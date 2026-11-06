@@ -1,7 +1,7 @@
 const TAU = Math.PI * 2;
 
 // Візуальний розмір хмарки відносно хітбокса
-const VISUAL_SCALE = 1.3;
+export const VISUAL_SCALE = 1.3;
 
 // Основні пухкі форми: [dx, dy, r] у частках радіуса
 const PUFFS = [
@@ -184,7 +184,7 @@ function strokeLine(ctx, pts) {
 }
 
 // Створення статичного тіла хмари
-const HALF = 1.8;
+export const HALF = 1.8;
 const bodyCache = new Map();
 
 // Внутрішня тін    : заливаємо все кольором, потім вирізаємо розмитий
@@ -215,7 +215,7 @@ function insetShade(r, color, ox, oy, blur) {
 	return t;
 }
 
-function paintBody(g, r) {
+export function paintBody(g, r) {
 	// 1. Темний край силуету
 	g.save();
 
@@ -338,7 +338,11 @@ function getBody(r, scale) {
 
 	return c;
 }
-
+let bodySprites = null;
+// sprites.js підставляє сюди функцію (ctx, radius) => true, якщо тіло намальоване зі спрайтшита
+export function setBodySprites(fn) {
+	bodySprites = fn;
+}
 // Малювання грозової хмарки
 export function drawObstacle(ctx, o, x, y, time) {
 	const r = o.radius * VISUAL_SCALE;
@@ -389,16 +393,17 @@ export function drawObstacle(ctx, o, x, y, time) {
 		ctx.fill();
 	}
 
-	// 2. Основне сіре тіло
-	const scale = ctx.getTransform().a || 1;
-
-	ctx.drawImage(
-		getBody(r, scale),
-		-HALF * r,
-		-HALF * r,
-		2 * HALF * r,
-		2 * HALF * r,
-	);
+	// 2. Основне сіре тіло: зі спрайтшита, а без нього з власного кешу
+	if (!bodySprites?.(ctx, o.radius)) {
+		const scale = ctx.getTransform().a || 1;
+		ctx.drawImage(
+			getBody(r, scale),
+			-HALF * r,
+			-HALF * r,
+			2 * HALF * r,
+			2 * HALF * r,
+		);
+	}
 
 	// 3. Внутрішнє світіння
 	ctx.save();
