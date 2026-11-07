@@ -59,6 +59,13 @@ src/
 Успадкування лише на один рівень: `Biplane`, `Bullet`, `Obstacle`, `Explosion`, `Pickup` розширюють `Entity`.
 Частинки окремого класу не мають: це `Entity` з поведінками `lifetime` і `drag`.
 
+## Потік запуску
+
+loading (манифест, спрайти, звуки, `arena.json`) → лобі (`GET /api/rooms`, ім'я й кімната) → гра.
+Конфіг арени збирається шарами: значення за замовчуванням ← `arena.json` ← `arena` вибраної кімнати
+(`resolveArena` у `sim/game.js`, значення обмежуються діапазонами). Параметри: `obstacles`, `pickupEvery`,
+`homingChance`, `speed`. Клік по Join це жест гравця, тож саме там розблоковується AudioContext.
+
 ## Sequential `await` vs `Promise.all`
 
 `npm run timing`: 8 файлів, на сервері штучна затримка 250 мс на кожен, три прогони.

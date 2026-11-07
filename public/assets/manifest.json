@@ -9,7 +9,8 @@
 				"obstacles": 5,
 				"pickupEvery": 8,
 				"homingChance": 0.3,
-				"speed": 1
+				"speed": 1,
+				"refillEvery": 2
 			}
 		},
 		{

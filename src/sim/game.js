@@ -10,33 +10,61 @@ import {
 } from "./objects.js";
 import { World } from "./world.js";
 
-const OBSTACLE_TARGET = 5;
-const REFILL_DELAY = 2;
 const RESPAWN_DELAY = 2;
 const RESPAWN_SHIELD = 2;
-const PICKUP_EVERY = 8;
-const HOMING_OBSTACLE_CHANCE = 0.3;
+
+export const DEFAULT_ARENA = {
+	obstacles: 5,
+	pickupEvery: 8,
+	homingChance: 0.3,
+	speed: 1,
+	refillEvery: 2,
+};
+
+const LIMITS = {
+	obstacles: [0, 20],
+	pickupEvery: [1, 60],
+	homingChance: [0, 1],
+	speed: [0.2, 3],
+	refillEvery: [0.2, 10],
+};
+
+// шари перекривають один одного зліва направо; усе, що не число, ігнорується
+export function resolveArena(...layers) {
+	const out = { ...DEFAULT_ARENA };
+	for (const layer of layers) {
+		for (const [key, [min, max]] of Object.entries(LIMITS)) {
+			const v = layer?.[key];
+			if (typeof v === "number" && Number.isFinite(v)) {
+				out[key] = Math.min(max, Math.max(min, v));
+			}
+		}
+	}
+	out.obstacles = Math.round(out.obstacles);
+	return out;
+}
 
 export class Game {
-	constructor() {
+	constructor(config = {}) {
+		this.config = resolveArena(config);
 		this.world = new World();
 		this.crashes = 0;
 		this.destroyed = 0;
 		this.deaths = 0;
 		this.score = 0;
-		this.refillIn = REFILL_DELAY;
+		this.refillIn = this.config.refillEvery;
 		this.respawnIn = 0;
-		this.pickupIn = PICKUP_EVERY;
+		this.pickupIn = this.config.pickupEvery;
 		this.plane = this.world.spawn(new Biplane());
 		this.shake = 0;
 
-		for (let i = 0; i < OBSTACLE_TARGET; i++) this.spawnObstacle();
+		for (let i = 0; i < this.config.obstacles; i++) this.spawnObstacle();
 	}
 
 	spawnObstacle() {
 		const radius = Math.random() < 0.5 ? 45 : 70;
 		const angle = Math.random() * Math.PI * 2;
-		const speed = 40 + Math.random() * 70;
+		const speed = (40 + Math.random() * 70) * this.config.speed;
 		const { x, y } = this.#safePoint(380, ["biplane"]);
 		const obstacle = new Obstacle({
 			x,
@@ -46,7 +74,7 @@ export class Game {
 			radius,
 		});
 		// та сама поведінка, що й у homing-кулі, без нового класу
-		if (Math.random() < HOMING_OBSTACLE_CHANCE) {
+		if (Math.random() < this.config.homingChance) {
 			obstacle.add(homing({ kinds: ["biplane"], turnRate: 0.6, range: 900 }));
 		}
 		return this.world.spawn(obstacle);
@@ -138,14 +166,14 @@ export class Game {
 	}
 
 	#refill(dt) {
-		if (this.world.count("obstacle") >= OBSTACLE_TARGET) {
-			this.refillIn = REFILL_DELAY;
+		if (this.world.count("obstacle") >= this.config.obstacles) {
+			this.refillIn = this.config.refillEvery;
 			return;
 		}
 		this.refillIn -= dt;
 		if (this.refillIn <= 0) {
 			this.spawnObstacle();
-			this.refillIn = REFILL_DELAY;
+			this.refillIn = this.config.refillEvery;
 		}
 	}
 
@@ -162,7 +190,7 @@ export class Game {
 
 	#spawnPickups(dt) {
 		if (this.world.count("pickup") > 0) {
-			this.pickupIn = PICKUP_EVERY;
+			this.pickupIn = this.config.pickupEvery;
 			return;
 		}
 		this.pickupIn -= dt;
@@ -170,7 +198,7 @@ export class Game {
 		const { x, y } = this.#safePoint(150, ["obstacle"]);
 		const type = PICKUP_TYPES[Math.floor(Math.random() * PICKUP_TYPES.length)];
 		this.world.spawn(new Pickup({ x, y, type }));
-		this.pickupIn = PICKUP_EVERY;
+		this.pickupIn = this.config.pickupEvery;
 	}
 
 	// випадкова точка не ближче minDist (+ радіус) від живих сутностей вказаних видів

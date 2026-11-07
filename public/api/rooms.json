@@ -7,9 +7,10 @@
 			"max": 4,
 			"arena": {
 				"obstacles": 3,
-				"pickupEvery": 6,
+				"pickupEvery": 8,
 				"homingChance": 0,
-				"speed": 0.8
+				"speed": 1,
+				"refillEvery": 3
 			}
 		},
 		{
@@ -21,7 +22,8 @@
 				"obstacles": 5,
 				"pickupEvery": 8,
 				"homingChance": 0.3,
-				"speed": 1
+				"speed": 1,
+				"refillEvery": 2
 			}
 		},
 		{
@@ -33,7 +35,8 @@
 				"obstacles": 8,
 				"pickupEvery": 10,
 				"homingChance": 0.6,
-				"speed": 1.3
+				"speed": 1.3,
+				"refillEvery": 0.6
 			}
 		},
 		{

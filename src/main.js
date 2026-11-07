@@ -9,7 +9,7 @@ import { DEFAULT_PILOT, PILOTS } from "./render/pilots/index.js";
 import { createRenderer } from "./render/renderer.js";
 import { downloadSheet, initSprites } from "./render/sprites.js";
 import { Biplane } from "./sim/biplane.js";
-import { Game } from "./sim/game.js";
+import { Game, resolveArena } from "./sim/game.js";
 import { showLobby } from "./ui/lobbyView.js";
 import { createPilotPicker } from "./ui/pilotPicker.js";
 
@@ -145,14 +145,11 @@ async function loadEverything(audioCtx, screen) {
 }
 
 // ---------- гра (код лаб 1-2 без змін, лише загорнутий у функцію) ----------
-function startGame(audio, session) {
-	console.log(
-		`гравець ${session.name}, кімната ${session.room.id}`,
-		session.room.arena,
-	);
+function startGame(audio, session, arena) {
+	console.log(`гравець ${session.name}, кімната ${session.room.id}`, arena);
 	const pilotId = loadPilot();
 	const input = createInput();
-	const game = new Game();
+	const game = new Game(arena);
 	const floaters = createHud(game.world.bus);
 	const renderer = createRenderer(canvas, { pilotId, overlay: floaters });
 	audio.attach(game.world.bus);
@@ -208,6 +205,7 @@ function startGame(audio, session) {
 				.map(([name, t]) => `${name} ${Math.ceil(t)}`)
 				.join(" ");
 			const text =
+				`${session.name} · ${session.room.name}   ` +
 				`HP: ${p.alive ? p.hp : "—"}   рахунок: ${game.score}   ` +
 				`збито: ${game.destroyed}   зіткнень: ${game.crashes}` +
 				(fx ? `   [${fx}]` : "");
@@ -250,14 +248,12 @@ async function main() {
 	console.log(`спрайти: ${sprites.count} шт., ${sprites.source}`);
 	if (params.has("bake")) downloadSheet();
 	if (params.has("debug")) window.assets = result.assets;
+
 	// ?delay=мс у адресі сторінки затримує і запити лобі (див. vite.config.js)
 	const lobby = new Lobby({ url: `/api/rooms${location.search}` });
 	const session = await showLobby(document.querySelector("#lobby"), lobby);
-	startGame(audio, session);
-	console.log(`спрайти: ${sprites.count} шт., ${sprites.source}`);
-	if (params.has("bake")) downloadSheet();
-	if (params.has("debug")) window.assets = result.assets;
-	startGame(audio);
+	const arena = resolveArena(result.assets.arena, session.room.arena);
+	startGame(audio, session, arena);
 }
 
 main().catch((error) => {
