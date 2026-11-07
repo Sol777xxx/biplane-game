@@ -1,0 +1,100 @@
+#lobby {
+	position: fixed;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	width: min(360px, 90vw);
+	box-sizing: border-box;
+	padding: 20px 22px;
+	border-radius: 18px;
+	background: rgba(255, 255, 255, 0.7);
+	color: var(--hud-text);
+}
+
+#lobby[hidden] {
+	display: none;
+}
+
+#lobby h2 {
+	margin: 0 0 12px;
+	font-size: 24px;
+	text-align: center;
+}
+
+#lobby input[type="text"] {
+	width: 100%;
+	box-sizing: border-box;
+	padding: 8px 14px;
+	border: 2px solid #cdbdf0;
+	border-radius: 999px;
+	background: #fff;
+	color: var(--hud-text);
+	font: inherit;
+	outline: none;
+}
+
+#lobby input[type="text"]:focus {
+	border-color: #f08ab4;
+}
+
+.rooms {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 12px 0;
+}
+
+.room {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 12px;
+	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.6);
+	cursor: pointer;
+}
+
+.room:has(input:checked) {
+	outline: 2px solid #f08ab4;
+	background: #fff;
+}
+
+.room.full {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.room-name {
+	flex: 1;
+}
+
+.lobby-note {
+	min-height: 1.2em;
+	margin: 0 0 10px;
+	font-size: 13px;
+	color: #c2417d;
+	text-align: center;
+}
+
+#lobby .join {
+	display: block;
+	margin: 0 auto;
+	padding: 8px 28px;
+	border: 2px solid #f08ab4;
+	border-radius: 999px;
+	background: #fff;
+	color: #c2417d;
+	font: inherit;
+	font-size: 15px;
+	cursor: pointer;
+}
+
+#lobby .join:hover {
+	background: #ffeaf4;
+}
+
+/* порожні плашки HUD не показуємо, поки гра не стартувала */
+#hud:empty,
+#status:empty {
+	display: none;
+}

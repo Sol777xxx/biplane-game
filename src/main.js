@@ -3,12 +3,14 @@ import { fetchJson, loadAll, sleep, withRetry } from "./assets/loader.js";
 import { createHud } from "./hud.js";
 import { createInput } from "./input.js";
 import { createLoadingScreen } from "./loadingScreen.js";
+import { Lobby } from "./lobby.js";
 import { createLoop } from "./loop.js";
 import { DEFAULT_PILOT, PILOTS } from "./render/pilots/index.js";
 import { createRenderer } from "./render/renderer.js";
 import { downloadSheet, initSprites } from "./render/sprites.js";
 import { Biplane } from "./sim/biplane.js";
 import { Game } from "./sim/game.js";
+import { showLobby } from "./ui/lobbyView.js";
 import { createPilotPicker } from "./ui/pilotPicker.js";
 
 const STORAGE_KEY = "biplane-pilot";
@@ -143,7 +145,11 @@ async function loadEverything(audioCtx, screen) {
 }
 
 // ---------- гра (код лаб 1-2 без змін, лише загорнутий у функцію) ----------
-function startGame(audio) {
+function startGame(audio, session) {
+	console.log(
+		`гравець ${session.name}, кімната ${session.room.id}`,
+		session.room.arena,
+	);
 	const pilotId = loadPilot();
 	const input = createInput();
 	const game = new Game();
@@ -241,6 +247,13 @@ async function main() {
 	screen.stop();
 	audio.setBuffers(result.assets);
 	const sprites = initSprites(result.assets);
+	console.log(`спрайти: ${sprites.count} шт., ${sprites.source}`);
+	if (params.has("bake")) downloadSheet();
+	if (params.has("debug")) window.assets = result.assets;
+	// ?delay=мс у адресі сторінки затримує і запити лобі (див. vite.config.js)
+	const lobby = new Lobby({ url: `/api/rooms${location.search}` });
+	const session = await showLobby(document.querySelector("#lobby"), lobby);
+	startGame(audio, session);
 	console.log(`спрайти: ${sprites.count} шт., ${sprites.source}`);
 	if (params.has("bake")) downloadSheet();
 	if (params.has("debug")) window.assets = result.assets;

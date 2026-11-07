@@ -1,0 +1,52 @@
+{
+	"rooms": [
+		{
+			"id": "calm",
+			"name": "Тиха гавань",
+			"players": 1,
+			"max": 4,
+			"arena": {
+				"obstacles": 3,
+				"pickupEvery": 6,
+				"homingChance": 0,
+				"speed": 0.8
+			}
+		},
+		{
+			"id": "classic",
+			"name": "Класика",
+			"players": 2,
+			"max": 4,
+			"arena": {
+				"obstacles": 5,
+				"pickupEvery": 8,
+				"homingChance": 0.3,
+				"speed": 1
+			}
+		},
+		{
+			"id": "storm",
+			"name": "Грозовий фронт",
+			"players": 3,
+			"max": 4,
+			"arena": {
+				"obstacles": 8,
+				"pickupEvery": 10,
+				"homingChance": 0.6,
+				"speed": 1.3
+			}
+		},
+		{
+			"id": "full",
+			"name": "Переповнена",
+			"players": 4,
+			"max": 4,
+			"arena": {
+				"obstacles": 5,
+				"pickupEvery": 8,
+				"homingChance": 0.3,
+				"speed": 1
+			}
+		}
+	]
+}
