@@ -16,7 +16,14 @@ export function createInput(target = window) {
 		KeyP: "probe",
 	};
 
+	// у текстовому полі (чат, лобі) клавіші належать полю, а не грі
+	const isTyping = (e) =>
+		e.target?.tagName === "INPUT" ||
+		e.target?.tagName === "TEXTAREA" ||
+		e.target?.isContentEditable === true;
+
 	function onKeyDown(e) {
+		if (isTyping(e)) return;
 		const action = KEYMAP[e.code];
 		if (!action) return;
 		// блокує прокрутку сторінки пробілом
@@ -27,6 +34,7 @@ export function createInput(target = window) {
 	}
 
 	function onKeyUp(e) {
+		if (isTyping(e)) return;
 		const action = KEYMAP[e.code];
 		if (!action) return;
 		pressed.delete(action);
@@ -38,9 +46,14 @@ export function createInput(target = window) {
 		justPressed.clear();
 	}
 
+	function onFocusIn(e) {
+		if (isTyping(e)) onBlur();
+	}
+
 	target.addEventListener("keydown", onKeyDown);
 	target.addEventListener("keyup", onKeyUp);
 	window.addEventListener("blur", onBlur);
+	window.addEventListener("focusin", onFocusIn);
 
 	return {
 		isDown(action) {
@@ -67,6 +80,7 @@ export function createInput(target = window) {
 			target.removeEventListener("keydown", onKeyDown);
 			target.removeEventListener("keyup", onKeyUp);
 			window.removeEventListener("blur", onBlur);
+			window.removeEventListener("focusin", onFocusIn);
 		},
 	};
 }

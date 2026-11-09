@@ -1,4 +1,5 @@
 import { describeError } from "../loadingScreen.js";
+import { describeJoinError } from "../net/roomSession.js";
 
 const NAME_KEY = "biplane-name";
 
@@ -24,13 +25,16 @@ function saveName(name) {
 	}
 }
 
-// Показує лобі й повертає проміс з вибором гравця { name, room }.
-// Усі слухачі підписані з одним signal, тож cleanup() знімає їх одним abort().
-export function showLobby(root, lobby) {
+// Показує лобі й повертає проміс із вибором гравця { name, room, ...результат enter }.
+// enter(choice) підключає до кімнати; якщо воно відхилене, гравець лишається в лобі
+// з поясненням. Усі слухачі підписані з одним signal, тож cleanup() знімає їх одним abort().
+export function showLobby(root, lobby, { enter = async () => ({}) } = {}) {
 	return new Promise((resolve) => {
 		const ac = new AbortController();
 		const { signal } = ac;
 		let selected = null;
+		let busy = false;
+		let sticky = ""; // повідомлення про невдалий вхід: не стирається оновленням списку
 
 		const nameInput = el("input", {
 			type: "text",
@@ -58,6 +62,13 @@ export function showLobby(root, lobby) {
 		);
 		root.hidden = false;
 
+		function setBusy(on) {
+			busy = on;
+			nameInput.disabled = on;
+			joinBtn.disabled = on;
+			list.inert = on;
+		}
+
 		function render(rooms) {
 			if (selected === null) {
 				selected = rooms.find((r) => r.players < r.max)?.id ?? null;
@@ -74,6 +85,7 @@ export function showLobby(root, lobby) {
 					});
 					radio.addEventListener("change", () => {
 						selected = room.id;
+						sticky = "";
 						note.textContent = "";
 					});
 					return el(
@@ -96,14 +108,29 @@ export function showLobby(root, lobby) {
 			root.replaceChildren();
 		}
 
-		function join() {
+		async function join() {
+			if (busy) return;
+			sticky = "";
+			let choice;
 			try {
-				const choice = lobby.join(nameInput.value, selected);
-				saveName(choice.name);
-				cleanup();
-				resolve(choice);
+				choice = lobby.join(nameInput.value, selected); // перевірка + stop() опитування
 			} catch (error) {
 				note.textContent = error.message;
+				return;
+			}
+			saveName(choice.name);
+			setBusy(true);
+			note.textContent = "Підключення…";
+			try {
+				const result = await enter(choice);
+				cleanup();
+				resolve({ ...choice, ...result });
+			} catch (error) {
+				sticky = describeJoinError(error);
+				note.textContent = sticky;
+				setBusy(false);
+				lobby.start(); // повертаємось до оновлення списку
+				nameInput.focus();
 			}
 		}
 
@@ -111,13 +138,14 @@ export function showLobby(root, lobby) {
 			"rooms",
 			(e) => {
 				render(e.detail);
-				note.textContent = "";
+				if (!sticky) note.textContent = "";
 			},
 			{ signal },
 		);
 		lobby.addEventListener(
 			"error",
 			(e) => {
+				if (sticky) return;
 				note.textContent = `Не вдалося оновити список: ${describeError(e.detail)}`;
 			},
 			{ signal },
@@ -133,7 +161,11 @@ export function showLobby(root, lobby) {
 		// у фоновій вкладці список нікому не потрібен
 		document.addEventListener(
 			"visibilitychange",
-			() => (document.hidden ? lobby.stop() : lobby.start()),
+			() => {
+				if (busy) return;
+				if (document.hidden) lobby.stop();
+				else lobby.start();
+			},
 			{ signal },
 		);
 

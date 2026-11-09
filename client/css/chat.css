@@ -1,0 +1,65 @@
+#chat {
+	position: fixed;
+	left: 8px;
+	bottom: 8px;
+	width: min(320px, 60vw);
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 8px;
+	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.6);
+	color: var(--hud-text);
+	font-size: 13px;
+}
+
+#chat[hidden] {
+	display: none;
+}
+
+.chat-roster {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+.chip {
+	padding: 1px 8px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.8);
+}
+
+.chip.me {
+	outline: 1px solid #f08ab4;
+}
+
+.chat-log {
+	max-height: 140px;
+	overflow-y: auto;
+	overflow-wrap: anywhere;
+}
+
+.msg.sys {
+	color: #8a7aa8;
+	font-style: italic;
+}
+
+.chat-status {
+	min-height: 1.2em;
+	color: #c2417d;
+}
+
+#chat input {
+	padding: 5px 10px;
+	border: 2px solid #cdbdf0;
+	border-radius: 999px;
+	background: #fff;
+	color: var(--hud-text);
+	font: inherit;
+	outline: none;
+}
+
+#chat input:focus {
+	border-color: #f08ab4;
+}

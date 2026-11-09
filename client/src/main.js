@@ -5,17 +5,19 @@ import { createInput } from "./input.js";
 import { createLoadingScreen } from "./loadingScreen.js";
 import { Lobby } from "./lobby.js";
 import { createLoop } from "./loop.js";
+import { joinRoom } from "./net/roomSession.js";
 import { DEFAULT_PILOT, PILOTS } from "./render/pilots/index.js";
 import { createRenderer } from "./render/renderer.js";
 import { downloadSheet, initSprites } from "./render/sprites.js";
 import { Biplane } from "./sim/biplane.js";
 import { Game, resolveArena } from "./sim/game.js";
+import { mountChat } from "./ui/chatPanel.js";
 import { showLobby } from "./ui/lobbyView.js";
 import { createPilotPicker } from "./ui/pilotPicker.js";
 
 const STORAGE_KEY = "biplane-pilot";
 const PROBE_SECONDS = 5;
-
+const WS_URL = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`;
 const params = new URLSearchParams(location.search);
 // режим експерименту з лаб 1: ?exp=block | interval | variable
 const exp = params.get("exp");
@@ -150,6 +152,7 @@ function startGame(audio, session, arena) {
 	const pilotId = loadPilot();
 	const input = createInput();
 	const game = new Game(arena);
+	mountChat(document.querySelector("#chat"), session.roomSession);
 	const floaters = createHud(game.world.bus);
 	const renderer = createRenderer(canvas, { pilotId, overlay: floaters });
 	audio.attach(game.world.bus);
@@ -251,7 +254,12 @@ async function main() {
 
 	// ?delay=мс у адресі сторінки затримує і запити лобі (див. vite.config.js)
 	const lobby = new Lobby({ url: `/api/rooms${location.search}` });
-	const session = await showLobby(document.querySelector("#lobby"), lobby);
+	const session = await showLobby(document.querySelector("#lobby"), lobby, {
+		// підключення до кімнати; відмова повертає гравця в лобі з поясненням
+		enter: async ({ name, room }) => ({
+			roomSession: await joinRoom(WS_URL, { room: room.id, name }),
+		}),
+	});
 	const arena = resolveArena(result.assets.arena, session.room.arena);
 	startGame(audio, session, arena);
 }
