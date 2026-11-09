@@ -7,7 +7,7 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"includes": ["**", "!public/assets/broken.json"]
+		"includes": ["**", "!client/public/assets/broken.json"]
 	},
 	"formatter": {
 		"enabled": true,

@@ -1,0 +1,18 @@
+{
+	"name": "biplane-client",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"build": "vite build",
+		"preview": "vite preview",
+		"test": "node --test \"test/*.test.mjs\"",
+		"sounds": "node tools/make-sounds.mjs",
+		"timing": "node demo/timing.mjs",
+		"puzzles": "node demo/puzzles.mjs"
+	},
+	"devDependencies": {
+		"vite": "^8.3.0"
+	}
+}
