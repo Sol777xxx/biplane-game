@@ -1,13 +1,16 @@
 import http from "node:http";
-import { sendJson } from "./respond.js";
+import { createApi } from "./api.js";
+import { HttpError, sendError, sendJson } from "./respond.js";
+import { RoomManager } from "./rooms.js";
 import { createStaticHandler } from "./static.js";
 
 const FORCE_CLOSE_MS = 3000;
 
-export function createApp(config) {
+export function createApp(config, { rooms = new RoomManager() } = {}) {
 	const serveStatic = createStaticHandler(config.clientDir);
+	const handleApi = createApi(rooms);
 	const startedAt = Date.now();
-	const closers = [];
+	const closers = [() => rooms.dispose()];
 
 	async function route(req, res) {
 		const pathname = req.url.split("?")[0];
@@ -18,10 +21,8 @@ export function createApp(config) {
 				uptime: Math.round((Date.now() - startedAt) / 1000),
 			});
 		}
-		// /api тут з'явиться в коміті 3, /ws це upgrade (коміт 4)
-		if (pathname.startsWith("/api/") || pathname === "/ws") {
-			return sendJson(res, 404, { error: "not found" });
-		}
+		if (pathname.startsWith("/api/")) return handleApi(req, res, pathname);
+		if (pathname === "/ws") return sendJson(res, 404, { error: "not found" }); // upgrade: коміт 4
 		return serveStatic(req, res);
 	}
 
@@ -31,6 +32,8 @@ export function createApp(config) {
 		try {
 			await route(req, res);
 		} catch (error) {
+			if (error instanceof HttpError && !res.headersSent)
+				return sendError(req, res, error);
 			console.error(`${req.method} ${req.url}:`, error);
 			if (res.headersSent) res.destroy();
 			else sendJson(res, 500, { error: "internal error" });
@@ -41,6 +44,7 @@ export function createApp(config) {
 
 	return {
 		server,
+		rooms,
 
 		listen() {
 			return new Promise((resolve, reject) => {
@@ -52,7 +56,7 @@ export function createApp(config) {
 			});
 		},
 
-		// Реєструє завдання завершення: закрити сокети, скинути логи. Виконуються по черзі.
+		// Завдання завершення: закрити сокети, скинути логи. Виконуються по черзі.
 		onClose(fn) {
 			closers.push(fn);
 		},
@@ -62,7 +66,6 @@ export function createApp(config) {
 			closing ??= (async () => {
 				const closed = new Promise((resolve) => server.close(() => resolve()));
 				server.closeIdleConnections();
-				// те, що не завершилось за 3 с, рубаємо
 				const force = setTimeout(
 					() => server.closeAllConnections(),
 					FORCE_CLOSE_MS,

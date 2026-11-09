@@ -1,5 +1,6 @@
 import { createApp } from "./app.js";
 import { ConfigError, loadConfig } from "./config.js";
+import { seedRooms } from "./rooms.js";
 
 let config;
 try {
@@ -11,6 +12,7 @@ try {
 }
 
 const app = createApp(config);
+seedRooms(app.rooms);
 const { port } = await app.listen();
 console.log(
 	`слухаю http://${config.host}:${port}  (клієнт: ${config.clientDir})`,
