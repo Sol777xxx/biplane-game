@@ -1,12 +1,17 @@
 import http from "node:http";
 import { createApi } from "./api.js";
+import { consoleLogger } from "./logger.js";
 import { HttpError, sendError, sendJson } from "./respond.js";
 import { RoomManager } from "./rooms.js";
 import { createStaticHandler } from "./static.js";
+import { attachWebSocket } from "./ws.js";
 
 const FORCE_CLOSE_MS = 3000;
 
-export function createApp(config, { rooms = new RoomManager() } = {}) {
+export function createApp(
+	config,
+	{ rooms = new RoomManager(), log = consoleLogger, ws: wsOptions = {} } = {},
+) {
 	const serveStatic = createStaticHandler(config.clientDir);
 	const handleApi = createApi(rooms);
 	const startedAt = Date.now();
@@ -39,12 +44,15 @@ export function createApp(config, { rooms = new RoomManager() } = {}) {
 			else sendJson(res, 500, { error: "internal error" });
 		}
 	});
+	const sockets = attachWebSocket({ server, rooms, log, ...wsOptions });
+	closers.push(() => sockets.shutdown());
 
 	let closing = null;
 
 	return {
 		server,
 		rooms,
+		sockets,
 
 		listen() {
 			return new Promise((resolve, reject) => {
