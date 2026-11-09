@@ -31,4 +31,18 @@ describe("loadConfig", () => {
 		assert.throws(() => loadConfig({ PORT: "-1" }), ConfigError);
 		assert.throws(() => loadConfig({ PORT: "" }), ConfigError);
 	});
+
+	it("MAX_ROOMS: за замовчуванням 50, некоректне значення відхиляється", () => {
+		assert.equal(loadConfig({}).maxRooms, 50);
+		assert.equal(loadConfig({ MAX_ROOMS: "5" }).maxRooms, 5);
+		for (const bad of ["0", "-1", "abc", "1.5", ""]) {
+			assert.throws(() => loadConfig({ MAX_ROOMS: bad }), ConfigError, bad);
+		}
+	});
+
+	it("ENABLE_SLOW вмикається лише значенням 1", () => {
+		assert.equal(loadConfig({}).enableSlow, false);
+		assert.equal(loadConfig({ ENABLE_SLOW: "true" }).enableSlow, false);
+		assert.equal(loadConfig({ ENABLE_SLOW: "1" }).enableSlow, true);
+	});
 });

@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 import { WebSocketServer } from "ws";
+import { TokenBucket } from "./limits.js";
 import { CLOSE, MAX_MESSAGE_BYTES, make, validate } from "./protocol.js";
 import { RoomError } from "./rooms.js";
 
@@ -9,6 +10,10 @@ export const WS_DEFAULTS = Object.freeze({
 	pingIntervalMs: 15_000, // ping раз на 15 с
 	maxMissedPongs: 2, // два пропущені pong: розрив
 	maxPayload: MAX_MESSAGE_BYTES,
+	rateCapacity: 10, // сплеск до 10 повідомлень
+	rateRefillPerSec: 5, // і в середньому 5 за секунду
+	softBufferBytes: 16 * 1024, // вище: chat цьому клієнтові не шлемо
+	hardBufferBytes: 256 * 1024, // вище: розриваємо з'єднання
 });
 
 const ROOM_ERROR_CODES = {
@@ -39,11 +44,45 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 	});
 
 	// ---------- надсилання й закриття ----------
-	function send(ws, message) {
+
+	// Клієнт, який не читає, змушує сервер тримати все в буфері сокета; при розсилці
+	// на N клієнтів це N копій. bufferedAmount це байти, які ws прийняв, але ще не віддав у мережу.
+	// droppable: повідомлення, яке не шкода втратити (chat). Стан (roster, joined, error) не відкидається.
+	function send(ws, message, { droppable = false } = {}) {
 		if (ws.readyState !== ws.OPEN) return;
+		const s = ws.session;
+		const buffered = ws.bufferedAmount;
+
+		if (buffered > opts.hardBufferBytes) return closeSlow(ws, buffered);
+		if (droppable && buffered > opts.softBufferBytes) {
+			if (!s.dropping) {
+				s.dropping = true;
+				log.warn(
+					`[${s.id}] повільний клієнт (${buffered} Б у буфері): відкидаємо chat`,
+				);
+			}
+			s.dropped++;
+			return;
+		}
+		s.dropping = false;
+
 		ws.send(JSON.stringify(message), (error) => {
-			if (error) log.warn(`[${ws.session.id}] send: ${error.message}`);
+			if (error) log.warn(`[${s.id}] send: ${error.message}`);
 		});
+	}
+
+	function closeSlow(ws, buffered) {
+		const s = ws.session;
+		if (s.slow) return;
+		s.slow = true;
+		log.warn(
+			`[${s.id}] повільний клієнт: ${buffered} Б у буфері (відкинуто chat: ${s.dropped}), розрив`,
+		);
+		ws.close(CLOSE.SLOW_CLIENT, "slow client");
+		// close-кадр стоїть у черзі за буфером, а клієнт його не читає: через 1 с рубаємо
+		const timer = setTimeout(() => ws.terminate(), 1000);
+		timer.unref();
+		ws.once("close", () => clearTimeout(timer));
 	}
 
 	// порушення протоколу: пояснюємо повідомленням і закриваємо з кодом
@@ -56,7 +95,8 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 	// ---------- підписка сокета на події кімнати ----------
 	// Кімната нічого не знає про сокети: кожен сокет підписується сам.
 	function subscribe(ws, room) {
-		const onChat = (message) => send(ws, make("chat", message));
+		const onChat = (message) =>
+			send(ws, make("chat", message), { droppable: true });
 		const onRoster = () => send(ws, make("roster", { players: room.roster() }));
 		room.on("chat", onChat);
 		room.on("join", onRoster);
@@ -110,6 +150,12 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 	}
 
 	function onMessage(ws, data, isBinary) {
+		// після закриття з нашого боку решту повідомлень у черзі ігноруємо
+		if (ws.readyState !== ws.OPEN) return;
+		// ліміт стоїть ПЕРШИМ: порахувати повідомлення дешевше, ніж розібрати його
+		if (!ws.session.bucket.take())
+			return reject(ws, CLOSE.RATE_LIMIT, "rate limit");
+
 		if (isBinary)
 			return reject(ws, CLOSE.UNSUPPORTED, "binary frames not supported");
 
@@ -150,6 +196,13 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 			missedPongs: 0,
 			joinTimer: null,
 			unsubscribe: null,
+			bucket: new TokenBucket({
+				capacity: opts.rateCapacity,
+				refillPerSec: opts.rateRefillPerSec,
+			}),
+			dropping: false,
+			dropped: 0,
+			slow: false,
 		};
 		ws.session = s; // { player, room } на кожному сокеті
 

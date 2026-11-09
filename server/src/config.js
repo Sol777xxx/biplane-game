@@ -23,11 +23,23 @@ export function loadConfig(env = process.env) {
 	const host = (env.HOST ?? "127.0.0.1").trim();
 	if (!host) problems.push("HOST порожній");
 
+	const rawMaxRooms = env.MAX_ROOMS ?? "50";
+	const maxRooms = Number(rawMaxRooms);
+	if (!/^\d+$/.test(rawMaxRooms) || maxRooms < 1) {
+		problems.push(
+			`MAX_ROOMS має бути цілим числом ≥ 1, отримано "${rawMaxRooms}"`,
+		);
+	}
+
 	if (problems.length) throw new ConfigError(problems);
 
 	return Object.freeze({
 		port,
 		host,
+		maxRooms,
+		// /api/slow навмисно вантажить процес: вмикається лише явно
+		enableSlow: env.ENABLE_SLOW === "1",
+
 		// відносні шляхи рахуються від каталогу, з якого запущено сервер (server/)
 		logDir: path.resolve(env.LOG_DIR ?? "./logs"),
 		clientDir: path.resolve(

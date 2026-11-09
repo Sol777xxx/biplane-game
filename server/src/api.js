@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import { readJsonBody } from "./body.js";
 import { listReplays, sendReplay } from "./replayRoutes.js";
 import { HttpError, sendJson } from "./respond.js";
@@ -36,7 +37,39 @@ export function validateNewRoom(body) {
 	return { name, max, arena: PRESETS[preset] };
 }
 
-export function createApi(rooms, { logDir }) {
+const MAX_SLOW_MS = 2000;
+
+// Навмисне блокування: JS однопотоковий, поки цей цикл крутиться, цикл подій не
+// обслуговує нікого (ні сокети, ні таймери, ні інші запити).
+function blockFor(ms) {
+	const end = performance.now() + ms;
+	while (performance.now() < end) {
+		// порожньо: процесор зайнятий, цикл подій стоїть
+	}
+}
+
+async function handleSlow(req, res) {
+	const params = new URL(req.url, "http://x").searchParams;
+	const rawMs = params.get("ms") ?? "300";
+	const ms = Number(rawMs);
+	if (!/^\d{1,4}$/.test(rawMs) || ms > MAX_SLOW_MS) {
+		throw new HttpError(400, `ms: ціле число 0–${MAX_SLOW_MS}`);
+	}
+	const mode = params.get("mode") ?? "block";
+	if (mode !== "block" && mode !== "sleep")
+		throw new HttpError(400, "mode: block або sleep");
+
+	const started = performance.now();
+	if (mode === "block") blockFor(ms);
+	else await sleep(ms); // таймер: цикл подій вільний, інші клієнти не відчувають
+	sendJson(res, 200, {
+		mode,
+		ms,
+		tookMs: Math.round(performance.now() - started),
+	});
+}
+
+export function createApi(rooms, { logDir, enableSlow = false }) {
 	return async function handleApi(req, res, pathname) {
 		if (pathname === "/api/rooms") {
 			if (req.method === "GET")
@@ -68,6 +101,13 @@ export function createApi(rooms, { logDir }) {
 				return sendJson(res, 200, { replays: await listReplays(logDir) });
 			}
 			return sendReplay(res, logDir, pathname.slice("/api/replays/".length));
+		}
+		if (pathname === "/api/slow" && enableSlow) {
+			if (req.method !== "GET") {
+				res.setHeader("Allow", "GET");
+				throw new HttpError(405, "method not allowed");
+			}
+			return handleSlow(req, res);
 		}
 		throw new HttpError(404, "not found");
 	};

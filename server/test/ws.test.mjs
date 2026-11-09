@@ -239,4 +239,69 @@ describe("WebSocket", () => {
 		await app.close();
 		assert.equal((await within(c.closed)).code, CLOSE.GOING_AWAY);
 	});
+
+	// підміняє bufferedAmount серверного сокета, щоб не накопичувати мегабайти по-справжньому
+	async function pair(wsOptions) {
+		const ctx = await start(wsOptions);
+		const room = ctx.rooms.create({ name: "А" });
+		const a = await joined(ctx.url, room.id, "Настя");
+		const b = await joined(ctx.url, room.id, "Анастасія");
+		await a.next("roster");
+		const slow = { bytes: 0 };
+		const server = [...ctx.app.sockets.wss.clients].find(
+			(c) => c.session.player?.name === "Анастасія",
+		);
+		Object.defineProperty(server, "bufferedAmount", {
+			configurable: true,
+			get: () => slow.bytes,
+		});
+		return { ...ctx, room, a, b, slow };
+	}
+
+	const chat = (text) => ({ v: 1, type: "chat", text });
+
+	describe("WebSocket: захист від зловживань", () => {
+		it("rate limit: після вичерпання токенів 4008, гравець виходить із кімнати", async () => {
+			const { rooms, url } = await start({
+				rateCapacity: 3,
+				rateRefillPerSec: 0.01,
+			});
+			const room = rooms.create({ name: "А" });
+			const c = connect(url);
+			await c.opened;
+			c.send(join(room.id, "Настя")); // токен 1
+			await c.next("joined");
+			for (let i = 0; i < 5; i++) c.send(chat(`m${i}`)); // токени 2 і 3, далі відмова
+			assert.equal((await within(c.closed)).code, CLOSE.RATE_LIMIT);
+			await sleep(50);
+			assert.equal(rooms.get(room.id), undefined); // detach спрацював
+		});
+
+		it("вище м'якого порогу chat відкидається, але roster доходить", async () => {
+			const { url, room, a, b, slow } = await pair({
+				softBufferBytes: 100,
+				hardBufferBytes: 1000,
+			});
+			slow.bytes = 500; // між порогами
+			await joined(url, room.id, "Asta");
+			assert.equal((await b.next("roster")).players.length, 3);
+
+			a.send(chat("втрачене"));
+			await a.next("chat"); // відправник своє отримує
+			slow.bytes = 0;
+			a.send(chat("дійде"));
+			// "втрачене" не надсилалось: перше chat, яке бачить Тарас, це "дійде"
+			assert.equal((await b.next("chat")).text, "дійде");
+		});
+
+		it("вище жорсткого порогу з'єднання закривається з 4009", async () => {
+			const { a, b, slow } = await pair({
+				softBufferBytes: 100,
+				hardBufferBytes: 1000,
+			});
+			slow.bytes = 5000;
+			a.send(chat("x"));
+			assert.equal((await within(b.closed)).code, CLOSE.SLOW_CLIENT);
+		});
+	});
 });

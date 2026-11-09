@@ -12,14 +12,17 @@ const FORCE_CLOSE_MS = 3000;
 export function createApp(
 	config,
 	{
-		rooms = new RoomManager(),
+		rooms = new RoomManager({ maxRooms: config.maxRooms }),
 		log = consoleLogger,
 		ws: wsOptions = {},
 		matchLog = true,
 	} = {},
 ) {
 	const serveStatic = createStaticHandler(config.clientDir);
-	const handleApi = createApi(rooms, { logDir: config.logDir });
+	const handleApi = createApi(rooms, {
+		logDir: config.logDir,
+		enableSlow: config.enableSlow,
+	});
 	const startedAt = Date.now();
 	const closers = [() => rooms.dispose()];
 
