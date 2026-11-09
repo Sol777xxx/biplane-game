@@ -1,5 +1,6 @@
 import http from "node:http";
 import { createApi } from "./api.js";
+import { createMatchLogs } from "./log/matchlog.js";
 import { consoleLogger } from "./logger.js";
 import { HttpError, sendError, sendJson } from "./respond.js";
 import { RoomManager } from "./rooms.js";
@@ -10,7 +11,12 @@ const FORCE_CLOSE_MS = 3000;
 
 export function createApp(
 	config,
-	{ rooms = new RoomManager(), log = consoleLogger, ws: wsOptions = {} } = {},
+	{
+		rooms = new RoomManager(),
+		log = consoleLogger,
+		ws: wsOptions = {},
+		matchLog = true,
+	} = {},
 ) {
 	const serveStatic = createStaticHandler(config.clientDir);
 	const handleApi = createApi(rooms);
@@ -47,12 +53,23 @@ export function createApp(
 	const sockets = attachWebSocket({ server, rooms, log, ...wsOptions });
 	closers.push(() => sockets.shutdown());
 
+	// Лог матчу закривається ПІСЛЯ сокетів: спершу всі вийдуть із кімнат (match_end),
+	const matchLogs = matchLog
+		? createMatchLogs({ dir: config.logDir, log })
+		: null;
+	if (matchLogs) {
+		for (const room of rooms.all()) matchLogs.attach(room);
+		rooms.on("created", (room) => matchLogs.attach(room));
+		closers.push(() => matchLogs.close());
+	}
+
 	let closing = null;
 
 	return {
 		server,
 		rooms,
 		sockets,
+		matchLogs,
 
 		listen() {
 			return new Promise((resolve, reject) => {

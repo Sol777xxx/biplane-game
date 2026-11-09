@@ -36,7 +36,8 @@ export const PRESETS = {
 
 const newId = () => randomBytes(4).toString("hex");
 
-// Події: "join" (player), "leave" (player), "chat" ({ t, from, name, text }), "empty".
+// Події керування: "join", "leave", "chat", "empty", "matchstart".
+// Події для логу: "event" ({ t, type, ... }), їх читає модуль логу матчу.
 // Подію "error" кімната не кидає: EventEmitter без слухача "error" валить процес.
 export class Room extends EventEmitter {
 	players = new Map(); // playerId -> { id, name, joinedAt }
@@ -50,6 +51,10 @@ export class Room extends EventEmitter {
 		this.permanent = permanent;
 	}
 
+	#record(type, data = {}) {
+		this.emit("event", { t: Date.now(), type, ...data });
+	}
+
 	join({ id, name }) {
 		if (this.players.has(id))
 			throw new RoomError("already_joined", "Ви вже в кімнаті");
@@ -61,8 +66,21 @@ export class Room extends EventEmitter {
 				throw new RoomError("name_taken", "Таке ім'я вже є в кімнаті");
 			}
 		}
+
+		if (this.players.size === 0) {
+			// "matchstart" йде першим: слухач відкриває лог і підписується на "event"
+			// до того, як буде записано match_start (інакше цей запис пропав би)
+			this.emit("matchstart");
+			this.#record("match_start", {
+				room: this.id,
+				name: this.name,
+				arena: this.arena,
+			});
+		}
+
 		const player = { id, name, joinedAt: Date.now() };
 		this.players.set(id, player);
+		this.#record("join", { player: id, name });
 		this.emit("join", player);
 		return player;
 	}
@@ -71,8 +89,12 @@ export class Room extends EventEmitter {
 		const player = this.players.get(id);
 		if (!player) return false;
 		this.players.delete(id);
+		this.#record("leave", { player: id, name: player.name });
 		this.emit("leave", player);
-		if (this.players.size === 0) this.emit("empty");
+		if (this.players.size === 0) {
+			this.#record("match_end");
+			this.emit("empty");
+		}
 		return true;
 	}
 
@@ -80,6 +102,7 @@ export class Room extends EventEmitter {
 		const player = this.players.get(id);
 		if (!player) throw new RoomError("not_in_room", "Ви не в цій кімнаті");
 		const message = { t: Date.now(), from: id, name: player.name, text };
+		this.#record("chat", { player: id, name: player.name, text });
 		this.emit("chat", message);
 		return message;
 	}
@@ -100,7 +123,8 @@ export class Room extends EventEmitter {
 	}
 }
 
-export class RoomManager {
+// Події менеджера: "created" (room).
+export class RoomManager extends EventEmitter {
 	#rooms = new Map();
 	#timers = new Map();
 
@@ -108,6 +132,7 @@ export class RoomManager {
 		maxRooms = Number.POSITIVE_INFINITY,
 		idleTtlMs = 60_000,
 	} = {}) {
+		super();
 		this.maxRooms = maxRooms;
 		this.idleTtlMs = idleTtlMs;
 	}
@@ -135,11 +160,16 @@ export class RoomManager {
 			timer.unref();
 			this.#timers.set(room.id, timer);
 		}
+		this.emit("created", room);
 		return room;
 	}
 
 	get(id) {
 		return this.#rooms.get(id);
+	}
+
+	all() {
+		return [...this.#rooms.values()];
 	}
 
 	delete(id) {
@@ -149,7 +179,7 @@ export class RoomManager {
 	}
 
 	list() {
-		return [...this.#rooms.values()].map((r) => r.summary());
+		return this.all().map((r) => r.summary());
 	}
 
 	dispose() {

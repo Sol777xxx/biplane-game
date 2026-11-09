@@ -18,7 +18,12 @@ async function start(wsOptions = {}) {
 		clientDir: tmpdir(),
 		logDir: tmpdir(),
 	};
-	const app = createApp(config, { rooms, log: silentLogger, ws: wsOptions });
+	const app = createApp(config, {
+		rooms,
+		log: silentLogger,
+		ws: wsOptions,
+		matchLog: false,
+	});
 	const { port } = await app.listen();
 	apps.push(app);
 	return { app, rooms, port, url: `ws://127.0.0.1:${port}/ws` };
@@ -79,28 +84,28 @@ async function joined(url, room, name, options) {
 describe("WebSocket", () => {
 	it("join відповідає joined з кімнатою й roster", async () => {
 		const { rooms, url } = await start();
-		const room = rooms.create({ name: "T" });
+		const room = rooms.create({ name: "А" });
 		const c = connect(url);
 		await c.opened;
-		c.send(join(room.id, "Оля"));
+		c.send(join(room.id, "Настя"));
 		const m = await c.next("joined");
 		assert.equal(m.v, 1);
-		assert.equal(m.you.name, "Оля");
+		assert.equal(m.you.name, "Настя");
 		assert.equal(m.room.id, room.id);
 		assert.deepEqual(
 			m.players.map((p) => p.name),
-			["Оля"],
+			["Настя"],
 		);
 		c.ws.close();
 	});
 
 	it("двоє бачать roster одне одного й чат", async () => {
 		const { rooms, url } = await start();
-		const room = rooms.create({ name: "T" });
-		const a = await joined(url, room.id, "Оля");
+		const room = rooms.create({ name: "А" });
+		const a = await joined(url, room.id, "Настя");
 		const b = connect(url);
 		await b.opened;
-		b.send(join(room.id, "Тарас"));
+		b.send(join(room.id, "Анастасія"));
 		const bJoined = await b.next("joined");
 		assert.equal(bJoined.players.length, 2);
 		assert.equal((await a.next("roster")).players.length, 2);
@@ -110,22 +115,22 @@ describe("WebSocket", () => {
 		const atB = await b.next("chat");
 		assert.equal(fromA.text, "привіт");
 		assert.equal(atB.text, "привіт");
-		assert.equal(atB.name, "Оля");
+		assert.equal(atB.name, "Настя");
 		a.ws.close();
 		b.ws.close();
 	});
 
 	it("вихід оновлює roster, а порожня кімната зникає", async () => {
 		const { rooms, url } = await start();
-		const room = rooms.create({ name: "T" });
-		const a = await joined(url, room.id, "Оля");
-		const b = await joined(url, room.id, "Тарас");
+		const room = rooms.create({ name: "А" });
+		const a = await joined(url, room.id, "Настя");
+		const b = await joined(url, room.id, "Анастасія");
 		assert.equal((await a.next("roster")).players.length, 2);
 
 		b.ws.close();
 		assert.deepEqual(
 			(await a.next("roster")).players.map((p) => p.name),
-			["Оля"],
+			["Настя"],
 		);
 
 		a.ws.close();
@@ -137,32 +142,32 @@ describe("WebSocket", () => {
 		const { url } = await start();
 		const c = connect(url);
 		await c.opened;
-		c.send(join("nope", "Оля"));
+		c.send(join("nope", "Настя"));
 		assert.equal((await within(c.closed)).code, CLOSE.ROOM_NOT_FOUND);
 	});
 
 	it("повна кімната 4006, зайняте ім'я 4007", async () => {
 		const { rooms, url } = await start();
 		const one = rooms.create({ name: "one", max: 1 });
-		const a = await joined(url, one.id, "Оля");
+		const a = await joined(url, one.id, "Настя");
 		const b = connect(url);
 		await b.opened;
-		b.send(join(one.id, "Тарас"));
+		b.send(join(one.id, "Анастасія"));
 		assert.equal((await within(b.closed)).code, CLOSE.ROOM_FULL);
 		a.ws.close();
 
 		const two = rooms.create({ name: "two", max: 2 });
-		const c = await joined(url, two.id, "Оля");
+		const c = await joined(url, two.id, "Настя");
 		const d = connect(url);
 		await d.opened;
-		d.send(join(two.id, "оля"));
+		d.send(join(two.id, "настя"));
 		assert.equal((await within(d.closed)).code, CLOSE.NAME_TAKEN);
 		c.ws.close();
 	});
 
 	it("порушення протоколу закривають сокет із кодом", async () => {
 		const { rooms, url } = await start();
-		const room = rooms.create({ name: "T" });
+		const room = rooms.create({ name: "А" });
 		const cases = [
 			["не JSON", "{oops", CLOSE.BAD_FORMAT],
 			["невідомий type", { v: 1, type: "dance" }, CLOSE.UNKNOWN_TYPE],
@@ -182,8 +187,8 @@ describe("WebSocket", () => {
 			assert.equal((await within(c.closed)).code, code, label);
 		}
 
-		const twice = await joined(url, room.id, "Оля");
-		twice.send(join(room.id, "Оля"));
+		const twice = await joined(url, room.id, "Настя");
+		twice.send(join(room.id, "Настя"));
 		assert.equal((await within(twice.closed)).code, CLOSE.ALREADY_JOINED);
 	});
 
@@ -209,8 +214,8 @@ describe("WebSocket", () => {
 			pingIntervalMs: 30,
 			maxMissedPongs: 2,
 		});
-		const room = rooms.create({ name: "T" });
-		const c = await joined(url, room.id, "Оля", { autoPong: false });
+		const room = rooms.create({ name: "А" });
+		const c = await joined(url, room.id, "Настя", { autoPong: false });
 		const { code } = await within(c.closed);
 		assert.equal(code, 1006); // розірвано без close-кадру
 	});
@@ -220,8 +225,8 @@ describe("WebSocket", () => {
 			pingIntervalMs: 30,
 			maxMissedPongs: 2,
 		});
-		const room = rooms.create({ name: "T" });
-		const c = await joined(url, room.id, "Оля");
+		const room = rooms.create({ name: "А" });
+		const c = await joined(url, room.id, "Настя");
 		await sleep(300); // ~10 ping
 		assert.equal(c.ws.readyState, WebSocket.OPEN);
 		c.ws.close();
@@ -229,8 +234,8 @@ describe("WebSocket", () => {
 
 	it("graceful shutdown закриває сокети кодом 1001", async () => {
 		const { app, rooms, url } = await start();
-		const room = rooms.create({ name: "T" });
-		const c = await joined(url, room.id, "Оля");
+		const room = rooms.create({ name: "А" });
+		const c = await joined(url, room.id, "Настя");
 		await app.close();
 		assert.equal((await within(c.closed)).code, CLOSE.GOING_AWAY);
 	});

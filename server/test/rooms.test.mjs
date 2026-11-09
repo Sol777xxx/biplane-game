@@ -74,6 +74,42 @@ describe("Room", () => {
 			(e) => e.code === "not_in_room",
 		);
 	});
+
+	it("пише події для логу в правильному порядку", () => {
+		const room = new Room({ id: "r", name: "R", arena: { speed: 1 } });
+		const events = collect(room, "event");
+		room.join({ id: "1", name: "A" });
+		room.join({ id: "2", name: "B" });
+		room.chat("1", "hi");
+		room.leave("1");
+		room.leave("2");
+		assert.deepEqual(
+			events.map((e) => e.type),
+			["match_start", "join", "join", "chat", "leave", "leave", "match_end"],
+		);
+		assert.ok(events.every((e) => typeof e.t === "number"));
+		assert.equal(events[3].text, "hi");
+	});
+
+	it("matchstart лише для першого гравця й знову після спорожнення", () => {
+		const room = new Room({ id: "r", name: "R" });
+		const starts = collect(room, "matchstart");
+		room.join({ id: "1", name: "A" });
+		room.join({ id: "2", name: "B" });
+		assert.equal(starts.length, 1);
+		room.leave("1");
+		room.leave("2");
+		room.join({ id: "3", name: "C" });
+		assert.equal(starts.length, 2);
+	});
+
+	it("відхилений join нічого не пише в лог", () => {
+		const room = new Room({ id: "r", name: "R", max: 1 });
+		room.join({ id: "1", name: "A" });
+		const events = collect(room, "event");
+		assert.throws(() => room.join({ id: "2", name: "B" }));
+		assert.equal(events.length, 0);
+	});
 });
 
 describe("RoomManager", () => {

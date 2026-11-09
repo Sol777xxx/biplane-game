@@ -17,6 +17,7 @@ const { port } = await app.listen();
 console.log(
 	`слухаю http://${config.host}:${port}  (клієнт: ${config.clientDir})`,
 );
+console.log(`логи матчів: ${config.logDir}`);
 
 // once: другий Ctrl+C під час зависання завершує процес примусово
 for (const signal of ["SIGINT", "SIGTERM"]) {
