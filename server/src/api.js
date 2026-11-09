@@ -1,4 +1,5 @@
 import { readJsonBody } from "./body.js";
+import { listReplays, sendReplay } from "./replayRoutes.js";
 import { HttpError, sendJson } from "./respond.js";
 import { PRESETS, RoomError } from "./rooms.js";
 
@@ -35,7 +36,7 @@ export function validateNewRoom(body) {
 	return { name, max, arena: PRESETS[preset] };
 }
 
-export function createApi(rooms) {
+export function createApi(rooms, { logDir }) {
 	return async function handleApi(req, res, pathname) {
 		if (pathname === "/api/rooms") {
 			if (req.method === "GET")
@@ -57,6 +58,16 @@ export function createApi(rooms) {
 
 			res.setHeader("Allow", "GET, POST");
 			throw new HttpError(405, "method not allowed");
+		}
+		if (pathname === "/api/replays" || pathname.startsWith("/api/replays/")) {
+			if (req.method !== "GET") {
+				res.setHeader("Allow", "GET");
+				throw new HttpError(405, "method not allowed");
+			}
+			if (pathname === "/api/replays") {
+				return sendJson(res, 200, { replays: await listReplays(logDir) });
+			}
+			return sendReplay(res, logDir, pathname.slice("/api/replays/".length));
 		}
 		throw new HttpError(404, "not found");
 	};

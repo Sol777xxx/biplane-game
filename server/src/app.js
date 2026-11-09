@@ -19,7 +19,7 @@ export function createApp(
 	} = {},
 ) {
 	const serveStatic = createStaticHandler(config.clientDir);
-	const handleApi = createApi(rooms);
+	const handleApi = createApi(rooms, { logDir: config.logDir });
 	const startedAt = Date.now();
 	const closers = [() => rooms.dispose()];
 
@@ -27,9 +27,12 @@ export function createApp(
 		const pathname = req.url.split("?")[0];
 
 		if (pathname === "/health") {
+			const { rss, heapUsed } = process.memoryUsage();
 			return sendJson(res, 200, {
 				status: "ok",
 				uptime: Math.round((Date.now() - startedAt) / 1000),
+				rss,
+				heapUsed,
 			});
 		}
 		if (pathname.startsWith("/api/")) return handleApi(req, res, pathname);
