@@ -41,7 +41,8 @@ const x = (v) => M.l + (v / maxX) * (W - M.l - M.r);
 const y = (v) => H - M.b - (v / maxY) * (H - M.t - M.b);
 
 const parts = [
-	`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" font-family="sans-serif" font-size="13">`,
+	`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" font-family="sans-serif" font-size="13" role="img">`,
+	`<title>Графік пам'яті сервера (rss, МБ) від часу: потоковий сервер лишається в межах 52–66 МБ, сервер із readFile стрибає до 254 МБ</title>`,
 	`<rect width="${W}" height="${H}" fill="#fff"/>`,
 	`<text x="${W / 2}" y="24" text-anchor="middle" font-size="16" fill="#333">Пам'ять сервера (rss) під час повільного завантаження логу</text>`,
 ];
