@@ -54,6 +54,7 @@ function busyWait(ms) {
 
 const canvas = document.querySelector("#game");
 const hud = document.querySelector("#hud");
+hud.hidden = true; // діагностика схована, поки гравець не натисне H
 const status = document.querySelector("#status");
 const retryBtn = document.querySelector("#retry");
 
