@@ -1,3 +1,5 @@
+import { Biplane } from "biplane-shared/sim/biplane.js";
+import { Game, resolveArena } from "biplane-shared/sim/game.js";
 import { createAudio } from "./assets/audio/audio.js";
 import { fetchJson, loadAll, sleep, withRetry } from "./assets/loader.js";
 import { createHud } from "./hud.js";
@@ -9,8 +11,6 @@ import { joinRoom } from "./net/roomSession.js";
 import { DEFAULT_PILOT, PILOTS } from "./render/pilots/index.js";
 import { createRenderer } from "./render/renderer.js";
 import { downloadSheet, initSprites } from "./render/sprites.js";
-import { Biplane } from "./sim/biplane.js";
-import { Game, resolveArena } from "./sim/game.js";
 import { mountChat } from "./ui/chatPanel.js";
 import { showLobby } from "./ui/lobbyView.js";
 import { createPilotPicker } from "./ui/pilotPicker.js";

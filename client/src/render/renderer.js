@@ -1,4 +1,4 @@
-import { ARENA } from "../sim/arena.js";
+import { ARENA } from "biplane-shared/sim/arena.js";
 import { CLOUDS, drawCloud } from "./clouds.js";
 import { drawExplosion, drawParticle } from "./effects.js";
 import { drawObstacle } from "./obstacles.js";

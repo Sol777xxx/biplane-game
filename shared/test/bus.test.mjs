@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { Game } from "../src/sim/game.js";
-import { Bullet } from "../src/sim/objects.js";
+import { Game } from "../sim/game.js";
+import { Bullet } from "../sim/objects.js";
 
 function record(game, types) {
 	const seen = [];
@@ -57,7 +57,7 @@ describe("шина подій світу", () => {
 	});
 
 	it("сим не імпортує audio і hud", () => {
-		const dir = new URL("../src/sim/", import.meta.url);
+		const dir = new URL("../sim/", import.meta.url);
 		for (const file of readdirSync(dir)) {
 			const src = readFileSync(new URL(file, dir), "utf8");
 			assert.doesNotMatch(src, /import[^;]*(audio|hud)/i, file);

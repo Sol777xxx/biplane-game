@@ -9,6 +9,7 @@
 		"test": "node --test \"test/*.test.mjs\""
 	},
 	"dependencies": {
+		"biplane-shared": "*",
 		"ws": "^8.18.0"
 	}
 }

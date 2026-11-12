@@ -1,11 +1,12 @@
 # Biplane Game
 
-Лабораторна робота 4: «Node.js: EventEmitter, streams, WebSocket-сервер».
+Лабораторна робота 5: «Сервер рахує гру: передбачення, звірка і бінарний протокол».
 
 Браузерна гра: пастельний біплан, яким літаєш по арені на canvas.
 - [lab-01](https://github.com/Sol777xxx/biplane-game/tree/lab-01): ігровий цикл, фіксований крок, експерименти з event loop.
 - [lab-02](https://github.com/Sol777xxx/biplane-game/tree/lab-02): сутності, `World` на `Map`, колізії, кулі, композиція поведінок.
 - [lab-03](https://github.com/Sol777xxx/biplane-game/tree/lab-03): пайплайн ассетів, екран завантаження, звук, шина подій, лобі.
+- [lab-04](https://github.com/Sol777xxx/biplane-game/tree/lab-04): Node.js сервер, EventEmitter, streams, WebSocket-сервер.
 
 ## Запуск
 
