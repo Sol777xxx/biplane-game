@@ -11,7 +11,7 @@ try {
 	process.exit(1);
 }
 
-const app = createApp(config);
+const app = createApp(config, { game: true });
 seedRooms(app.rooms);
 const { port } = await app.listen();
 console.log(

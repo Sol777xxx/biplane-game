@@ -2,6 +2,7 @@ import http from "node:http";
 import { createApi } from "./api.js";
 import { createMatchLogs } from "./log/matchlog.js";
 import { consoleLogger } from "./logger.js";
+import { createMatches } from "./matches.js";
 import { HttpError, sendError, sendJson } from "./respond.js";
 import { RoomManager } from "./rooms.js";
 import { createStaticHandler } from "./static.js";
@@ -9,6 +10,8 @@ import { attachWebSocket } from "./ws.js";
 
 const FORCE_CLOSE_MS = 3000;
 
+// game: чи рахує сервер гру (Match на кожну кімнату). За замовчуванням вимкнено, щоб тести
+// кімнат і чату не отримували знімків; index.js вмикає.
 export function createApp(
 	config,
 	{
@@ -16,12 +19,16 @@ export function createApp(
 		log = consoleLogger,
 		ws: wsOptions = {},
 		matchLog = true,
+		game = false,
+		match: matchOptions = {},
 	} = {},
 ) {
 	const serveStatic = createStaticHandler(config.clientDir);
+	const matches = game ? createMatches({ rooms, log, ...matchOptions }) : null;
 	const handleApi = createApi(rooms, {
 		logDir: config.logDir,
 		enableSlow: config.enableSlow,
+		matches,
 	});
 	const startedAt = Date.now();
 	const closers = [() => rooms.dispose()];
@@ -59,6 +66,13 @@ export function createApp(
 	const sockets = attachWebSocket({ server, rooms, log, ...wsOptions });
 	closers.push(() => sockets.shutdown());
 
+	// Match зупиняється після сокетів: спершу всі виходять із кімнат
+	if (matches) {
+		for (const room of rooms.all()) matches.attach(room);
+		rooms.on("created", (room) => matches.attach(room));
+		closers.push(() => matches.close());
+	}
+
 	// Лог матчу закривається ПІСЛЯ сокетів: спершу всі вийдуть із кімнат (match_end),
 	const matchLogs = matchLog
 		? createMatchLogs({ dir: config.logDir, log })
@@ -75,6 +89,7 @@ export function createApp(
 		server,
 		rooms,
 		sockets,
+		matches,
 		matchLogs,
 
 		listen() {

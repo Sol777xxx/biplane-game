@@ -18,7 +18,7 @@ export const WS_DEFAULTS = Object.freeze({
 	rateRefillPerSec: 5, // і в середньому 5 за секунду
 	inputCapacity: 60, // input йде ~30/с: сплеск на 2 с і запас на нерівномірну мережу
 	inputRefillPerSec: 40,
-	softBufferBytes: 16 * 1024, // вище: chat цьому клієнтові не шлемо
+	softBufferBytes: 16 * 1024, // вище: chat і snapshot цьому клієнтові не шлемо
 	hardBufferBytes: 256 * 1024, // вище: розриваємо з'єднання
 });
 
@@ -53,7 +53,8 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 
 	// Клієнт, який не читає, змушує сервер тримати все в буфері сокета; при розсилці
 	// на N клієнтів це N копій. bufferedAmount це байти, які ws прийняв, але ще не віддав у мережу.
-	// droppable: повідомлення, яке не шкода втратити (chat). Стан (roster, joined, error) не відкидається.
+	// droppable: повідомлення, яке не шкода втратити (chat, snapshot: наступний знімок застарить
+	// цей). Стан (roster, joined, error) не відкидається.
 	function send(ws, message, { droppable = false } = {}) {
 		if (ws.readyState !== ws.OPEN) return;
 		const s = ws.session;
@@ -64,7 +65,7 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 			if (!s.dropping) {
 				s.dropping = true;
 				log.warn(
-					`[${s.id}] повільний клієнт (${buffered} Б у буфері): відкидаємо chat`,
+					`[${s.id}] повільний клієнт (${buffered} Б у буфері): відкидаємо chat і snapshot`,
 				);
 			}
 			s.dropped++;
@@ -82,7 +83,7 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 		if (s.slow) return;
 		s.slow = true;
 		log.warn(
-			`[${s.id}] повільний клієнт: ${buffered} Б у буфері (відкинуто chat: ${s.dropped}), розрив`,
+			`[${s.id}] повільний клієнт: ${buffered} Б у буфері (відкинуто: ${s.dropped}), розрив`,
 		);
 		ws.close(CLOSE.SLOW_CLIENT, "slow client");
 		// close-кадр стоїть у черзі за буфером, а клієнт його не читає: через 1 с рубаємо
@@ -104,13 +105,25 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 		const onChat = (message) =>
 			send(ws, make("chat", message), { droppable: true });
 		const onRoster = () => send(ws, make("roster", { players: room.roster() }));
+		// знімок спільний, але ack (останній оброблений seq) у кожного свій
+		const onSnapshot = ({ snapshot, acks }) =>
+			send(
+				ws,
+				make("snapshot", {
+					...snapshot,
+					ack: acks.get(ws.session.player?.id) ?? 0,
+				}),
+				{ droppable: true },
+			);
 		room.on("chat", onChat);
 		room.on("join", onRoster);
 		room.on("leave", onRoster);
+		room.on("snapshot", onSnapshot);
 		return () => {
 			room.off("chat", onChat);
 			room.off("join", onRoster);
 			room.off("leave", onRoster);
+			room.off("snapshot", onSnapshot);
 		};
 	}
 
@@ -201,7 +214,7 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 				s.room.chat(s.player.id, msg.text); // подію отримають усі в кімнаті
 				return;
 			case "input":
-				// Сервер лише передає input кімнаті; Match підписується на цю подію
+				// Сервер лише передає input кімнаті; Match підписаний на цю подію
 				s.room.emit("input", {
 					playerId: s.player.id,
 					seq: msg.seq,

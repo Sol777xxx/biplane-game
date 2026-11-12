@@ -69,7 +69,10 @@ async function handleSlow(req, res) {
 	});
 }
 
-export function createApi(rooms, { logDir, enableSlow = false }) {
+export function createApi(
+	rooms,
+	{ logDir, enableSlow = false, matches = null },
+) {
 	return async function handleApi(req, res, pathname) {
 		if (pathname === "/api/rooms") {
 			if (req.method === "GET")
@@ -91,6 +94,16 @@ export function createApi(rooms, { logDir, enableSlow = false }) {
 
 			res.setHeader("Allow", "GET, POST");
 			throw new HttpError(405, "method not allowed");
+		}
+		if (pathname === "/api/stats") {
+			if (req.method !== "GET") {
+				res.setHeader("Allow", "GET");
+				throw new HttpError(405, "method not allowed");
+			}
+			return sendJson(res, 200, {
+				uptime: Math.round(process.uptime()),
+				rooms: matches?.stats() ?? [],
+			});
 		}
 		if (pathname === "/api/replays" || pathname.startsWith("/api/replays/")) {
 			if (req.method !== "GET") {
