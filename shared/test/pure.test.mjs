@@ -25,4 +25,13 @@ describe("shared/sim чистий", () => {
 			);
 		}
 	});
+
+	it("немає джерел недетермінізму: Math.random, Date.now, performance", () => {
+		for (const file of files) {
+			const src = readFileSync(new URL(file, dir), "utf8");
+			assert.doesNotMatch(src, /Math\.random/, file);
+			assert.doesNotMatch(src, /Date\.now|new Date/, file);
+			assert.doesNotMatch(src, /\bperformance\b/, file);
+		}
+	});
 });

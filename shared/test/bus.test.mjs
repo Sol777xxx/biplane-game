@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { Game } from "../sim/game.js";
 import { Bullet } from "../sim/objects.js";
+import { TICK_DT } from "../sim/time.js";
 
 function record(game, types) {
 	const seen = [];
@@ -17,12 +18,13 @@ function record(game, types) {
 describe("шина подій світу", () => {
 	it("fired: постріл кидає подію", () => {
 		const game = new Game();
+		const me = game.addPlayer("a");
 		const seen = record(game, ["fired"]);
-		game.plane.cooldown = 0;
-		const bullet = game.plane.fire();
+		me.plane.cooldown = 0;
+		const bullet = me.plane.fire();
 		assert.ok(bullet);
 		assert.equal(seen.length, 1);
-		assert.equal(seen[0].detail.by, game.plane);
+		assert.equal(seen[0].detail.by, me.plane);
 	});
 
 	it("hit: влучання кулі в хмарку", () => {
@@ -38,21 +40,23 @@ describe("шина подій світу", () => {
 				vy: 0,
 			}),
 		);
-		game.step(1 / 60, {});
+		game.step(TICK_DT);
 		assert.equal(seen.length, 1);
 		assert.equal(seen[0].detail.target, obstacle);
 	});
 
 	it("scored і exploded: знищена хмарка", () => {
 		const game = new Game();
+		const me = game.addPlayer("a");
 		const seen = record(game, ["scored", "exploded"]);
 		const [obstacle] = game.world.ofKind("obstacle");
-		obstacle.takeDamage(1e9, game.plane);
-		game.step(1 / 60, {});
+		obstacle.takeDamage(1e9, me.plane);
+		game.step(TICK_DT);
 		const scored = seen.find((s) => s.type === "scored");
 		const exploded = seen.find((s) => s.type === "exploded");
 		assert.equal(scored.detail.delta, Math.round(obstacle.radius));
-		assert.equal(scored.detail.total, game.score);
+		assert.equal(scored.detail.total, me.score);
+		assert.equal(scored.detail.player, "a");
 		assert.equal(exploded.detail.kind, "obstacle");
 	});
 

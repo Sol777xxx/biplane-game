@@ -1,7 +1,10 @@
 import { Biplane } from "biplane-shared/sim/biplane.js";
 import { Game, resolveArena } from "biplane-shared/sim/game.js";
+import { runScenario } from "biplane-shared/sim/scenario.js";
+import { TICK_DT } from "biplane-shared/sim/time.js";
 import { createAudio } from "./assets/audio/audio.js";
 import { fetchJson, loadAll, sleep, withRetry } from "./assets/loader.js";
+import { createFx } from "./fx.js";
 import { createHud } from "./hud.js";
 import { createInput } from "./input.js";
 import { createLoadingScreen } from "./loadingScreen.js";
@@ -147,14 +150,18 @@ async function loadEverything(audioCtx, screen) {
 	}
 }
 
-// ---------- гра (код лаб 1-2 без змін, лише загорнутий у функцію) ----------
+// ---------- гра ----------
 function startGame(audio, session, arena) {
 	console.log(`гравець ${session.name}, кімната ${session.room.id}`, arena);
 	const pilotId = loadPilot();
 	const input = createInput();
-	const game = new Game(arena);
+	// поки гра локальна: seed беремо тут, далі його надсилатиме сервер
+	const game = new Game(arena, { seed: (Math.random() * 0x100000000) >>> 0 });
+	const me = game.addPlayer("me");
 	mountChat(document.querySelector("#chat"), session.roomSession);
 	const floaters = createHud(game.world.bus);
+	const fx = createFx(game.world.bus);
+	const view = fx.view(game);
 	const renderer = createRenderer(canvas, { pilotId, overlay: floaters });
 	audio.attach(game.world.bus);
 	let probe = null; // вимірювання: окремий біплан поза світом
@@ -173,6 +180,7 @@ function startGame(audio, session, arena) {
 	});
 
 	const loop = createLoop({
+		step: TICK_DT, // той самий крок, що й на сервері
 		mode: exp === "variable" ? "variable" : "fixed",
 		driver: exp === "interval" ? "interval" : "raf",
 		update(dt) {
@@ -194,25 +202,26 @@ function startGame(audio, session, arena) {
 				}
 			}
 
-			game.step(dt, input.snapshot());
+			game.step(dt, new Map([["me", input.snapshot()]]));
+			fx.step(dt);
 			input.endStep();
 		},
 		render(alpha) {
 			frameCount++;
 			// експеримент 1: блокування 100 мс кожен 60-й кадр
 			if (exp === "block" && frameCount % 60 === 0) busyWait(100);
-			renderer.draw(game, alpha, performance.now());
+			renderer.draw(view, alpha, performance.now());
 
-			const p = game.plane;
-			const fx = Object.entries(p.effects)
+			const p = me.plane;
+			const active = Object.entries(p.effects)
 				.filter(([, t]) => t > 0)
 				.map(([name, t]) => `${name} ${Math.ceil(t)}`)
 				.join(" ");
 			const text =
 				`${session.name} · ${session.room.name}   ` +
-				`HP: ${p.alive ? p.hp : "—"}   рахунок: ${game.score}   ` +
-				`збито: ${game.destroyed}   зіткнень: ${game.crashes}` +
-				(fx ? `   [${fx}]` : "");
+				`HP: ${p.alive ? p.hp : "—"}   рахунок: ${me.score}   ` +
+				`збито: ${me.destroyed}   зіткнень: ${me.crashes}` +
+				(active ? `   [${active}]` : "");
 			if (text !== lastStatus) {
 				status.textContent = text;
 				lastStatus = text;
@@ -240,6 +249,11 @@ function startGame(audio, session, arena) {
 
 // ---------- точка входу: loading → game ----------
 async function main() {
+	// ?hash: той самий сценарій, що й у тесті Node; хеші мають збігтися
+	if (params.has("hash")) {
+		console.log(`hash (1000 кроків, seed 1): ${runScenario()}`);
+	}
+
 	// AudioContext створюється тут: decodeAudioData декодує звуки на екрані завантаження,
 	// а запускається контекст лише після жесту гравця (див. audio.js)
 	const audio = createAudio();

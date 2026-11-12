@@ -1,13 +1,8 @@
 import { ARENA } from "./arena.js";
 import { homing } from "./behaviors.js";
 import { Biplane } from "./biplane.js";
-import {
-	createParticle,
-	Explosion,
-	Obstacle,
-	PICKUP_TYPES,
-	Pickup,
-} from "./objects.js";
+import { Obstacle, PICKUP_TYPES, Pickup } from "./objects.js";
+import { mulberry32 } from "./random.js";
 import { World } from "./world.js";
 
 const RESPAWN_DELAY = 2;
@@ -44,27 +39,55 @@ export function resolveArena(...layers) {
 	return out;
 }
 
-export class Game {
-	constructor(config = {}) {
-		this.config = resolveArena(config);
-		this.world = new World();
-		this.crashes = 0;
-		this.destroyed = 0;
-		this.deaths = 0;
+// гравець: його корабель і лічильники; корабель після загибелі замінюється новим
+export class Player {
+	constructor(id) {
+		this.id = id;
+		this.plane = null;
 		this.score = 0;
-		this.refillIn = this.config.refillEvery;
+		this.destroyed = 0;
+		this.crashes = 0;
+		this.deaths = 0;
 		this.respawnIn = 0;
+	}
+}
+
+// Уся випадковість іде з this.rng (seed задає сервер), годинників тут немає,
+// крок симуляції фіксований: однаковий input дає однаковий стан скрізь.
+export class Game {
+	constructor(config = {}, { seed = 1 } = {}) {
+		this.config = resolveArena(config);
+		this.seed = seed;
+		this.rng = mulberry32(seed);
+		this.world = new World();
+		this.players = new Map(); // id гравця -> Player
+		this.tick = 0;
+		this.refillIn = this.config.refillEvery;
 		this.pickupIn = this.config.pickupEvery;
-		this.plane = this.world.spawn(new Biplane());
-		this.shake = 0;
 
 		for (let i = 0; i < this.config.obstacles; i++) this.spawnObstacle();
 	}
 
+	addPlayer(id) {
+		if (this.players.has(id)) throw new Error(`гравець ${id} уже в грі`);
+		const player = new Player(id);
+		this.players.set(id, player);
+		this.#spawnPlane(player);
+		return player;
+	}
+
+	removePlayer(id) {
+		const player = this.players.get(id);
+		if (!player) return;
+		if (player.plane) this.world.despawn(player.plane.id);
+		this.players.delete(id);
+	}
+
 	spawnObstacle() {
-		const radius = Math.random() < 0.5 ? 45 : 70;
-		const angle = Math.random() * Math.PI * 2;
-		const speed = (40 + Math.random() * 70) * this.config.speed;
+		const rnd = this.rng;
+		const radius = rnd() < 0.5 ? 45 : 70;
+		const angle = rnd() * Math.PI * 2;
+		const speed = (40 + rnd() * 70) * this.config.speed;
 		const { x, y } = this.#safePoint(380, ["biplane"]);
 		const obstacle = new Obstacle({
 			x,
@@ -74,95 +97,85 @@ export class Game {
 			radius,
 		});
 		// та сама поведінка, що й у homing-кулі, без нового класу
-		if (Math.random() < this.config.homingChance) {
+		if (rnd() < this.config.homingChance) {
 			obstacle.add(homing({ kinds: ["biplane"], turnRate: 0.6, range: 900 }));
 		}
 		return this.world.spawn(obstacle);
 	}
 
-	step(dt, input) {
-		this.shake = Math.max(0, this.shake - dt);
-		this.world.step(dt, new Map([[this.plane.id, input]]));
+	// inputs: Map<id гравця, стан вводу>
+	step(dt, inputs = new Map()) {
+		this.tick++;
+		const byEntity = new Map();
+		for (const p of this.players.values()) {
+			if (p.plane?.alive) byEntity.set(p.plane.id, inputs.get(p.id));
+		}
+		this.world.step(dt, byEntity);
 		this.#handleEvents();
 		this.#refill(dt);
 		this.#respawn(dt);
 		this.#spawnPickups(dt);
 	}
 
+	#playerOf(entity) {
+		return entity?.kind === "biplane"
+			? this.players.get(entity.playerId)
+			: undefined;
+	}
+
 	#handleEvents() {
 		for (const ev of this.world.events) {
-			if (ev.type === "hit") {
-				const color = ev.target.kind === "biplane" ? "pink" : "storm";
-				this.#sparks(ev.at, color, 8);
-			} else if (ev.type === "crash") {
-				this.crashes++;
-				this.world.emit("crash", { at: ev.entity.pos.clone() });
-				this.shake = 0.25;
+			if (ev.type === "crash") {
+				const player = this.#playerOf(ev.other);
+				if (player) player.crashes++;
+				this.world.emit("crash", {
+					player: player?.id ?? null,
+					at: ev.entity.pos.clone(),
+				});
 				this.#explode(ev.entity, "storm", 14);
 			} else if (ev.type === "destroyed") {
 				if (ev.entity.kind === "obstacle") {
-					this.destroyed++;
-					const delta = Math.round(ev.entity.radius);
-					this.score += delta;
-					this.world.emit("scored", {
-						delta,
-						total: this.score,
-						at: ev.entity.pos.clone(),
-					});
+					const player = this.#playerOf(ev.by);
+					if (player) {
+						const delta = Math.round(ev.entity.radius);
+						player.destroyed++;
+						player.score += delta;
+						this.world.emit("scored", {
+							player: player.id,
+							delta,
+							total: player.score,
+							at: ev.entity.pos.clone(),
+						});
+					}
 					this.#explode(ev.entity, "storm", 26);
 				} else if (ev.entity.kind === "biplane") {
-					this.deaths++;
-					this.respawnIn = RESPAWN_DELAY;
-					this.shake = 0.5;
+					const player = this.#playerOf(ev.entity);
+					if (player) {
+						player.deaths++;
+						player.respawnIn = RESPAWN_DELAY;
+					}
 					this.#explode(ev.entity, "pink", 50);
 				}
 			} else if (ev.type === "pickup") {
-				this.world.emit("pickup", { type: ev.entity.type, by: ev.by });
+				this.world.emit("pickup", {
+					type: ev.entity.type,
+					by: ev.by,
+					player: ev.by.playerId ?? null,
+				});
 			}
 		}
 		this.world.events.length = 0;
 	}
 
-	#sparks(pos, color, count) {
-		for (let i = 0; i < count; i++) {
-			const a = Math.random() * Math.PI * 2;
-			const s = 60 + Math.random() * 200;
-			this.world.spawn(
-				createParticle({
-					x: pos.x,
-					y: pos.y,
-					vx: Math.cos(a) * s,
-					vy: Math.sin(a) * s,
-					color,
-					ttl: 0.25 + Math.random() * 0.25,
-				}),
-			);
-		}
-	}
-
+	// лише повідомлення: частинки й вибухи малює клієнт (fx.js), у стані гри їх немає
 	#explode(entity, color, count) {
 		this.world.emit("exploded", {
 			kind: entity.kind,
 			pos: entity.pos.clone(),
 			size: entity.radius,
 			color,
+			count,
 		});
-		const { x, y } = entity.pos;
-		this.world.spawn(new Explosion({ x, y, size: entity.radius * 1.8, color }));
-		for (let i = 0; i < count; i++) {
-			const a = Math.random() * Math.PI * 2;
-			const s = 80 + Math.random() * 320;
-			this.world.spawn(
-				createParticle({
-					x,
-					y,
-					vx: Math.cos(a) * s,
-					vy: Math.sin(a) * s,
-					color,
-					ttl: 0.5 + Math.random() * 0.6,
-				}),
-			);
-		}
 	}
 
 	#refill(dt) {
@@ -177,15 +190,27 @@ export class Game {
 		}
 	}
 
-	// респаун через 2 с у випадковій безпечній точці, зі щитом
+	// кожен загиблий гравець відроджується через 2 с у безпечній точці, зі щитом
 	#respawn(dt) {
-		if (this.plane.alive) return;
-		this.respawnIn -= dt;
-		if (this.respawnIn > 0) return;
-		const { x, y } = this.#safePoint(250, ["obstacle"]);
-		this.plane = this.world.spawn(new Biplane({ x, y }));
-		this.plane.grant("shield", RESPAWN_SHIELD);
-		this.world.emit("respawned", { at: this.plane.pos.clone() });
+		for (const player of this.players.values()) {
+			if (player.plane?.alive) continue;
+			player.respawnIn -= dt;
+			if (player.respawnIn > 0) continue;
+			const plane = this.#spawnPlane(player);
+			this.world.emit("respawned", {
+				player: player.id,
+				at: plane.pos.clone(),
+			});
+		}
+	}
+
+	#spawnPlane(player) {
+		const { x, y } = this.#safePoint(250, ["obstacle", "biplane"]);
+		const plane = new Biplane({ x, y });
+		plane.playerId = player.id;
+		plane.grant("shield", RESPAWN_SHIELD);
+		player.plane = this.world.spawn(plane);
+		return plane;
 	}
 
 	#spawnPickups(dt) {
@@ -196,7 +221,7 @@ export class Game {
 		this.pickupIn -= dt;
 		if (this.pickupIn > 0) return;
 		const { x, y } = this.#safePoint(150, ["obstacle"]);
-		const type = PICKUP_TYPES[Math.floor(Math.random() * PICKUP_TYPES.length)];
+		const type = PICKUP_TYPES[Math.floor(this.rng() * PICKUP_TYPES.length)];
 		this.world.spawn(new Pickup({ x, y, type }));
 		this.pickupIn = this.config.pickupEvery;
 	}
@@ -207,8 +232,8 @@ export class Game {
 		let x = 0;
 		let y = 0;
 		for (let i = 0; i < 40; i++) {
-			x = margin + Math.random() * (ARENA.width - margin * 2);
-			y = margin + Math.random() * (ARENA.height - margin * 2);
+			x = margin + this.rng() * (ARENA.width - margin * 2);
+			y = margin + this.rng() * (ARENA.height - margin * 2);
 			const clear = kinds.every((kind) => {
 				for (const e of this.world.ofKind(kind)) {
 					if (

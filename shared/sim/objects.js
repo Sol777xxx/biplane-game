@@ -1,4 +1,4 @@
-import { drag, lifetime, pickup } from "./behaviors.js";
+import { lifetime, pickup } from "./behaviors.js";
 import { Entity } from "./entity.js";
 
 const BULLET_RADIUS = 8;
@@ -90,23 +90,6 @@ export class Obstacle extends Entity {
 		this.kill();
 		this.world?.events.push({ type: "crash", entity: this, other });
 	}
-}
-
-// короткий візуальний ефект (кільце + спалах); сам нічого не колізить (radius 0)
-export class Explosion extends Entity {
-	constructor({ x, y, size = 60, color = "pink" }) {
-		super({ kind: "explosion", x, y });
-		this.size = size;
-		this.color = color;
-		this.add(lifetime(0.45));
-	}
-}
-
-// частинка: звичайний Entity + дві поведінки, окремого класу не треба
-export function createParticle({ x, y, vx, vy, color, ttl }) {
-	const p = new Entity({ kind: "particle", x, y, vx, vy });
-	p.color = color;
-	return p.add(lifetime(ttl)).add(drag(2.5));
 }
 
 const PICKUP_EFFECTS = {

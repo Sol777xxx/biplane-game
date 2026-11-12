@@ -2,10 +2,6 @@ import { ARENA, wrap } from "./arena.js";
 import { Vector2 } from "./vector.js";
 
 export class Entity {
-	// приватний лічильник id
-	static #nextId = 1;
-	#id = Entity.#nextId++;
-
 	constructor({
 		kind = "entity",
 		x = 0,
@@ -17,6 +13,7 @@ export class Entity {
 		inset = radius, // відступ від краю для режиму "clamp"
 		edges = "wrap", // "wrap" | "bounce" | "clamp" | "die"
 	} = {}) {
+		this.id = 0; // призначає World.spawn: у кожного світу свій лічильник
 		this.kind = kind;
 		this.pos = new Vector2(x, y);
 		this.prevPos = new Vector2(x, y); // для інтерполяції
@@ -28,10 +25,6 @@ export class Entity {
 		this.alive = true;
 		this.world = null; // заповнює World.spawn
 		this.behaviors = [];
-	}
-
-	get id() {
-		return this.#id;
 	}
 
 	add(behavior) {

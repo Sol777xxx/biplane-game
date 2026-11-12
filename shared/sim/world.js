@@ -2,6 +2,7 @@ import { findCollisions } from "./collision.js";
 
 export class World {
 	#entities = new Map(); // id -> Entity
+	#nextId = 1; // id видає світ: клієнт і сервер рахують однаково
 	events = []; // події кроку; їх читає Game
 	// шина для відв'язаних підписників (audio, HUD): сим їх не імпортує
 	bus = new EventTarget();
@@ -12,6 +13,7 @@ export class World {
 
 	spawn(entity) {
 		entity.world = this;
+		entity.id = this.#nextId++;
 		this.#entities.set(entity.id, entity);
 		return entity;
 	}
