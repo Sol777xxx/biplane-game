@@ -1,5 +1,13 @@
-// Протокол v0: JSON-повідомлення { v, type, ... }. Сервер не довіряє нічому з того, що прийшло.
-export const PROTOCOL_VERSION = 1;
+import {
+	INPUT_KEYS,
+	MAX_SEQ,
+	make,
+	PROTOCOL_VERSION,
+} from "biplane-shared/protocol/index.js";
+
+// Протокол: JSON-повідомлення { v, type, ... }. Сервер не довіряє нічому з того, що прийшло.
+// Типи й конструктори спільні з клієнтом (shared/protocol), тут лише перевірка вхідного.
+export { make, PROTOCOL_VERSION };
 export const MAX_MESSAGE_BYTES = 2048;
 
 export const CLOSE = Object.freeze({
@@ -30,6 +38,23 @@ const text = (max) => (value) => {
 		: undefined;
 };
 
+// лише справжні булеві: 1, "true", null вводом не є
+const bool = (value) => (typeof value === "boolean" ? value : undefined);
+
+const seq = (value) =>
+	Number.isSafeInteger(value) && value >= 0 && value <= MAX_SEQ
+		? value
+		: undefined;
+
+// мітка часу клієнта для ping: скінченне число ≥ 0
+const stamp = (value) =>
+	typeof value === "number" &&
+	Number.isFinite(value) &&
+	value >= 0 &&
+	value <= Number.MAX_SAFE_INTEGER
+		? value
+		: undefined;
+
 // кожне поле повертає очищене значення або undefined (= не пройшло)
 const FIELDS = {
 	room: (value) =>
@@ -38,6 +63,9 @@ const FIELDS = {
 			: undefined,
 	name: text(16),
 	text: text(200),
+	seq,
+	t: stamp,
+	...Object.fromEntries(INPUT_KEYS.map((key) => [key, bool])),
 };
 
 // які поля має мати повідомлення кожного типу (понад v і type)
@@ -45,6 +73,8 @@ const SCHEMAS = {
 	join: ["room", "name"],
 	chat: ["text"],
 	leave: [],
+	input: ["seq", ...INPUT_KEYS],
+	ping: ["t"],
 };
 
 const bad = (reason) => ({ ok: false, code: CLOSE.BAD_FORMAT, reason });
@@ -76,9 +106,4 @@ export function validate(raw) {
 		msg[key] = value;
 	}
 	return { ok: true, msg };
-}
-
-// повідомлення сервера клієнтові: joined, roster, chat, error
-export function make(type, data = {}) {
-	return { v: PROTOCOL_VERSION, type, ...data };
 }

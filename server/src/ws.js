@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
+import { inputFromMessage } from "biplane-shared/protocol/index.js";
 import { WebSocketServer } from "ws";
 import { TokenBucket } from "./limits.js";
 import { CLOSE, MAX_MESSAGE_BYTES, make, validate } from "./protocol.js";
@@ -10,8 +11,13 @@ export const WS_DEFAULTS = Object.freeze({
 	pingIntervalMs: 15_000, // ping раз на 15 с
 	maxMissedPongs: 2, // два пропущені pong: розрив
 	maxPayload: MAX_MESSAGE_BYTES,
-	rateCapacity: 10, // сплеск до 10 повідомлень
+	// три відра: сирий кадр (груба стеля до розбору), керування (join/chat/leave) і input
+	frameCapacity: 90,
+	frameRefillPerSec: 60,
+	rateCapacity: 10, // керування: сплеск до 10 повідомлень
 	rateRefillPerSec: 5, // і в середньому 5 за секунду
+	inputCapacity: 60, // input йде ~30/с: сплеск на 2 с і запас на нерівномірну мережу
+	inputRefillPerSec: 40,
 	softBufferBytes: 16 * 1024, // вище: chat цьому клієнтові не шлемо
 	hardBufferBytes: 256 * 1024, // вище: розриваємо з'єднання
 });
@@ -152,9 +158,11 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 	function onMessage(ws, data, isBinary) {
 		// після закриття з нашого боку решту повідомлень у черзі ігноруємо
 		if (ws.readyState !== ws.OPEN) return;
-		// ліміт стоїть ПЕРШИМ: порахувати повідомлення дешевше, ніж розібрати його
-		if (!ws.session.bucket.take())
+		const s = ws.session;
+		// ліміт кадрів стоїть ПЕРШИМ: порахувати повідомлення дешевше, ніж розібрати його
+		if (!s.frameBucket.take()) {
 			return reject(ws, CLOSE.RATE_LIMIT, "rate limit");
+		}
 
 		if (isBinary)
 			return reject(ws, CLOSE.UNSUPPORTED, "binary frames not supported");
@@ -169,7 +177,18 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 		if (!result.ok) return reject(ws, result.code, result.reason);
 
 		const { msg } = result;
-		const s = ws.session;
+		// окреме відро на тип: часті input не з'їдають ліміт чату, а спам чату не душить input.
+		// ping окремого відра не має: його обмежує стеля кадрів.
+		const bucket =
+			msg.type === "input"
+				? s.inputBucket
+				: msg.type === "ping"
+					? null
+					: s.bucket;
+		if (bucket && !bucket.take()) {
+			return reject(ws, CLOSE.RATE_LIMIT, "rate limit");
+		}
+
 		if (!s.player) {
 			if (msg.type !== "join")
 				return reject(ws, CLOSE.NOT_JOINED, "join first");
@@ -180,6 +199,17 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 				return reject(ws, CLOSE.ALREADY_JOINED, "already joined");
 			case "chat":
 				s.room.chat(s.player.id, msg.text); // подію отримають усі в кімнаті
+				return;
+			case "input":
+				// Сервер лише передає input кімнаті; Match підписується на цю подію
+				s.room.emit("input", {
+					playerId: s.player.id,
+					seq: msg.seq,
+					keys: inputFromMessage(msg),
+				});
+				return;
+			case "ping":
+				send(ws, make("pong", { t: msg.t }));
 				return;
 			case "leave":
 				detach(ws);
@@ -196,9 +226,17 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 			missedPongs: 0,
 			joinTimer: null,
 			unsubscribe: null,
+			frameBucket: new TokenBucket({
+				capacity: opts.frameCapacity,
+				refillPerSec: opts.frameRefillPerSec,
+			}),
 			bucket: new TokenBucket({
 				capacity: opts.rateCapacity,
 				refillPerSec: opts.rateRefillPerSec,
+			}),
+			inputBucket: new TokenBucket({
+				capacity: opts.inputCapacity,
+				refillPerSec: opts.inputRefillPerSec,
 			}),
 			dropping: false,
 			dropped: 0,
