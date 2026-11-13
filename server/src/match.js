@@ -26,8 +26,8 @@ const NO_KEYS = Object.freeze({
 	fire: false,
 });
 
-// Авторитетна гра однієї кімнати. Кімната нічого не знає про Match, а Match про сокети:
-// input приходить подією "input", знімок іде подією "snapshot" ({ snapshot, acks }).
+// Авторитетна гра однієї кімнати. Input приходить подією "input", знімок іде подією
+// "snapshot" ({ snapshot, acks }); про сокети Match нічого не знає.
 //
 // Політика input:
 //  - за тік береться один input гравця, по порядку seq;
@@ -54,6 +54,8 @@ export class Match {
 	ticks = 0;
 	skipped = 0;
 	overruns = 0;
+	repeated = 0; // тіки з порожньою чергою (повтор клавіш) після першого input гравця
+	dropped = 0; // input, відкинуті через переповнення черги
 
 	#onInput = (message) => this.#queueInput(message);
 	#onRoster = () => this.#sync();
@@ -106,7 +108,10 @@ export class Match {
 		if (!q || seq <= q.received) return;
 		q.received = seq;
 		q.items.push({ seq, keys });
-		while (q.items.length > MAX_BACKLOG) q.ack = q.items.shift().seq;
+		while (q.items.length > MAX_BACKLOG) {
+			q.ack = q.items.shift().seq;
+			this.dropped++;
+		}
 	}
 
 	// ---------- життя гри ----------
@@ -194,6 +199,8 @@ export class Match {
 			if (next) {
 				q.keys = next.keys;
 				q.ack = next.seq;
+			} else if (q.received > 0) {
+				this.repeated++;
 			}
 			// seq лише для реального input: куля з повтору клавіш матиме seq 0
 			inputs.set(id, next ? { ...next.keys, seq: next.seq } : q.keys);
@@ -218,6 +225,7 @@ export class Match {
 			ticks: this.ticks,
 			skipped: this.skipped,
 			overruns: this.overruns,
+			inputs: { repeated: this.repeated, dropped: this.dropped },
 			tickMs: this.#tickStats.summary(),
 			intervalMs: this.#intervalStats.summary(),
 			lateMs: this.#lateStats.summary(),
