@@ -51,10 +51,11 @@ function drawGraph(canvas, intervals) {
 }
 
 // Панель мережі; клавіша N ховає/показує, update() викликається щокадру.
-// session: RoomSession, view: snapshotView, stats: netStats, predictor: необов'язковий.
+// session: RoomSession, view: snapshotView, stats: netStats,
+// predictor, interp: необов'язкові (кнопка prediction і повзунок затримки).
 export function mountNetgraph(
 	root,
-	{ session, view, stats, predictor = null, visible = true },
+	{ session, view, stats, predictor = null, interp = null, visible = true },
 ) {
 	const ac = new AbortController();
 	const { signal } = ac;
@@ -64,6 +65,28 @@ export function mountNetgraph(
 	graph.style.width = `${GRAPH_W}px`;
 	graph.style.height = `${GRAPH_H}px`;
 	const children = [text, graph];
+
+	if (interp) {
+		const slider = el("input", {
+			type: "range",
+			className: "net-range",
+			min: 0,
+			max: 300,
+			step: 10,
+			value: interp.delay,
+			title: "затримка інтерполяції, мс",
+		});
+		slider.addEventListener(
+			"input",
+			() => {
+				interp.delay = Number(slider.value);
+			},
+			{ signal },
+		);
+		// після відпускання повертаємо клавіатуру грі
+		slider.addEventListener("change", () => slider.blur(), { signal });
+		children.push(slider);
+	}
 
 	if (predictor) {
 		const btn = el("button", { type: "button", className: "net-preset" });
@@ -151,6 +174,7 @@ export function mountNetgraph(
 				unacked: Math.max(0, session.lastSeq - view.ack),
 				tick: view.tick,
 				netsim: session.netsim,
+				interp: interp?.stats() ?? null,
 			});
 			if (next !== lastText) {
 				text.textContent = next;

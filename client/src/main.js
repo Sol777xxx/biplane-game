@@ -9,6 +9,7 @@ import { createInput } from "./input.js";
 import { createLoadingScreen } from "./loadingScreen.js";
 import { Lobby } from "./lobby.js";
 import { createLoop } from "./loop.js";
+import { createInterpolator } from "./net/interpolator.js";
 import { createPredictor } from "./net/predictor.js";
 import { joinRoom } from "./net/roomSession.js";
 import { createSnapshotView } from "./net/snapshotView.js";
@@ -31,10 +32,13 @@ const netsimQuery = new URLSearchParams(
 		.map((key) => [key, params.get(key)]),
 ).toString();
 const WS_URL = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws${netsimQuery ? `?${netsimQuery}` : ""}`;
-// лаб 5: ?smooth=мс: згладжування поправки (за замовчуванням 100, 0 вимикає)
-const smoothMs = /^\d{1,4}$/.test(params.get("smooth") ?? "")
-	? Number(params.get("smooth"))
-	: 100;
+// лаб 5: ?smooth=мс (згладжування поправки, 0 вимикає), ?interp=мс (затримка інтерполяції)
+const num = (name, fallback) =>
+	/^\d{1,4}$/.test(params.get(name) ?? "")
+		? Number(params.get(name))
+		: fallback;
+const smoothMs = num("smooth", 100);
+const interpMs = num("interp", 100);
 // лаб 1: ?exp=block | interval | variable
 const exp = params.get("exp");
 // лаб 3: ?chaos=404|404hard|timeout|abort|badjson, ?latency=300 (мс на файл), ?seq
@@ -162,7 +166,7 @@ async function loadEverything(audioCtx, screen) {
 	}
 }
 
-// гра: світ рахує сервер, клієнт шле input, передбачає свій корабель і малює знімки
+// гра: сервер рахує світ; клієнт шле input, передбачає свій корабель, чужі інтерполює
 function startGame(audio, session) {
 	const net = session.roomSession;
 	console.log(
@@ -172,16 +176,18 @@ function startGame(audio, session) {
 	const pilotId = loadPilot();
 	const input = createInput();
 	const predictor = createPredictor({ smooth: smoothMs / 1000 });
+	const interp = createInterpolator({ delay: interpMs });
 	const netStats = createNetStats();
 	const view = createSnapshotView({
 		you: () => net.you?.id,
 		local: () => predictor.pose,
+		interp,
 	});
 
 	// ?debug: журнал поправок; corr() віддає підсумок від попереднього виклику
 	const corrLog = params.has("debug") ? [] : null;
 
-	// знімок: показ, потім звірка передбачення
+	// знімок: у буфер інтерполяції, потім звірка передбачення
 	const onSnapshot = (msg) => {
 		view.apply(msg);
 		const r = predictor.reconcile(msg, net.you?.id);
@@ -193,9 +199,11 @@ function startGame(audio, session) {
 	};
 	if (net.snapshot) onSnapshot(net.snapshot); // знімок міг прийти до старту гри
 	net.addEventListener("snapshot", (e) => onSnapshot(e.detail));
-	// після перепідключення seq починається з 1: старий буфер недійсний
+	// після перепідключення seq починається з 1, буфери недійсні
 	net.addEventListener("status", (e) => {
-		if (e.detail.state === "online") predictor.reset();
+		if (e.detail.state !== "online") return;
+		predictor.reset();
+		view.reset();
 	});
 
 	mountChat(document.querySelector("#chat"), net);
@@ -204,6 +212,7 @@ function startGame(audio, session) {
 		view,
 		stats: netStats,
 		predictor,
+		interp,
 	});
 	const floaters = createHud(view.bus);
 	const fx = createFx(view.bus);
@@ -220,6 +229,7 @@ function startGame(audio, session) {
 		window.net = view;
 		window.netStats = netStats;
 		window.predictor = predictor;
+		window.interp = interp;
 		window.corr = () => {
 			const s = summarize(corrLog);
 			corrLog.length = 0;
@@ -275,8 +285,10 @@ function startGame(audio, session) {
 			frameCount++;
 			// експеримент 1: блокування 100 мс кожен 60-й кадр
 			if (exp === "block" && frameCount % 60 === 0) busyWait(100);
-			renderer.draw(scene, alpha, performance.now());
-			netgraph.update(performance.now());
+			const now = performance.now();
+			view.update(now); // чужі сутності на момент now − delay
+			renderer.draw(scene, alpha, now);
+			netgraph.update(now);
 
 			const { ship, player } = view.me();
 			const active = ship

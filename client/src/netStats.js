@@ -91,9 +91,10 @@ export function createNetStats({ now = () => performance.now() } = {}) {
 const round = (v) => Math.round(v);
 const kb = (bytes) => (bytes / 1024).toFixed(1);
 
-// extras: unacked, tick, netsim; correction і correctionMax (px) перекривають значення з r
+// extras: unacked, tick, netsim, interp (interpolator.stats());
+// correction і correctionMax (px) перекривають значення з r
 export function formatNet(r, extras = {}) {
-	const { unacked = 0, tick = 0, netsim = null } = extras;
+	const { unacked = 0, tick = 0, netsim = null, interp = null } = extras;
 	const corr = extras.correction ?? r.correction ?? null;
 	const corrMax = extras.correctionMax ?? r.correctionMax ?? corr;
 	const rtt =
@@ -110,6 +111,11 @@ export function formatNet(r, extras = {}) {
 		`input без ack: ${unacked}`,
 		`поправка:    ${corr === null ? "—" : `${corr.toFixed(1)} px (макс ${corrMax.toFixed(1)})`}`,
 	];
+	if (interp) {
+		lines.push(
+			`інтерполяція: ${interp.delay} мс · буфер ${interp.buffered} · голод ${round(interp.starvedPct)}%`,
+		);
+	}
 	if (netsim?.enabled) {
 		lines.push(
 			`мережа:      ${netsim.lag} ± ${netsim.jitter} мс, втрати ${netsim.loss}%`,

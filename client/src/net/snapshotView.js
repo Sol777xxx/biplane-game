@@ -7,7 +7,7 @@ export const PICKUP_RADIUS = 28;
 
 const pt = (x, y) => ({ x, y });
 
-// Сутності мають поля sim, які читає renderer. Інтерполяції ще немає: prevPos = pos.
+// сутності мають поля sim, які читає renderer; prevPos = pos (рух кадрами рахує інтерполятор)
 function ship(s, mine) {
 	return {
 		id: s.id,
@@ -62,18 +62,40 @@ function pickup(p) {
 	};
 }
 
-// Те, що клієнт знає про гру: останній знімок сервера.
-// you() це id цього гравця; local() це передбачений корабель (або null): його рух
-// підміняє рух свого корабля зі знімка, решта полів лишається зі знімка.
+// Що клієнт знає про гру. you(): id цього гравця; local(): передбачений корабель (або null),
+// його рух підміняє рух свого корабля, решта полів зі знімка.
+// Без interp: apply() одразу показує знімок і видає його події.
+// З interp: apply() лише кладе знімок у буфер, а update(now) у кожному кадрі будує
+// сутності для моменту «now − delay» і видає події знімків, до яких дійшов час відтворення.
+// Свій корабель у цьому режимі береться з останнього знімка без затримки.
 export function createSnapshotView({
 	you = () => null,
 	local = () => null,
+	interp = null,
 } = {}) {
 	const bus = new EventTarget();
 	let byKind = new Map();
 	let players = new Map();
+	let latest = null;
 	let tick = 0;
 	let ack = 0;
+
+	const build = (ships, rows) => {
+		byKind = new Map([
+			["biplane", ships],
+			["obstacle", (rows.obstacles ?? []).map(obstacle)],
+			["bullet", (rows.bullets ?? []).map(bullet)],
+			["pickup", (rows.pickups ?? []).map(pickup)],
+		]);
+	};
+
+	const emit = (wires = []) => {
+		for (const wire of wires) {
+			const ev = eventFromWire(wire);
+			if (ev)
+				bus.dispatchEvent(new CustomEvent(ev.type, { detail: ev.detail }));
+		}
+	};
 
 	return {
 		bus,
@@ -108,23 +130,47 @@ export function createSnapshotView({
 			return players;
 		},
 
-		apply(msg) {
-			const youId = you();
+		// at: час приходу знімка (лише з interp)
+		apply(msg, at) {
 			players = new Map((msg.players ?? []).map((p) => [p.id, p]));
-			byKind = new Map([
-				["biplane", (msg.ships ?? []).map((s) => ship(s, s.player === youId))],
-				["obstacle", (msg.obstacles ?? []).map(obstacle)],
-				["bullet", (msg.bullets ?? []).map(bullet)],
-				["pickup", (msg.pickups ?? []).map(pickup)],
-			]);
 			tick = msg.tick;
 			ack = msg.ack ?? 0;
-			for (const wire of msg.events ?? []) {
-				const ev = eventFromWire(wire);
-				if (ev) {
-					bus.dispatchEvent(new CustomEvent(ev.type, { detail: ev.detail }));
-				}
+			if (interp) {
+				latest = msg;
+				interp.push(msg, at);
+				return;
 			}
+			const id = you();
+			build(
+				(msg.ships ?? []).map((s) => ship(s, s.player === id)),
+				msg,
+			);
+			emit(msg.events);
+		},
+
+		// щокадру (лише з interp)
+		update(now) {
+			if (!interp || !latest) return;
+			const s = interp.sample(now);
+			if (s.t === null) return;
+			const id = you();
+			build(
+				[
+					...s.ships.filter((r) => r.player !== id).map((r) => ship(r, false)),
+					...(latest.ships ?? [])
+						.filter((r) => r.player === id)
+						.map((r) => ship(r, true)),
+				],
+				s,
+			);
+			emit(interp.drain(s.t));
+		},
+
+		// після перепідключення: буфер недійсний
+		reset() {
+			interp?.reset();
+			byKind = new Map();
+			latest = null;
 		},
 
 		// свій корабель (null, поки загиблий) і свої лічильники

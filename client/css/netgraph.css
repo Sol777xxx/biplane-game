@@ -30,6 +30,13 @@
 	background: rgba(255, 255, 255, 0.7);
 }
 
+.net-range {
+	display: block;
+	width: 100%;
+	margin: 6px 0 0;
+	accent-color: #f08ab4;
+}
+
 .net-presets {
 	display: flex;
 	flex-wrap: wrap;
