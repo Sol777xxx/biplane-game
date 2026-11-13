@@ -28,6 +28,7 @@ export class Biplane extends Entity {
 		this.effects = { shield: 0, rapid: 0, homing: 0 }; // секунд, що лишилось
 		this.flash = 0;
 		this.maxHp = MAX_HP;
+		this.inputSeq = 0; // seq input поточного кроку (його ставлять кулі)
 	}
 
 	get hp() {
@@ -67,6 +68,7 @@ export class Biplane extends Entity {
 			y: muzzle.y,
 			vx: vel.x,
 			vy: vel.y,
+			seq: this.inputSeq,
 		});
 		if (this.effects.homing > 0) {
 			bullet.add(homing({ kinds: ["obstacle"], turnRate: 4, range: 700 }));
@@ -76,7 +78,9 @@ export class Biplane extends Entity {
 		return bullet;
 	}
 
+	// input.seq необов'язковий: його додає сервер/клієнт, коли крок відповідає реальному input
 	update(dt, input = {}) {
+		this.inputSeq = input.seq ?? 0;
 		this.cooldown = Math.max(0, this.cooldown - dt);
 		this.flash = Math.max(0, this.flash - dt);
 		for (const k of Object.keys(this.effects)) {

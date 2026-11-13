@@ -29,9 +29,9 @@ const NO_KEYS = Object.freeze({
 // Авторитетна гра однієї кімнати. Кімната нічого не знає про Match, а Match про сокети:
 // input приходить подією "input", знімок іде подією "snapshot" ({ snapshot, acks }).
 //
-// Політика input (одне рішення на всіх):
+// Політика input:
 //  - за тік береться один input гравця, по порядку seq;
-//  - черга порожня: повторюється останній стан клавіш, ack не росте;
+//  - черга порожня: повторюється останній стан клавіш (без seq), ack не росте;
 //  - у черзі більше MAX_BACKLOG: найстаріші відкидаються, їхній seq вважається підтвердженим;
 //  - seq, не більший за вже отриманий, ігнорується (дублікат або підробка).
 export class Match {
@@ -195,7 +195,8 @@ export class Match {
 				q.keys = next.keys;
 				q.ack = next.seq;
 			}
-			inputs.set(id, q.keys);
+			// seq лише для реального input: куля з повтору клавіш матиме seq 0
+			inputs.set(id, next ? { ...next.keys, seq: next.seq } : q.keys);
 		}
 		this.#game.step(TICK_DT, inputs);
 

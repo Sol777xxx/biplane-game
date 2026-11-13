@@ -15,6 +15,7 @@ export class Bullet extends Entity {
 		vy,
 		damage = BULLET_DAMAGE,
 		ttl = BULLET_TTL,
+		seq = 0, // seq input, що випустив кулю (0: невідомо)
 	}) {
 		super({
 			kind: "bullet",
@@ -28,6 +29,7 @@ export class Bullet extends Entity {
 		this.owner = owner;
 		this.damage = damage;
 		this.ttl = ttl;
+		this.seq = seq;
 	}
 
 	update(dt) {

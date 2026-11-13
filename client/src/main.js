@@ -166,7 +166,7 @@ async function loadEverything(audioCtx, screen) {
 	}
 }
 
-// гра: сервер рахує світ; клієнт шле input, передбачає свій корабель, чужі інтерполює
+// гра: сервер рахує світ; клієнт шле input, передбачає свій корабель і кулі, чужі інтерполює
 function startGame(audio, session) {
 	const net = session.roomSession;
 	console.log(
@@ -175,13 +175,23 @@ function startGame(audio, session) {
 	);
 	const pilotId = loadPilot();
 	const input = createInput();
-	const predictor = createPredictor({ smooth: smoothMs / 1000 });
+	// локальний постріл: подія для звуку, поки куля сервера ще летить до нас
+	const predictor = createPredictor({
+		smooth: smoothMs / 1000,
+		onFire: (at) =>
+			view.bus.dispatchEvent(
+				new CustomEvent("fired", {
+					detail: { by: { playerId: net.you?.id }, at },
+				}),
+			),
+	});
 	const interp = createInterpolator({ delay: interpMs });
 	const netStats = createNetStats();
 	const view = createSnapshotView({
 		you: () => net.you?.id,
 		local: () => predictor.pose,
 		interp,
+		shots: () => (predictor.enabled ? predictor.shots : null),
 	});
 
 	// ?debug: журнал поправок; corr() віддає підсумок від попереднього виклику

@@ -62,16 +62,19 @@ function pickup(p) {
 	};
 }
 
-// Що клієнт знає про гру. you(): id цього гравця; local(): передбачений корабель (або null),
-// його рух підміняє рух свого корабля, решта полів зі знімка.
-// Без interp: apply() одразу показує знімок і видає його події.
-// З interp: apply() лише кладе знімок у буфер, а update(now) у кожному кадрі будує
-// сутності для моменту «now − delay» і видає події знімків, до яких дійшов час відтворення.
-// Свій корабель у цьому режимі береться з останнього знімка без затримки.
+// Що клієнт знає про гру.
+//  you(): id цього гравця;
+//  local(): передбачений корабель (або null), його рух підміняє рух свого корабля;
+//  shots(): свої передбачені кулі, або null, якщо передбачення вимкнене. Коли не null,
+//    свої кулі зі знімка не малюються (їх замінюють передбачені), а серверна подія
+//    "fired" власного гравця ігнорується (звук уже пролунав);
+//  interp: без нього apply() одразу показує знімок, з ним apply() кладе знімок у буфер,
+//    а update(now) будує сутності на момент «now − delay» і видає події, до яких дійшов час.
 export function createSnapshotView({
 	you = () => null,
 	local = () => null,
 	interp = null,
+	shots = null,
 } = {}) {
 	const bus = new EventTarget();
 	let byKind = new Map();
@@ -81,16 +84,27 @@ export function createSnapshotView({
 	let ack = 0;
 
 	const build = (ships, rows) => {
+		const id = you();
+		const own = shots ? shots() : null;
 		byKind = new Map([
 			["biplane", ships],
 			["obstacle", (rows.obstacles ?? []).map(obstacle)],
-			["bullet", (rows.bullets ?? []).map(bullet)],
+			[
+				"bullet",
+				(rows.bullets ?? [])
+					.filter((b) => own === null || b.owner !== id)
+					.map(bullet),
+			],
 			["pickup", (rows.pickups ?? []).map(pickup)],
 		]);
 	};
 
 	const emit = (wires = []) => {
+		const own = shots ? shots() : null;
+		const id = you();
 		for (const wire of wires) {
+			if (own !== null && wire?.type === "fired" && wire.player === id)
+				continue;
 			const ev = eventFromWire(wire);
 			if (ev)
 				bus.dispatchEvent(new CustomEvent(ev.type, { detail: ev.detail }));
@@ -102,6 +116,11 @@ export function createSnapshotView({
 		world: {
 			*ofKind(kind) {
 				const list = byKind.get(kind) ?? [];
+				if (kind === "bullet") {
+					yield* list;
+					yield* shots?.() ?? [];
+					return;
+				}
 				if (kind !== "biplane") {
 					yield* list;
 					return;
@@ -148,7 +167,7 @@ export function createSnapshotView({
 			emit(msg.events);
 		},
 
-		// щокадру (лише з interp)
+		// щокадру (лише з interp); свій корабель береться з останнього знімка без затримки
 		update(now) {
 			if (!interp || !latest) return;
 			const s = interp.sample(now);
