@@ -1,5 +1,4 @@
 import { Biplane } from "biplane-shared/sim/biplane.js";
-import { Game, resolveArena } from "biplane-shared/sim/game.js";
 import { runScenario } from "biplane-shared/sim/scenario.js";
 import { TICK_DT } from "biplane-shared/sim/time.js";
 import { createAudio } from "./assets/audio/audio.js";
@@ -11,6 +10,7 @@ import { createLoadingScreen } from "./loadingScreen.js";
 import { Lobby } from "./lobby.js";
 import { createLoop } from "./loop.js";
 import { joinRoom } from "./net/roomSession.js";
+import { createSnapshotView } from "./net/snapshotView.js";
 import { DEFAULT_PILOT, PILOTS } from "./render/pilots/index.js";
 import { createRenderer } from "./render/renderer.js";
 import { downloadSheet, initSprites } from "./render/sprites.js";
@@ -150,26 +150,31 @@ async function loadEverything(audioCtx, screen) {
 	}
 }
 
-// ---------- гра ----------
-function startGame(audio, session, arena) {
-	console.log(`гравець ${session.name}, кімната ${session.room.id}`, arena);
+// ---------- гра: світ рахує сервер, клієнт шле input і малює знімки ----------
+function startGame(audio, session) {
+	const net = session.roomSession;
+	console.log(
+		`гравець ${session.name}, кімната ${session.room.id}`,
+		session.room.arena,
+	);
 	const pilotId = loadPilot();
 	const input = createInput();
-	// поки гра локальна: seed беремо тут, далі його надсилатиме сервер
-	const game = new Game(arena, { seed: (Math.random() * 0x100000000) >>> 0 });
-	const me = game.addPlayer("me");
-	mountChat(document.querySelector("#chat"), session.roomSession);
-	const floaters = createHud(game.world.bus);
-	const fx = createFx(game.world.bus);
-	const view = fx.view(game);
+	const view = createSnapshotView({ you: () => net.you?.id });
+	if (net.snapshot) view.apply(net.snapshot); // знімок міг прийти ще до старту гри
+	net.addEventListener("snapshot", (e) => view.apply(e.detail));
+	mountChat(document.querySelector("#chat"), net);
+	const floaters = createHud(view.bus);
+	const fx = createFx(view.bus);
+	const scene = fx.view(view);
 	const renderer = createRenderer(canvas, { pilotId, overlay: floaters });
-	audio.attach(game.world.bus);
+	audio.attach(view.bus);
 	let probe = null; // вимірювання: окремий біплан поза світом
 	let frameCount = 0;
 	let lastStatus = "";
+	let sendClock = 0;
 
 	// доступ із консолі для експериментів: ?debug
-	if (params.has("debug")) window.game = game;
+	if (params.has("debug")) window.net = view;
 
 	createPilotPicker(document.querySelector("#pilots"), {
 		current: pilotId,
@@ -202,7 +207,13 @@ function startGame(audio, session, arena) {
 				}
 			}
 
-			game.step(dt, new Map([["me", input.snapshot()]]));
+			// input на кожному кроці (30/с). У режимі variable кроки частіші, тому
+			// шлемо не частіше одного разу за TICK_DT: ліміт сервера це 40/с
+			sendClock += dt;
+			if (sendClock >= TICK_DT * 0.999) {
+				sendClock = 0;
+				net.sendInput(input.snapshot());
+			}
 			fx.step(dt);
 			input.endStep();
 		},
@@ -210,17 +221,19 @@ function startGame(audio, session, arena) {
 			frameCount++;
 			// експеримент 1: блокування 100 мс кожен 60-й кадр
 			if (exp === "block" && frameCount % 60 === 0) busyWait(100);
-			renderer.draw(view, alpha, performance.now());
+			renderer.draw(scene, alpha, performance.now());
 
-			const p = me.plane;
-			const active = Object.entries(p.effects)
-				.filter(([, t]) => t > 0)
-				.map(([name, t]) => `${name} ${Math.ceil(t)}`)
-				.join(" ");
+			const { ship, player } = view.me();
+			const active = ship
+				? Object.entries(ship.effects)
+						.filter(([, t]) => t > 0)
+						.map(([name, t]) => `${name} ${Math.ceil(t)}`)
+						.join(" ")
+				: "";
 			const text =
 				`${session.name} · ${session.room.name}   ` +
-				`HP: ${p.alive ? p.hp : "—"}   рахунок: ${me.score}   ` +
-				`збито: ${me.destroyed}   зіткнень: ${me.crashes}` +
+				`HP: ${ship ? ship.hp : "—"}   рахунок: ${player?.score ?? 0}   ` +
+				`збито: ${player?.destroyed ?? 0}   зіткнень: ${player?.crashes ?? 0}` +
 				(active ? `   [${active}]` : "");
 			if (text !== lastStatus) {
 				status.textContent = text;
@@ -275,8 +288,7 @@ async function main() {
 			roomSession: await joinRoom(WS_URL, { room: room.id, name }),
 		}),
 	});
-	const arena = resolveArena(result.assets.arena, session.room.arena);
-	startGame(audio, session, arena);
+	startGame(audio, session);
 }
 
 main().catch((error) => {

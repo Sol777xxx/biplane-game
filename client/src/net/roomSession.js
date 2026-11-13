@@ -1,3 +1,4 @@
+import { makeInput } from "biplane-shared/protocol/index.js";
 import { Connection, isRetryableClose } from "./connection.js";
 
 const CLOSE_TEXT = {
@@ -33,14 +34,16 @@ export function describeJoinError(error) {
 	return error?.message ?? String(error);
 }
 
-// Сеанс у кімнаті. Події: "roster" (players), "chat" (повідомлення),
+// Сеанс у кімнаті. Події: "roster" (players), "chat" (повідомлення), "snapshot" (знімок гри),
 // "status" ({ state: "online" | "reconnecting" | "closed", ... }).
 export class RoomSession extends EventTarget {
 	#conn;
 	#joined = false;
+	#seq = 0;
 	you = null;
 	room = null;
 	players = [];
+	snapshot = null; // останній знімок гри: повне повідомлення сервера
 
 	constructor(url, { room, name, connection = {} }) {
 		super();
@@ -53,10 +56,12 @@ export class RoomSession extends EventTarget {
 		});
 		this.#conn = conn;
 
-		// join іде першим при кожному (пере)підключенні, ще до черги повідомлень
-		conn.addEventListener("open", () =>
-			conn.send({ v: 1, type: "join", room, name }),
-		);
+		// join іде першим при кожному (пере)підключенні, ще до черги повідомлень.
+		// Сервер після join створює нового гравця з порожньою чергою input, тож і seq починаємо з 1.
+		conn.addEventListener("open", () => {
+			this.#seq = 0;
+			conn.send({ v: 1, type: "join", room, name });
+		});
 
 		conn.on("joined", (m) => {
 			this.#joined = true;
@@ -71,6 +76,10 @@ export class RoomSession extends EventTarget {
 			this.#emit("roster", m.players);
 		});
 		conn.on("chat", (m) => this.#emit("chat", m));
+		conn.on("snapshot", (m) => {
+			this.snapshot = m;
+			this.#emit("snapshot", m);
+		});
 
 		conn.addEventListener("reconnecting", (e) =>
 			this.#emit("status", { state: "reconnecting", ...e.detail }),
@@ -91,6 +100,16 @@ export class RoomSession extends EventTarget {
 
 	chat(text) {
 		return this.#conn.send({ v: 1, type: "chat", text });
+	}
+
+	// Надсилає стан клавіш. Повертає seq надісланого input або 0, якщо не надіслано.
+	// Input ніколи не стоїть у черзі: після відновлення зв'язку він був би застарілим.
+	sendInput(keys) {
+		if (!this.#joined || this.#conn.state !== "open") return 0;
+		const seq = this.#seq + 1;
+		if (this.#conn.send(makeInput(seq, keys)) !== "sent") return 0;
+		this.#seq = seq;
+		return seq;
 	}
 
 	leave() {

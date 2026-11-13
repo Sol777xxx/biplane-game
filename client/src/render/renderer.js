@@ -51,11 +51,13 @@ export function createRenderer(
 
 	function drawPlane(plane, x, y, alpha, time) {
 		const pitch = plane.prevPitch + (plane.pitch - plane.prevPitch) * alpha;
+		// свій корабель з обраним героєм, чужі без пілота (plane.mine є лише у сутностей зі знімка)
+		const pilot = plane.mine === false ? "empty" : currentPilot;
 		ctx.save();
 		ctx.translate(x, y);
 		ctx.scale(plane.facing * 1.6, 1.6); // дзеркалення при русі вліво
 		ctx.rotate(pitch);
-		drawBiplane(ctx, time, currentPilot);
+		drawBiplane(ctx, time, pilot);
 		ctx.restore();
 		if (plane.effects.shield > 0) {
 			// центр спрайта зміщений до хвоста, при дзеркаленні зміщення теж
