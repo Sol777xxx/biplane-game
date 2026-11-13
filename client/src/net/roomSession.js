@@ -1,3 +1,4 @@
+import { getCodec } from "biplane-shared/codec/index.js";
 import { MSG, make, makeInput } from "biplane-shared/protocol/index.js";
 import { Connection, isRetryableClose } from "./connection.js";
 
@@ -34,11 +35,20 @@ export function describeJoinError(error) {
 	return error?.message ?? String(error);
 }
 
+// адреса сокета з ?codec=binary (інші параметри зберігаються)
+function withBinary(url) {
+	const u = new URL(url);
+	u.searchParams.set("codec", "binary");
+	return u.toString();
+}
+
 // Сеанс у кімнаті. Події: "roster" (players), "chat" (повідомлення), "snapshot" (знімок гри),
 // "pong" ({ rtt, t }), "netsim" ({ enabled, lag, jitter, loss }),
 // "status" ({ state: "online" | "reconnecting" | "closed", ... }).
+// codec: "json" (за замовчуванням) або "binary": у якому форматі шлемо input і просимо знімки.
 export class RoomSession extends EventTarget {
 	#conn;
+	#codec;
 	#joined = false;
 	#seq = 0;
 	you = null;
@@ -47,9 +57,10 @@ export class RoomSession extends EventTarget {
 	snapshot = null; // останній знімок гри: повне повідомлення сервера
 	netsim = null; // стан штучної мережі, відомий із відповіді сервера (null: сервер не казав)
 
-	constructor(url, { room, name, connection = {} }) {
+	constructor(url, { room, name, connection = {}, codec = "json" }) {
 		super();
-		const conn = new Connection(url, {
+		this.#codec = codec === "binary" ? getCodec("binary") : getCodec("json");
+		const conn = new Connection(this.#codec.isBinary ? withBinary(url) : url, {
 			...connection,
 			// Після обриву сервер ще може вважати нас у кімнаті (він помітить це за heartbeat).
 			// Тоді повторний join дає 4007 "ім'я зайняте": це теж тимчасово.
@@ -109,6 +120,10 @@ export class RoomSession extends EventTarget {
 		this.dispatchEvent(new CustomEvent(type, { detail }));
 	}
 
+	get codec() {
+		return this.#codec.name;
+	}
+
 	get lastSeq() {
 		return this.#seq;
 	}
@@ -131,7 +146,10 @@ export class RoomSession extends EventTarget {
 	sendInput(keys) {
 		if (!this.#joined || this.#conn.state !== "open") return 0;
 		const seq = this.#seq + 1;
-		if (this.#conn.send(makeInput(seq, keys)) !== "sent") return 0;
+		const sent = this.#codec.isBinary
+			? this.#conn.sendBinary(this.#codec.encodeInput(seq, keys))
+			: this.#conn.send(makeInput(seq, keys));
+		if (sent !== "sent") return 0;
 		this.#seq = seq;
 		return seq;
 	}
@@ -163,9 +181,9 @@ export class RoomSession extends EventTarget {
 // сокет із фатальним кодом (кімната заповнена тощо) або вичерпано час / скасовано signal.
 export function joinRoom(
 	url,
-	{ room, name, connection, signal = AbortSignal.timeout(8000) } = {},
+	{ room, name, connection, codec, signal = AbortSignal.timeout(8000) } = {},
 ) {
-	const session = new RoomSession(url, { room, name, connection });
+	const session = new RoomSession(url, { room, name, connection, codec });
 	return new Promise((resolve, reject) => {
 		const finish = (settle, value) => {
 			signal.removeEventListener("abort", onAbort);

@@ -178,7 +178,7 @@ describe("WebSocket", () => {
 			],
 			["зайве поле", { ...join(room.id, "A"), admin: true }, CLOSE.BAD_FORMAT],
 			["чат до join", { v: 1, type: "chat", text: "hi" }, CLOSE.NOT_JOINED],
-			["бінарний кадр", Buffer.from([1, 2, 3]), CLOSE.UNSUPPORTED],
+			["бінарний кадр", Buffer.from([2, 1, 2]), CLOSE.UNSUPPORTED],
 		];
 		for (const [label, message, code] of cases) {
 			const c = connect(url);

@@ -1,6 +1,6 @@
 // npm run dogfight -w client -- --lag 100 --jitter 30 --loss 2 --interp 100 --seconds 10
 // Сервер у процесі й боти на справжньому клієнтському коді. Параметри: lag, jitter, loss, interp,
-// smooth (мс), seconds (вимірювання), warmup (розігрів), bots.
+// smooth (мс), seconds (вимірювання), warmup (розігрів), bots, binary (1 бінарний, 0 JSON).
 import { tmpdir } from "node:os";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
@@ -25,11 +25,25 @@ export const DEFAULTS = {
 	seconds: 10,
 	warmup: 2,
 	bots: 2,
+	binary: 1,
 };
 
 // Бот: клієнтський стек без DOM. Метрики збираються лише після розігріву.
-async function createBot({ url, room, name, index, interp, smooth, warmup }) {
-	const session = await joinRoom(url, { room, name });
+async function createBot({
+	url,
+	room,
+	name,
+	index,
+	interp,
+	smooth,
+	warmup,
+	binary,
+}) {
+	const session = await joinRoom(url, {
+		room,
+		name,
+		codec: binary ? "binary" : "json",
+	});
 	const predictor = createPredictor({ smooth: smooth / 1000 });
 	const interpolator = createInterpolator({ delay: interp });
 	const view = createSnapshotView({
@@ -202,7 +216,7 @@ const f = (v) => Math.round(v * 10) / 10;
 export function printReport(r) {
 	const o = r.options;
 	console.log(
-		`lag ${o.lag} ± ${o.jitter} мс, втрати ${o.loss}%, інтерполяція ${o.interp} мс, згладжування ${o.smooth} мс, ${o.seconds} с`,
+		`lag ${o.lag} ± ${o.jitter} мс, втрати ${o.loss}%, інтерполяція ${o.interp} мс, згладжування ${o.smooth} мс, кодек ${o.binary ? "binary" : "json"}, ${o.seconds} с`,
 	);
 	console.table(
 		r.bots.map((b) => ({

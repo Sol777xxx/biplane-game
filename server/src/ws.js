@@ -1,5 +1,11 @@
 import { randomBytes } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
+import {
+	CodecError,
+	decodeInput,
+	FORMAT_VERSION,
+} from "biplane-shared/codec/binary.js";
+import { getCodec } from "biplane-shared/codec/index.js";
 import { inputFromMessage } from "biplane-shared/protocol/index.js";
 import { WebSocketServer } from "ws";
 import { TokenBucket } from "./limits.js";
@@ -53,10 +59,10 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 
 	// ---------- надсилання й закриття ----------
 
-	// Клієнт, який не читає, змушує сервер тримати все в буфері сокета; при розсилці
-	// на N клієнтів це N копій. bufferedAmount це байти, які ws прийняв, але ще не віддав у мережу.
-	// droppable: повідомлення, яке не шкода втратити (chat, snapshot: наступний знімок застарить
-	// цей). Стан (roster, joined, error) не відкидається.
+	// Клієнт, який не читає, змушує сервер тримати все в буфері сокета. bufferedAmount це байти,
+	// які ws прийняв, але ще не віддав у мережу. droppable: повідомлення, яке не шкода
+	// втратити (chat, snapshot: наступний знімок застарить цей). Стан (roster, joined, error)
+	// не відкидається. Знімок кодується кодеком клієнта (json або binary), решта це JSON.
 	// Штучна мережа стоїть після перевірки буфера: на сам буфер вона не впливає.
 	function send(ws, message, { droppable = false } = {}) {
 		if (ws.readyState !== ws.OPEN) return;
@@ -76,7 +82,10 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 		}
 		s.dropping = false;
 
-		const data = JSON.stringify(message);
+		const data =
+			message.type === "snapshot"
+				? s.codec.encodeSnapshot(message)
+				: JSON.stringify(message);
 		s.sim.outbound(
 			() => {
 				if (ws.readyState !== ws.OPEN) return; // за час затримки сокет міг закритись
@@ -103,7 +112,6 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 	}
 
 	// порушення протоколу: пояснюємо повідомленням і закриваємо з кодом
-	// (при штучній затримці close-кадр може обігнати error: клієнт спирається на код закриття)
 	function reject(ws, code, reason) {
 		log.warn(`[${ws.session.id}] закрито ${code}: ${reason}`);
 		send(ws, make("error", { code, message: reason }));
@@ -191,6 +199,31 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 		send(ws, make("netsim", { enabled: opts.netsim, ...s.sim.settings }));
 	}
 
+	// Кадр у повідомлення. Бінарним може бути лише input версії 1: чужа версія це 1003,
+	// зламана розкладка це 4000. Текстовий кадр це JSON за validate. Відхилений кадр дає
+	// undefined (з'єднання вже закривається).
+	function parse(ws, data, isBinary) {
+		if (isBinary) {
+			if (data[0] !== FORMAT_VERSION) {
+				return reject(ws, CLOSE.UNSUPPORTED, "binary frames not supported");
+			}
+			try {
+				return decodeInput(data);
+			} catch (error) {
+				if (!(error instanceof CodecError)) throw error;
+				return reject(ws, CLOSE.BAD_FORMAT, "bad binary frame");
+			}
+		}
+		let raw;
+		try {
+			raw = JSON.parse(data.toString("utf8"));
+		} catch {
+			return reject(ws, CLOSE.BAD_FORMAT, "invalid json");
+		}
+		const result = validate(raw);
+		return result.ok ? result.msg : reject(ws, result.code, result.reason);
+	}
+
 	// Перевірки на вході (ліміти, розбір, валідація) йдуть без затримки: вони рахують
 	// те, що прийшло з мережі. Затримується лише обробка (dispatch).
 	function onMessage(ws, data, isBinary) {
@@ -202,19 +235,8 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 			return reject(ws, CLOSE.RATE_LIMIT, "rate limit");
 		}
 
-		if (isBinary)
-			return reject(ws, CLOSE.UNSUPPORTED, "binary frames not supported");
-
-		let raw;
-		try {
-			raw = JSON.parse(data.toString("utf8"));
-		} catch {
-			return reject(ws, CLOSE.BAD_FORMAT, "invalid json");
-		}
-		const result = validate(raw);
-		if (!result.ok) return reject(ws, result.code, result.reason);
-
-		const { msg } = result;
+		const msg = parse(ws, data, isBinary);
+		if (!msg) return;
 		// окреме відро на тип: часті input не з'їдають ліміт чату, а спам чату не душить input.
 		// ping окремого відра не має: його обмежує стеля кадрів.
 		const bucket =
@@ -297,6 +319,8 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 				capacity: opts.inputCapacity,
 				refillPerSec: opts.inputRefillPerSec,
 			}),
+			// ?codec=binary: знімки бінарні; без параметра (або невідоме значення) це JSON
+			codec: getCodec(new URL(req.url, "http://x").searchParams.get("codec")),
 			// штучна мережа: початкові значення з адреси, лише якщо дозволено на сервері
 			sim: new NetSim({
 				...(opts.netsim ? parseNetsimUrl(req.url) : {}),

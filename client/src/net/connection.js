@@ -1,6 +1,14 @@
 // Обгортка WebSocket: dispatch за type, черга send, перепідключення з backoff.
 // Події життєвого циклу (EventTarget): "open", "close" { code, reason, willRetry },
 // "reconnecting" { attempt, delay }. Повідомлення сервера: on(type, handler).
+// Текстові кадри це JSON; бінарні це знімки (shared/codec/binary.js), їх теж віддаємо як
+// on("snapshot").
+import {
+	CodecError,
+	decodeSnapshot,
+	FRAME,
+	frameType,
+} from "biplane-shared/codec/binary.js";
 
 // Перепідключаємось лише після тимчасових обривів. 4xxx (порушення протоколу,
 // кімната заповнена) і 1000 повтором не лікуються.
@@ -82,6 +90,7 @@ export class Connection extends EventTarget {
 	#open() {
 		this.#state = "connecting";
 		const ws = new this.#opts.WebSocketImpl(this.#url);
+		ws.binaryType = "arraybuffer";
 		this.#ws = ws;
 
 		ws.addEventListener("open", () => {
@@ -99,15 +108,31 @@ export class Connection extends EventTarget {
 		});
 	}
 
-	#onMessage(event) {
-		this.#traffic.bytesIn += sizeOf(event.data);
-		this.#traffic.msgsIn++;
-		let msg;
+	// бінарний кадр у повідомлення; зламаний або чужий кадр ігноруємо
+	#decodeBinary(data) {
 		try {
-			msg = JSON.parse(event.data);
-		} catch {
-			console.warn("сервер надіслав не JSON");
-			return;
+			if (frameType(data)?.type === FRAME.SNAPSHOT) return decodeSnapshot(data);
+		} catch (error) {
+			if (!(error instanceof CodecError)) throw error;
+		}
+		console.warn("сервер надіслав некоректний бінарний кадр");
+		return null;
+	}
+
+	#onMessage(event) {
+		const { data } = event;
+		this.#traffic.bytesIn += sizeOf(data);
+		this.#traffic.msgsIn++;
+		let msg = null;
+		if (typeof data === "string") {
+			try {
+				msg = JSON.parse(data);
+			} catch {
+				console.warn("сервер надіслав не JSON");
+				return;
+			}
+		} else {
+			msg = this.#decodeBinary(data);
 		}
 		if (typeof msg?.type !== "string") return;
 		for (const handler of this.#handlers.get(msg.type) ?? []) {
@@ -142,7 +167,7 @@ export class Connection extends EventTarget {
 		this.#timer = setTimeout(() => this.#open(), delay);
 	}
 
-	// єдине місце, де кадр справді йде в сокет: тут же рахуємо байти
+	// єдине місце, де текстовий кадр іде в сокет: тут же рахуємо байти
 	#transmit(message) {
 		const data = JSON.stringify(message);
 		this.#ws.send(data);
@@ -166,6 +191,16 @@ export class Connection extends EventTarget {
 		this.#queue.push(message);
 		if (this.#queue.length > this.#opts.maxQueue) this.#queue.shift(); // старі не важливі
 		return "queued";
+	}
+
+	// Бінарний кадр (input). У чергу не стає: після відновлення зв'язку він був би застарілим.
+	// "sent" | "dropped"
+	sendBinary(bytes) {
+		if (this.#state !== "open") return "dropped";
+		this.#ws.send(bytes);
+		this.#traffic.bytesOut += bytes.byteLength;
+		this.#traffic.msgsOut++;
+		return "sent";
 	}
 
 	// повертає функцію відписки

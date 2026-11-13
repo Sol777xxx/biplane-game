@@ -32,7 +32,9 @@ const netsimQuery = new URLSearchParams(
 		.map((key) => [key, params.get(key)]),
 ).toString();
 const WS_URL = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws${netsimQuery ? `?${netsimQuery}` : ""}`;
-// лаб 5: ?smooth=мс (згладжування поправки, 0 вимикає), ?interp=мс (затримка інтерполяції)
+// лаб 5: ?codec=json вмикає JSON для порівняння (за замовчуванням binary)
+const codec = params.get("codec") === "json" ? "json" : "binary";
+// ?smooth=мс (згладжування поправки, 0 вимикає), ?interp=мс (затримка інтерполяції)
 const num = (name, fallback) =>
 	/^\d{1,4}$/.test(params.get(name) ?? "")
 		? Number(params.get(name))
@@ -170,7 +172,7 @@ async function loadEverything(audioCtx, screen) {
 function startGame(audio, session) {
 	const net = session.roomSession;
 	console.log(
-		`гравець ${session.name}, кімната ${session.room.id}`,
+		`гравець ${session.name}, кімната ${session.room.id}, кодек ${net.codec}`,
 		session.room.arena,
 	);
 	const pilotId = loadPilot();
@@ -361,7 +363,7 @@ async function main() {
 	const session = await showLobby(document.querySelector("#lobby"), lobby, {
 		// відмова повертає гравця в лобі з поясненням
 		enter: async ({ name, room }) => ({
-			roomSession: await joinRoom(WS_URL, { room: room.id, name }),
+			roomSession: await joinRoom(WS_URL, { room: room.id, name, codec }),
 		}),
 	});
 	startGame(audio, session);
