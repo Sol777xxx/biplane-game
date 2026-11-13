@@ -12,7 +12,7 @@ import { createLoop } from "./loop.js";
 import { createPredictor } from "./net/predictor.js";
 import { joinRoom } from "./net/roomSession.js";
 import { createSnapshotView } from "./net/snapshotView.js";
-import { createNetStats } from "./netStats.js";
+import { createNetStats, summarize } from "./netStats.js";
 import { DEFAULT_PILOT, PILOTS } from "./render/pilots/index.js";
 import { createRenderer } from "./render/renderer.js";
 import { downloadSheet, initSprites } from "./render/sprites.js";
@@ -31,6 +31,10 @@ const netsimQuery = new URLSearchParams(
 		.map((key) => [key, params.get(key)]),
 ).toString();
 const WS_URL = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws${netsimQuery ? `?${netsimQuery}` : ""}`;
+// лаб 5: ?smooth=мс: згладжування поправки (за замовчуванням 100, 0 вимикає)
+const smoothMs = /^\d{1,4}$/.test(params.get("smooth") ?? "")
+	? Number(params.get("smooth"))
+	: 100;
 // лаб 1: ?exp=block | interval | variable
 const exp = params.get("exp");
 // лаб 3: ?chaos=404|404hard|timeout|abort|badjson, ?latency=300 (мс на файл), ?seq
@@ -167,19 +171,25 @@ function startGame(audio, session) {
 	);
 	const pilotId = loadPilot();
 	const input = createInput();
-	const predictor = createPredictor();
+	const predictor = createPredictor({ smooth: smoothMs / 1000 });
 	const netStats = createNetStats();
 	const view = createSnapshotView({
 		you: () => net.you?.id,
-		local: () => predictor.ship,
+		local: () => predictor.pose,
 	});
+
+	// ?debug: журнал поправок; corr() віддає підсумок від попереднього виклику
+	const corrLog = params.has("debug") ? [] : null;
 
 	// знімок: показ, потім звірка передбачення
 	const onSnapshot = (msg) => {
 		view.apply(msg);
 		const r = predictor.reconcile(msg, net.you?.id);
 		if (r.correction === null) netStats.clearCorrection();
-		else netStats.correction(r.correction);
+		else {
+			netStats.correction(r.correction);
+			if (!r.reset) corrLog?.push(r.correction);
+		}
 	};
 	if (net.snapshot) onSnapshot(net.snapshot); // знімок міг прийти до старту гри
 	net.addEventListener("snapshot", (e) => onSnapshot(e.detail));
@@ -210,6 +220,11 @@ function startGame(audio, session) {
 		window.net = view;
 		window.netStats = netStats;
 		window.predictor = predictor;
+		window.corr = () => {
+			const s = summarize(corrLog);
+			corrLog.length = 0;
+			return s;
+		};
 	}
 
 	createPilotPicker(document.querySelector("#pilots"), {
@@ -226,6 +241,7 @@ function startGame(audio, session) {
 		driver: exp === "interval" ? "interval" : "raf",
 		update(dt) {
 			if (input.justPressed("hud")) hud.hidden = !hud.hidden;
+			predictor.tick(dt); // згасання видимого зсуву
 
 			// вимірювання: 5 с симуляційного часу з постійним «вправо»
 			if (input.justPressed("probe")) {

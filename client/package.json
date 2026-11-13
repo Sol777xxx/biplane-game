@@ -9,6 +9,7 @@
 		"preview": "vite preview",
 		"test": "node --test \"test/*.test.mjs\"",
 		"sounds": "node tools/make-sounds.mjs",
+		"drift": "node tools/random-drift.mjs",
 		"timing": "node demo/timing.mjs",
 		"puzzles": "node demo/puzzles.mjs"
 	},

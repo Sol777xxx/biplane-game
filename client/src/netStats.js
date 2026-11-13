@@ -9,6 +9,21 @@ const push = (list, value, max) => {
 	if (list.length > max) list.shift();
 };
 
+// n, середнє, p95 і максимум (для дослідів із консолі й скриптів)
+export function summarize(values) {
+	const n = values.length;
+	if (n === 0) return { n: 0, mean: 0, p95: 0, max: 0 };
+	const xs = [...values].sort((a, b) => a - b);
+	const mean = xs.reduce((a, b) => a + b, 0) / n;
+	const r = (v) => Math.round(v * 100) / 100;
+	return {
+		n,
+		mean: r(mean),
+		p95: r(xs[Math.min(n - 1, Math.ceil(0.95 * n) - 1)]),
+		max: r(xs[n - 1]),
+	};
+}
+
 export function createNetStats({ now = () => performance.now() } = {}) {
 	const intervals = [];
 	const rtts = [];
