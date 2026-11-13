@@ -1,14 +1,13 @@
 import { eventFromWire } from "./events.js";
 
-// Радіуси дублюють shared/sim (Biplane, Bullet, Pickup); збіг стереже тест.
+// радіуси дублюють shared/sim (Biplane, Bullet, Pickup); збіг стереже тест
 export const SHIP_RADIUS = 46;
 export const BULLET_RADIUS = 8;
 export const PICKUP_RADIUS = 28;
 
 const pt = (x, y) => ({ x, y });
 
-// Сутності мають ті самі поля, що й у sim, які читає renderer (pos, prevPos, radius, pitch…).
-// Інтерполяції ще немає: prevPos дорівнює pos, малюємо рівно те, що прислав сервер.
+// Сутності мають поля sim, які читає renderer. Інтерполяції ще немає: prevPos = pos.
 function ship(s, mine) {
 	return {
 		id: s.id,
@@ -63,9 +62,13 @@ function pickup(p) {
 	};
 }
 
-// Те, що клієнт знає про гру: останній знімок сервера. Світу з правилами тут немає.
-// you() повертає id гравця цього клієнта (він змінюється після перепідключення).
-export function createSnapshotView({ you = () => null } = {}) {
+// Те, що клієнт знає про гру: останній знімок сервера.
+// you() це id цього гравця; local() це передбачений корабель (або null): його рух
+// підміняє рух свого корабля зі знімка, решта полів лишається зі знімка.
+export function createSnapshotView({
+	you = () => null,
+	local = () => null,
+} = {}) {
 	const bus = new EventTarget();
 	let byKind = new Map();
 	let players = new Map();
@@ -74,10 +77,25 @@ export function createSnapshotView({ you = () => null } = {}) {
 
 	return {
 		bus,
-		// renderer читає world.ofKind(kind), як і в ігровому світі
 		world: {
 			*ofKind(kind) {
-				yield* byKind.get(kind) ?? [];
+				const list = byKind.get(kind) ?? [];
+				if (kind !== "biplane") {
+					yield* list;
+					return;
+				}
+				const p = local();
+				for (const e of list) {
+					if (e.mine && p) {
+						e.pos = pt(p.pos.x, p.pos.y);
+						e.prevPos = pt(p.prevPos.x, p.prevPos.y);
+						e.vel = pt(p.vel.x, p.vel.y);
+						e.pitch = p.pitch;
+						e.prevPitch = p.prevPitch;
+						e.facing = p.facing;
+					}
+					yield e;
+				}
 			},
 		},
 		get tick() {
@@ -109,7 +127,7 @@ export function createSnapshotView({ you = () => null } = {}) {
 			}
 		},
 
-		// свій корабель (null, поки гравець загиблий) і свої лічильники
+		// свій корабель (null, поки загиблий) і свої лічильники
 		me() {
 			const id = you();
 			const mine = (byKind.get("biplane") ?? []).find((s) => s.player === id);

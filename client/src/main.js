@@ -9,6 +9,7 @@ import { createInput } from "./input.js";
 import { createLoadingScreen } from "./loadingScreen.js";
 import { Lobby } from "./lobby.js";
 import { createLoop } from "./loop.js";
+import { createPredictor } from "./net/predictor.js";
 import { joinRoom } from "./net/roomSession.js";
 import { createSnapshotView } from "./net/snapshotView.js";
 import { createNetStats } from "./netStats.js";
@@ -23,21 +24,20 @@ import { createPilotPicker } from "./ui/pilotPicker.js";
 const STORAGE_KEY = "biplane-pilot";
 const PROBE_SECONDS = 5;
 const params = new URLSearchParams(location.search);
-// лаб 5: ?lag=100&jitter=30&loss=2 передаються серверу в адресі сокета (потрібен ENABLE_NETSIM=1)
+// ?lag=100&jitter=30&loss=2 йдуть серверу в адресі сокета (потрібен ENABLE_NETSIM=1)
 const netsimQuery = new URLSearchParams(
 	["lag", "jitter", "loss"]
 		.filter((key) => params.has(key))
 		.map((key) => [key, params.get(key)]),
 ).toString();
 const WS_URL = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws${netsimQuery ? `?${netsimQuery}` : ""}`;
-// режим експерименту з лаб 1: ?exp=block | interval | variable
+// лаб 1: ?exp=block | interval | variable
 const exp = params.get("exp");
 // лаб 3: ?chaos=404|404hard|timeout|abort|badjson, ?latency=300 (мс на файл), ?seq
 const chaos = params.get("chaos");
 const latency = Number(params.get("latency") ?? 0);
 const sequential = params.has("seq");
 
-// читання збереженого героя
 function loadPilot() {
 	try {
 		const saved = localStorage.getItem(STORAGE_KEY);
@@ -55,11 +55,11 @@ function savePilot(id) {
 	}
 }
 
-// синхронне блокування потоку
+// навмисне блокування потоку
 function busyWait(ms) {
 	const end = performance.now() + ms;
 	while (performance.now() < end) {
-		// навмисне блокування
+		// порожньо
 	}
 }
 
@@ -69,7 +69,7 @@ hud.hidden = true; // діагностика схована, поки граве
 const status = document.querySelector("#status");
 const retryBtn = document.querySelector("#retry");
 
-// ---------- збої для галереї (діють лише на першу спробу, Retry йде вже чисто) ----------
+// збої для галереї (діють лише на першу спробу, Retry йде чисто)
 function withChaos(manifest, mode) {
 	const m = structuredClone(manifest);
 	const find = (id) => m.assets.find((a) => a.id === id);
@@ -108,7 +108,7 @@ function withChaos(manifest, mode) {
 	return m;
 }
 
-// ---------- завантаження з екрана, з Retry ----------
+// завантаження з екрана, з Retry
 async function loadEverything(audioCtx, screen) {
 	let mode = chaos;
 	for (;;) {
@@ -153,12 +153,12 @@ async function loadEverything(audioCtx, screen) {
 		} catch (error) {
 			console.error("завантаження не вдалось:", error);
 			mode = null; // Retry без навмисного збою
-			await screen.fail(error); // чекаємо натискання Retry
+			await screen.fail(error);
 		}
 	}
 }
 
-// ---------- гра: світ рахує сервер, клієнт шле input і малює знімки ----------
+// гра: світ рахує сервер, клієнт шле input, передбачає свій корабель і малює знімки
 function startGame(audio, session) {
 	const net = session.roomSession;
 	console.log(
@@ -167,15 +167,33 @@ function startGame(audio, session) {
 	);
 	const pilotId = loadPilot();
 	const input = createInput();
-	const view = createSnapshotView({ you: () => net.you?.id });
-	if (net.snapshot) view.apply(net.snapshot); // знімок міг прийти ще до старту гри
-	net.addEventListener("snapshot", (e) => view.apply(e.detail));
-	mountChat(document.querySelector("#chat"), net);
+	const predictor = createPredictor();
 	const netStats = createNetStats();
+	const view = createSnapshotView({
+		you: () => net.you?.id,
+		local: () => predictor.ship,
+	});
+
+	// знімок: показ, потім звірка передбачення
+	const onSnapshot = (msg) => {
+		view.apply(msg);
+		const r = predictor.reconcile(msg, net.you?.id);
+		if (r.correction === null) netStats.clearCorrection();
+		else netStats.correction(r.correction);
+	};
+	if (net.snapshot) onSnapshot(net.snapshot); // знімок міг прийти до старту гри
+	net.addEventListener("snapshot", (e) => onSnapshot(e.detail));
+	// після перепідключення seq починається з 1: старий буфер недійсний
+	net.addEventListener("status", (e) => {
+		if (e.detail.state === "online") predictor.reset();
+	});
+
+	mountChat(document.querySelector("#chat"), net);
 	const netgraph = mountNetgraph(document.querySelector("#netgraph"), {
 		session: net,
 		view,
 		stats: netStats,
+		predictor,
 	});
 	const floaters = createHud(view.bus);
 	const fx = createFx(view.bus);
@@ -187,10 +205,11 @@ function startGame(audio, session) {
 	let lastStatus = "";
 	let sendClock = 0;
 
-	// доступ із консолі для експериментів: ?debug
+	// доступ із консолі: ?debug
 	if (params.has("debug")) {
 		window.net = view;
 		window.netStats = netStats;
+		window.predictor = predictor;
 	}
 
 	createPilotPicker(document.querySelector("#pilots"), {
@@ -224,12 +243,14 @@ function startGame(audio, session) {
 				}
 			}
 
-			// input на кожному кроці (30/с). У режимі variable кроки частіші, тому
-			// шлемо не частіше одного разу за TICK_DT: ліміт сервера це 40/с
+			// не частіше одного input за TICK_DT (у variable кроки частіші, ліміт сервера 40/с);
+			// що надіслано, те й передбачаємо
 			sendClock += dt;
 			if (sendClock >= TICK_DT * 0.999) {
 				sendClock = 0;
-				net.sendInput(input.snapshot());
+				const keys = input.snapshot();
+				const seq = net.sendInput(keys);
+				if (seq) predictor.step(seq, keys);
 			}
 			fx.step(dt);
 			input.endStep();
@@ -264,7 +285,6 @@ function startGame(audio, session) {
 				`frames/s: ${framesPerSec.toFixed(1)}\n` +
 				`frame:    ${frameMs.toFixed(1)} ms`;
 
-			// додаткові метрики лише в режимах експериментів
 			if (exp) {
 				text =
 					`mode:     ${exp}\n${text}\n` +
@@ -278,15 +298,15 @@ function startGame(audio, session) {
 	loop.start();
 }
 
-// ---------- точка входу: loading → game ----------
+// точка входу: loading → lobby → game
 async function main() {
 	// ?hash: той самий сценарій, що й у тесті Node; хеші мають збігтися
 	if (params.has("hash")) {
 		console.log(`hash (1000 кроків, seed 1): ${runScenario()}`);
 	}
 
-	// AudioContext створюється тут: decodeAudioData декодує звуки на екрані завантаження,
-	// а запускається контекст лише після жесту гравця (див. audio.js)
+	// AudioContext створюється тут, щоб decodeAudioData встиг на екрані завантаження;
+	// запускається він після жесту гравця (див. audio.js)
 	const audio = createAudio();
 	const screen = createLoadingScreen(canvas, retryBtn);
 
@@ -301,7 +321,7 @@ async function main() {
 	// ?delay=мс у адресі сторінки затримує і запити лобі (див. vite.config.js)
 	const lobby = new Lobby({ url: `/api/rooms${location.search}` });
 	const session = await showLobby(document.querySelector("#lobby"), lobby, {
-		// підключення до кімнати; відмова повертає гравця в лобі з поясненням
+		// відмова повертає гравця в лобі з поясненням
 		enter: async ({ name, room }) => ({
 			roomSession: await joinRoom(WS_URL, { room: room.id, name }),
 		}),

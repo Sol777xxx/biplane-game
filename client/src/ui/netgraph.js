@@ -2,11 +2,11 @@ import { formatNet } from "../netStats.js";
 
 const GRAPH_W = 240;
 const GRAPH_H = 44;
-const GRAPH_MAX_MS = 200; // висота графіка = 200 мс
+const GRAPH_MAX_MS = 200; // висота графіка
 const GRAPH_BARS = 120;
 const REFRESH_MS = 250;
 
-// пресети штучної мережі (кнопки показуються, лише якщо сервер дозволяє netsim)
+// пресети штучної мережі (кнопки лише якщо сервер дозволяє netsim)
 export const PRESETS = [
 	{ label: "0", lag: 0, jitter: 0, loss: 0 },
 	{ label: "100 ± 30", lag: 100, jitter: 30, loss: 0 },
@@ -19,8 +19,7 @@ function el(tag, props = {}, ...children) {
 	return node;
 }
 
-// стовпчики: проміжки між знімками. Рівний ряд ≈33 мс це здорова мережа; високі стовпчики
-// це затримки (чекали знімок), прогалини в ряду це втрати.
+// стовпчики це проміжки між знімками: рівний ряд ≈33 мс здоровий, високі стовпчики це затримки
 function drawGraph(canvas, intervals) {
 	const dpr = window.devicePixelRatio || 1;
 	if (canvas.width !== Math.round(GRAPH_W * dpr)) {
@@ -39,7 +38,7 @@ function drawGraph(canvas, intervals) {
 		g.fillRect(x, GRAPH_H - h, Math.max(1, barW - 0.5), h);
 	});
 
-	// пунктир на 33 мс: ідеальний інтервал між знімками при 30 Гц
+	// пунктир на 33 мс: ідеальний інтервал при 30 Гц
 	const y = GRAPH_H - (1000 / 30 / GRAPH_MAX_MS) * GRAPH_H;
 	g.strokeStyle = "rgba(107, 91, 138, 0.6)";
 	g.lineWidth = 1;
@@ -51,9 +50,12 @@ function drawGraph(canvas, intervals) {
 	g.setLineDash([]);
 }
 
-// Панель мережі. session: RoomSession, view: createSnapshotView, stats: createNetStats.
-// Клавіша N ховає й показує панель; update() викликається з кожного кадру малювання.
-export function mountNetgraph(root, { session, view, stats, visible = true }) {
+// Панель мережі; клавіша N ховає/показує, update() викликається щокадру.
+// session: RoomSession, view: snapshotView, stats: netStats, predictor: необов'язковий.
+export function mountNetgraph(
+	root,
+	{ session, view, stats, predictor = null, visible = true },
+) {
 	const ac = new AbortController();
 	const { signal } = ac;
 
@@ -61,6 +63,27 @@ export function mountNetgraph(root, { session, view, stats, visible = true }) {
 	const graph = el("canvas", { className: "net-graph" });
 	graph.style.width = `${GRAPH_W}px`;
 	graph.style.height = `${GRAPH_H}px`;
+	const children = [text, graph];
+
+	if (predictor) {
+		const btn = el("button", { type: "button", className: "net-preset" });
+		const label = () => {
+			btn.textContent = `prediction: ${predictor.enabled ? "on" : "off"}`;
+		};
+		label();
+		btn.addEventListener(
+			"click",
+			() => {
+				predictor.enabled = !predictor.enabled;
+				stats.clearCorrection();
+				label();
+				btn.blur(); // щоб клавіші керування не «натискали» кнопку
+			},
+			{ signal },
+		);
+		children.push(el("div", { className: "net-presets" }, btn));
+	}
+
 	const presets = el("div", { className: "net-presets", hidden: true });
 	for (const preset of PRESETS) {
 		const btn = el("button", {
@@ -73,16 +96,17 @@ export function mountNetgraph(root, { session, view, stats, visible = true }) {
 			"click",
 			() => {
 				session.setNetsim(preset);
-				btn.blur(); // щоб клавіші керування не «натискали» кнопку
+				btn.blur();
 			},
 			{ signal },
 		);
 		presets.append(btn);
 	}
-	root.replaceChildren(text, graph, presets);
+	children.push(presets);
+	root.replaceChildren(...children);
 	root.hidden = !visible;
 
-	// вимірювання йдуть і тоді, коли панель схована
+	// вимірювання йдуть і при схованій панелі
 	session.addEventListener(
 		"snapshot",
 		() => stats.snapshot(performance.now()),
