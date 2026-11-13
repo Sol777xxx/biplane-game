@@ -63,7 +63,13 @@ export function createApp(
 			else sendJson(res, 500, { error: "internal error" });
 		}
 	});
-	const sockets = attachWebSocket({ server, rooms, log, ...wsOptions });
+	const sockets = attachWebSocket({
+		server,
+		rooms,
+		log,
+		netsim: config.enableNetsim === true,
+		...wsOptions,
+	});
 	closers.push(() => sockets.shutdown());
 
 	// Match зупиняється після сокетів: спершу всі виходять із кімнат

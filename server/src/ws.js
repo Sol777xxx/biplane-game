@@ -3,6 +3,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { inputFromMessage } from "biplane-shared/protocol/index.js";
 import { WebSocketServer } from "ws";
 import { TokenBucket } from "./limits.js";
+import { NetSim, parseNetsimUrl } from "./netsim.js";
 import { CLOSE, MAX_MESSAGE_BYTES, make, validate } from "./protocol.js";
 import { RoomError } from "./rooms.js";
 
@@ -20,6 +21,7 @@ export const WS_DEFAULTS = Object.freeze({
 	inputRefillPerSec: 40,
 	softBufferBytes: 16 * 1024, // вище: chat і snapshot цьому клієнтові не шлемо
 	hardBufferBytes: 256 * 1024, // вище: розриваємо з'єднання
+	netsim: false, // штучна затримка/втрати (ENABLE_NETSIM=1), лише для розробки
 });
 
 const ROOM_ERROR_CODES = {
@@ -55,6 +57,7 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 	// на N клієнтів це N копій. bufferedAmount це байти, які ws прийняв, але ще не віддав у мережу.
 	// droppable: повідомлення, яке не шкода втратити (chat, snapshot: наступний знімок застарить
 	// цей). Стан (roster, joined, error) не відкидається.
+	// Штучна мережа стоїть після перевірки буфера: на сам буфер вона не впливає.
 	function send(ws, message, { droppable = false } = {}) {
 		if (ws.readyState !== ws.OPEN) return;
 		const s = ws.session;
@@ -73,9 +76,16 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 		}
 		s.dropping = false;
 
-		ws.send(JSON.stringify(message), (error) => {
-			if (error) log.warn(`[${s.id}] send: ${error.message}`);
-		});
+		const data = JSON.stringify(message);
+		s.sim.outbound(
+			() => {
+				if (ws.readyState !== ws.OPEN) return; // за час затримки сокет міг закритись
+				ws.send(data, (error) => {
+					if (error) log.warn(`[${s.id}] send: ${error.message}`);
+				});
+			},
+			{ lossy: message.type === "snapshot" },
+		);
 	}
 
 	function closeSlow(ws, buffered) {
@@ -93,6 +103,7 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 	}
 
 	// порушення протоколу: пояснюємо повідомленням і закриваємо з кодом
+	// (при штучній затримці close-кадр може обігнати error: клієнт спирається на код закриття)
 	function reject(ws, code, reason) {
 		log.warn(`[${ws.session.id}] закрито ${code}: ${reason}`);
 		send(ws, make("error", { code, message: reason }));
@@ -164,10 +175,24 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 				players: room.roster(),
 			}),
 		);
+		// клієнт дізнається про штучну мережу лише коли вона дозволена на сервері
+		if (opts.netsim) {
+			send(ws, make("netsim", { enabled: true, ...s.sim.settings }));
+		}
 		s.unsubscribe = subscribe(ws, room);
 		log.info(`[${s.id}] ${player.name} зайшов у ${room.id}`);
 	}
 
+	// Зміна штучної мережі наживо. Вимкнено на сервері: відповідаємо enabled: false
+	// і нічого не закриваємо.
+	function handleNetsim(ws, msg) {
+		const s = ws.session;
+		if (opts.netsim) s.sim.set(msg);
+		send(ws, make("netsim", { enabled: opts.netsim, ...s.sim.settings }));
+	}
+
+	// Перевірки на вході (ліміти, розбір, валідація) йдуть без затримки: вони рахують
+	// те, що прийшло з мережі. Затримується лише обробка (dispatch).
 	function onMessage(ws, data, isBinary) {
 		// після закриття з нашого боку решту повідомлень у черзі ігноруємо
 		if (ws.readyState !== ws.OPEN) return;
@@ -202,6 +227,25 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 			return reject(ws, CLOSE.RATE_LIMIT, "rate limit");
 		}
 
+		s.sim.inbound(() => guarded(ws, () => dispatch(ws, msg)), {
+			lossy: msg.type === "input",
+		});
+	}
+
+	// виняток у відкладеному обробнику не має куди підніматись: він би завалив процес
+	function guarded(ws, fn) {
+		try {
+			fn();
+		} catch (error) {
+			log.error(`[${ws.session.id}] помилка обробника:`, error);
+			ws.close(CLOSE.INTERNAL, "internal error");
+		}
+	}
+
+	function dispatch(ws, msg) {
+		// за час затримки сокет міг закритись
+		if (ws.readyState !== ws.OPEN) return;
+		const s = ws.session;
 		if (!s.player) {
 			if (msg.type !== "join")
 				return reject(ws, CLOSE.NOT_JOINED, "join first");
@@ -224,6 +268,8 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 			case "ping":
 				send(ws, make("pong", { t: msg.t }));
 				return;
+			case "netsim":
+				return handleNetsim(ws, msg);
 			case "leave":
 				detach(ws);
 				ws.close(CLOSE.NORMAL, "bye");
@@ -231,7 +277,7 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 		}
 	}
 
-	wss.on("connection", (ws) => {
+	wss.on("connection", (ws, req) => {
 		const s = {
 			id: randomBytes(4).toString("hex"),
 			player: null,
@@ -250,6 +296,11 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 			inputBucket: new TokenBucket({
 				capacity: opts.inputCapacity,
 				refillPerSec: opts.inputRefillPerSec,
+			}),
+			// штучна мережа: початкові значення з адреси, лише якщо дозволено на сервері
+			sim: new NetSim({
+				...(opts.netsim ? parseNetsimUrl(req.url) : {}),
+				onError: (error) => log.error(`[${s.id}] netsim:`, error),
 			}),
 			dropping: false,
 			dropped: 0,
@@ -282,7 +333,10 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 			}
 		});
 
-		ws.on("close", () => detach(ws));
+		ws.on("close", () => {
+			detach(ws);
+			s.sim.dispose(); // відкладені повідомлення вже нікому не потрібні
+		});
 	});
 
 	// ---------- heartbeat ----------

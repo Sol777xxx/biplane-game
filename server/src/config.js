@@ -39,6 +39,8 @@ export function loadConfig(env = process.env) {
 		maxRooms,
 		// /api/slow навмисно вантажить процес: вмикається лише явно
 		enableSlow: env.ENABLE_SLOW === "1",
+		// штучна затримка й втрати (?lag, ?jitter, ?loss у адресі сокета): теж лише явно
+		enableNetsim: env.ENABLE_NETSIM === "1",
 
 		// відносні шляхи рахуються від каталогу, з якого запущено сервер (server/)
 		logDir: path.resolve(env.LOG_DIR ?? "./logs"),

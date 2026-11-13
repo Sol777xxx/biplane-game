@@ -2,6 +2,7 @@ import {
 	INPUT_KEYS,
 	MAX_SEQ,
 	make,
+	NETSIM_LIMITS,
 	PROTOCOL_VERSION,
 } from "biplane-shared/protocol/index.js";
 
@@ -55,6 +56,18 @@ const stamp = (value) =>
 		? value
 		: undefined;
 
+// число в межах [min, max]; integer: лише цілі
+const ranged =
+	([min, max], integer) =>
+	(value) =>
+		typeof value === "number" &&
+		Number.isFinite(value) &&
+		value >= min &&
+		value <= max &&
+		(!integer || Number.isInteger(value))
+			? value
+			: undefined;
+
 // кожне поле повертає очищене значення або undefined (= не пройшло)
 const FIELDS = {
 	room: (value) =>
@@ -65,6 +78,9 @@ const FIELDS = {
 	text: text(200),
 	seq,
 	t: stamp,
+	lag: ranged(NETSIM_LIMITS.lag, true),
+	jitter: ranged(NETSIM_LIMITS.jitter, true),
+	loss: ranged(NETSIM_LIMITS.loss, false),
 	...Object.fromEntries(INPUT_KEYS.map((key) => [key, bool])),
 };
 
@@ -75,6 +91,7 @@ const SCHEMAS = {
 	leave: [],
 	input: ["seq", ...INPUT_KEYS],
 	ping: ["t"],
+	netsim: ["lag", "jitter", "loss"],
 };
 
 const bad = (reason) => ({ ok: false, code: CLOSE.BAD_FORMAT, reason });

@@ -11,17 +11,25 @@ import { Lobby } from "./lobby.js";
 import { createLoop } from "./loop.js";
 import { joinRoom } from "./net/roomSession.js";
 import { createSnapshotView } from "./net/snapshotView.js";
+import { createNetStats } from "./netStats.js";
 import { DEFAULT_PILOT, PILOTS } from "./render/pilots/index.js";
 import { createRenderer } from "./render/renderer.js";
 import { downloadSheet, initSprites } from "./render/sprites.js";
 import { mountChat } from "./ui/chatPanel.js";
 import { showLobby } from "./ui/lobbyView.js";
+import { mountNetgraph } from "./ui/netgraph.js";
 import { createPilotPicker } from "./ui/pilotPicker.js";
 
 const STORAGE_KEY = "biplane-pilot";
 const PROBE_SECONDS = 5;
-const WS_URL = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`;
 const params = new URLSearchParams(location.search);
+// лаб 5: ?lag=100&jitter=30&loss=2 передаються серверу в адресі сокета (потрібен ENABLE_NETSIM=1)
+const netsimQuery = new URLSearchParams(
+	["lag", "jitter", "loss"]
+		.filter((key) => params.has(key))
+		.map((key) => [key, params.get(key)]),
+).toString();
+const WS_URL = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws${netsimQuery ? `?${netsimQuery}` : ""}`;
 // режим експерименту з лаб 1: ?exp=block | interval | variable
 const exp = params.get("exp");
 // лаб 3: ?chaos=404|404hard|timeout|abort|badjson, ?latency=300 (мс на файл), ?seq
@@ -163,6 +171,12 @@ function startGame(audio, session) {
 	if (net.snapshot) view.apply(net.snapshot); // знімок міг прийти ще до старту гри
 	net.addEventListener("snapshot", (e) => view.apply(e.detail));
 	mountChat(document.querySelector("#chat"), net);
+	const netStats = createNetStats();
+	const netgraph = mountNetgraph(document.querySelector("#netgraph"), {
+		session: net,
+		view,
+		stats: netStats,
+	});
 	const floaters = createHud(view.bus);
 	const fx = createFx(view.bus);
 	const scene = fx.view(view);
@@ -174,7 +188,10 @@ function startGame(audio, session) {
 	let sendClock = 0;
 
 	// доступ із консолі для експериментів: ?debug
-	if (params.has("debug")) window.net = view;
+	if (params.has("debug")) {
+		window.net = view;
+		window.netStats = netStats;
+	}
 
 	createPilotPicker(document.querySelector("#pilots"), {
 		current: pilotId,
@@ -222,6 +239,7 @@ function startGame(audio, session) {
 			// експеримент 1: блокування 100 мс кожен 60-й кадр
 			if (exp === "block" && frameCount % 60 === 0) busyWait(100);
 			renderer.draw(scene, alpha, performance.now());
+			netgraph.update(performance.now());
 
 			const { ship, player } = view.me();
 			const active = ship

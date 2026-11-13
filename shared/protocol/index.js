@@ -1,12 +1,15 @@
 // Протокол: JSON-повідомлення { v, type, ... }. Версія конверта лишається 1:
 // нові типи додаються без зміни старих.
 //
-// клієнт → сервер: join, chat, leave, input, ping
-// сервер → клієнт: joined, roster, chat, error, pong, snapshot
+// клієнт → сервер: join, chat, leave, input, ping, netsim
+// сервер → клієнт: joined, roster, chat, error, pong, snapshot, netsim
 //
 // input: { seq, up, down, left, right, fire }
 //   seq росте на 1 з кожним input, починаючи з 1; підтвердження 0 = «нічого не оброблено».
 // ping/pong: { t } (сервер повертає t без змін, клієнт рахує RTT).
+// netsim (лише для розробки, потрібен ENABLE_NETSIM=1 на сервері):
+//   клієнт → сервер: { lag, jitter, loss }, межі в NETSIM_LIMITS;
+//   сервер → клієнт: { enabled, lag, jitter, loss } (поточні значення).
 export const PROTOCOL_VERSION = 1;
 
 export const MSG = Object.freeze({
@@ -15,6 +18,7 @@ export const MSG = Object.freeze({
 	LEAVE: "leave",
 	INPUT: "input",
 	PING: "ping",
+	NETSIM: "netsim",
 	JOINED: "joined",
 	ROSTER: "roster",
 	ERROR: "error",
@@ -33,6 +37,13 @@ export const INPUT_KEYS = Object.freeze([
 
 // seq вміщується в Uint32 (у бінарному форматі це 4 байти)
 export const MAX_SEQ = 0xffffffff;
+
+// межі штучної мережі: lag і jitter в мс (RTT), loss у відсотках
+export const NETSIM_LIMITS = Object.freeze({
+	lag: Object.freeze([0, 1000]),
+	jitter: Object.freeze([0, 500]),
+	loss: Object.freeze([0, 50]),
+});
 
 export function make(type, data = {}) {
 	return { v: PROTOCOL_VERSION, type, ...data };

@@ -1,4 +1,4 @@
-import { makeInput } from "biplane-shared/protocol/index.js";
+import { MSG, make, makeInput } from "biplane-shared/protocol/index.js";
 import { Connection, isRetryableClose } from "./connection.js";
 
 const CLOSE_TEXT = {
@@ -35,6 +35,7 @@ export function describeJoinError(error) {
 }
 
 // Сеанс у кімнаті. Події: "roster" (players), "chat" (повідомлення), "snapshot" (знімок гри),
+// "pong" ({ rtt, t }), "netsim" ({ enabled, lag, jitter, loss }),
 // "status" ({ state: "online" | "reconnecting" | "closed", ... }).
 export class RoomSession extends EventTarget {
 	#conn;
@@ -44,6 +45,7 @@ export class RoomSession extends EventTarget {
 	room = null;
 	players = [];
 	snapshot = null; // останній знімок гри: повне повідомлення сервера
+	netsim = null; // стан штучної мережі, відомий із відповіді сервера (null: сервер не казав)
 
 	constructor(url, { room, name, connection = {} }) {
 		super();
@@ -80,6 +82,19 @@ export class RoomSession extends EventTarget {
 			this.snapshot = m;
 			this.#emit("snapshot", m);
 		});
+		conn.on("pong", (m) => {
+			if (typeof m.t !== "number") return;
+			this.#emit("pong", { t: m.t, rtt: Math.max(0, performance.now() - m.t) });
+		});
+		conn.on("netsim", (m) => {
+			this.netsim = {
+				enabled: m.enabled === true,
+				lag: Number(m.lag) || 0,
+				jitter: Number(m.jitter) || 0,
+				loss: Number(m.loss) || 0,
+			};
+			this.#emit("netsim", this.netsim);
+		});
 
 		conn.addEventListener("reconnecting", (e) =>
 			this.#emit("status", { state: "reconnecting", ...e.detail }),
@@ -92,6 +107,15 @@ export class RoomSession extends EventTarget {
 
 	#emit(type, detail) {
 		this.dispatchEvent(new CustomEvent(type, { detail }));
+	}
+
+	get lastSeq() {
+		return this.#seq;
+	}
+
+	// накопичені байти й повідомлення з'єднання (див. Connection.traffic)
+	get traffic() {
+		return this.#conn.traffic;
 	}
 
 	connect() {
@@ -110,6 +134,24 @@ export class RoomSession extends EventTarget {
 		if (this.#conn.send(makeInput(seq, keys)) !== "sent") return 0;
 		this.#seq = seq;
 		return seq;
+	}
+
+	// ping для виміру RTT; відповідь приходить подією "pong". Як і input, у чергу не стає.
+	ping() {
+		if (!this.#joined || this.#conn.state !== "open") return false;
+		return this.#conn.send(make(MSG.PING, { t: performance.now() })) === "sent";
+	}
+
+	// Змінює штучну мережу сервера (відповідь: подія "netsim"). Сервер без ENABLE_NETSIM
+	// відповідає enabled: false.
+	setNetsim({ lag = 0, jitter = 0, loss = 0 } = {}) {
+		return this.#conn.send(
+			make(MSG.NETSIM, {
+				lag: Math.round(lag),
+				jitter: Math.round(jitter),
+				loss,
+			}),
+		);
 	}
 
 	leave() {

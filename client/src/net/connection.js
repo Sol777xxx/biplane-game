@@ -17,6 +17,13 @@ export function backoffDelay(
 	return cap / 2 + (random() * cap) / 2;
 }
 
+// розмір кадру в байтах: рядок рахуємо в UTF-8, бінарний кадр має свою довжину
+const encoder = new TextEncoder();
+const sizeOf = (data) =>
+	typeof data === "string"
+		? encoder.encode(data).length
+		: (data?.byteLength ?? 0);
+
 export class Connection extends EventTarget {
 	#url;
 	#opts;
@@ -26,6 +33,8 @@ export class Connection extends EventTarget {
 	#state = "idle"; // idle | connecting | open | waiting | closed
 	#attempt = 0;
 	#timer = 0;
+	// лише корисне навантаження кадрів, без заголовків WebSocket і TCP
+	#traffic = { bytesIn: 0, bytesOut: 0, msgsIn: 0, msgsOut: 0 };
 
 	constructor(
 		url,
@@ -60,6 +69,11 @@ export class Connection extends EventTarget {
 		return this.#queue.length;
 	}
 
+	// накопичені лічильники (копія): різниця між двома викликами дає швидкість
+	get traffic() {
+		return { ...this.#traffic };
+	}
+
 	connect() {
 		if (this.#state !== "idle") return;
 		this.#open();
@@ -86,6 +100,8 @@ export class Connection extends EventTarget {
 	}
 
 	#onMessage(event) {
+		this.#traffic.bytesIn += sizeOf(event.data);
+		this.#traffic.msgsIn++;
 		let msg;
 		try {
 			msg = JSON.parse(event.data);
@@ -126,16 +142,24 @@ export class Connection extends EventTarget {
 		this.#timer = setTimeout(() => this.#open(), delay);
 	}
 
+	// єдине місце, де кадр справді йде в сокет: тут же рахуємо байти
+	#transmit(message) {
+		const data = JSON.stringify(message);
+		this.#ws.send(data);
+		this.#traffic.bytesOut += sizeOf(data);
+		this.#traffic.msgsOut++;
+	}
+
 	#flush() {
 		while (this.#state === "open" && this.#queue.length) {
-			this.#ws.send(JSON.stringify(this.#queue.shift()));
+			this.#transmit(this.#queue.shift());
 		}
 	}
 
 	// "sent" | "queued" | "dropped"
 	send(message) {
 		if (this.#state === "open") {
-			this.#ws.send(JSON.stringify(message));
+			this.#transmit(message);
 			return "sent";
 		}
 		if (this.#state === "closed") return "dropped";

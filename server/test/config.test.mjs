@@ -45,4 +45,10 @@ describe("loadConfig", () => {
 		assert.equal(loadConfig({ ENABLE_SLOW: "true" }).enableSlow, false);
 		assert.equal(loadConfig({ ENABLE_SLOW: "1" }).enableSlow, true);
 	});
+
+	it("ENABLE_NETSIM вмикається лише значенням 1", () => {
+		assert.equal(loadConfig({}).enableNetsim, false);
+		assert.equal(loadConfig({ ENABLE_NETSIM: "true" }).enableNetsim, false);
+		assert.equal(loadConfig({ ENABLE_NETSIM: "1" }).enableNetsim, true);
+	});
 });

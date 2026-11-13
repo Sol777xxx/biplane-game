@@ -221,7 +221,9 @@ describe("Match: знімок", () => {
 		const { clock, room, snaps } = setup();
 		room.join({ id: "a", name: "A" });
 		input(room, "a", 1, { ...NONE, fire: true });
-		clock.advance(40);
+		input(room, "a", 2, NONE); // другий тік без вогню
+		clock.advance(70); // 2 тіки
+		assert.equal(snaps.length, 2);
 		const snap = snaps[0].snapshot;
 		assert.equal(snap.bullets.length, 1);
 		assert.ok(snap.events.some((e) => e.type === "fired" && e.player === "a"));

@@ -22,6 +22,8 @@ console.log(`логи матчів: ${config.logDir}`);
 console.log(`ліміт кімнат: ${config.maxRooms}`);
 if (config.enableSlow)
 	console.warn("УВАГА: /api/slow увімкнено (ENABLE_SLOW=1)");
+if (config.enableNetsim)
+	console.warn("УВАГА: штучна затримка/втрати увімкнено (ENABLE_NETSIM=1)");
 
 // once: другий Ctrl+C під час зависання завершує процес примусово
 for (const signal of ["SIGINT", "SIGTERM"]) {

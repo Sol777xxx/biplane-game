@@ -1,0 +1,58 @@
+#netgraph {
+	position: fixed;
+	right: 8px;
+	bottom: 8px;
+	box-sizing: border-box;
+	padding: 8px 10px;
+	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.6);
+	color: var(--hud-text);
+	font-size: 12px;
+}
+
+#netgraph[hidden] {
+	display: none;
+}
+
+.net-text {
+	margin: 0;
+	font: inherit;
+	white-space: pre;
+}
+
+/* глобальне правило canvas розтягує його на весь екран: тут перекриваємо його класом */
+.net-graph {
+	display: block;
+	width: 240px;
+	height: 44px;
+	margin-top: 6px;
+	border-radius: 6px;
+	background: rgba(255, 255, 255, 0.7);
+}
+
+.net-presets {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin-top: 6px;
+}
+
+.net-presets[hidden] {
+	display: none;
+}
+
+.net-preset {
+	padding: 2px 8px;
+	border: 2px solid #cdbdf0;
+	border-radius: 999px;
+	background: #fff;
+	color: #6b5b8a;
+	font: inherit;
+	font-size: 11px;
+	cursor: pointer;
+}
+
+.net-preset:hover {
+	border-color: #f08ab4;
+	background: #ffeaf4;
+}
