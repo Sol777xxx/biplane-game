@@ -6,7 +6,8 @@
 	"scripts": {
 		"start": "node --env-file=.env src/index.js",
 		"dev": "node --watch --env-file=.env src/index.js",
-		"test": "node --test \"test/*.test.mjs\""
+		"test": "node --test \"test/*.test.mjs\"",
+		"typecheck": "tsc -p tsconfig.json"
 	},
 	"dependencies": {
 		"biplane-shared": "*",

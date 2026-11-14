@@ -5,6 +5,10 @@
 	"type": "module",
 	"scripts": {
 		"test": "node --test \"test/*.test.mjs\"",
-		"bench": "node tools/bench-codec.mjs"
+		"bench": "node tools/bench-codec.mjs",
+		"typecheck": "tsc -p tsconfig.json"
+	},
+	"dependencies": {
+		"zod": "^4.6.7"
 	}
 }

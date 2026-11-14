@@ -12,7 +12,8 @@
 		"drift": "node tools/random-drift.mjs",
 		"dogfight": "node tools/dogfight.mjs",
 		"timing": "node demo/timing.mjs",
-		"puzzles": "node demo/puzzles.mjs"
+		"puzzles": "node demo/puzzles.mjs",
+		"typecheck": "tsc -p tsconfig.json"
 	},
 	"dependencies": {
 		"biplane-shared": "*"
