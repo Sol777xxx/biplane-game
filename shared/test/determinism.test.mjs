@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it, mock } from "node:test";
-import { hashGame } from "../sim/hash.js";
-import { mulberry32 } from "../sim/random.js";
+import { hashGame } from "../sim/hash.ts";
+import { mulberry32 } from "../sim/random.ts";
 import { createScenario, runScenario } from "../sim/scenario.js";
 
 describe("детермінізм", () => {

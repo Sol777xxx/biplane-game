@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { Game } from "../sim/game.js";
 import { takeSnapshot } from "../sim/snapshot.js";
-import { TICK_DT } from "../sim/time.js";
+import { TICK_DT } from "../sim/time.ts";
 
 const FIRE = { up: false, down: false, left: false, right: false, fire: true };
 

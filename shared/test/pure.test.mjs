@@ -8,7 +8,7 @@ const DIRS = ["sim", "protocol", "codec"].map(
 );
 const files = DIRS.flatMap((dir) =>
 	readdirSync(dir)
-		.filter((f) => f.endsWith(".js"))
+		.filter((f) => f.endsWith(".js") || f.endsWith(".ts"))
 		.map((f) => new URL(f, dir)),
 );
 

@@ -1,8 +1,8 @@
-import { ARENA } from "./arena.js";
+import { ARENA } from "./arena.ts";
 import { homing } from "./behaviors.js";
 import { Biplane } from "./biplane.js";
 import { Obstacle, PICKUP_TYPES, Pickup } from "./objects.js";
-import { mulberry32 } from "./random.js";
+import { mulberry32 } from "./random.ts";
 import { World } from "./world.js";
 
 const RESPAWN_DELAY = 2;

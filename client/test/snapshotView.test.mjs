@@ -4,7 +4,7 @@ import { Biplane } from "biplane-shared/sim/biplane.js";
 import { Game } from "biplane-shared/sim/game.js";
 import { Bullet, Pickup } from "biplane-shared/sim/objects.js";
 import { eventToWire, takeSnapshot } from "biplane-shared/sim/snapshot.js";
-import { TICK_DT } from "biplane-shared/sim/time.js";
+import { TICK_DT } from "biplane-shared/sim/time.ts";
 import { createFx } from "../src/fx.js";
 import { createHud } from "../src/hud.js";
 import { eventFromWire } from "../src/net/events.js";

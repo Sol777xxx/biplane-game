@@ -1,8 +1,8 @@
-import { ARENA } from "./arena.js";
+import { ARENA } from "./arena.ts";
 import { homing } from "./behaviors.js";
 import { Entity } from "./entity.js";
 import { Bullet } from "./objects.js";
-import { Vector2 } from "./vector.js";
+import { Vector2 } from "./vector.ts";
 
 const ACCEL = 650;
 const DRAG = 1.6;

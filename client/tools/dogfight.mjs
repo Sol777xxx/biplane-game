@@ -4,9 +4,9 @@
 import { tmpdir } from "node:os";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
-import { ARENA, wrapDelta } from "biplane-shared/sim/arena.js";
+import { ARENA, wrapDelta } from "biplane-shared/sim/arena.ts";
 import { scriptedInput } from "biplane-shared/sim/scenario.js";
-import { TICK_DT } from "biplane-shared/sim/time.js";
+import { TICK_DT } from "biplane-shared/sim/time.ts";
 import { createApp } from "../../server/src/app.js";
 import { silentLogger } from "../../server/src/logger.js";
 import { RoomManager } from "../../server/src/rooms.js";

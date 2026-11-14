@@ -1,6 +1,6 @@
 import { Game } from "./game.js";
-import { hashGame } from "./hash.js";
-import { TICK_DT } from "./time.js";
+import { hashGame } from "./hash.ts";
+import { TICK_DT } from "./time.ts";
 
 // Скриптований input: чиста функція номера кроку, без випадковості.
 export function scriptedInput(tick) {

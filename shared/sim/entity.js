@@ -1,5 +1,5 @@
-import { ARENA, wrap } from "./arena.js";
-import { Vector2 } from "./vector.js";
+import { ARENA, wrap } from "./arena.ts";
+import { MutableVector2 } from "./vector.ts";
 
 export class Entity {
 	constructor({
@@ -15,9 +15,9 @@ export class Entity {
 	} = {}) {
 		this.id = 0; // призначає World.spawn: у кожного світу свій лічильник
 		this.kind = kind;
-		this.pos = new Vector2(x, y);
-		this.prevPos = new Vector2(x, y); // для інтерполяції
-		this.vel = new Vector2(vx, vy);
+		this.pos = new MutableVector2(x, y);
+		this.prevPos = new MutableVector2(x, y); // для інтерполяції
+		this.vel = new MutableVector2(vx, vy);
 		this.angle = angle;
 		this.radius = radius;
 		this.inset = inset;

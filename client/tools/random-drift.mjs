@@ -5,7 +5,7 @@ import { Biplane } from "biplane-shared/sim/biplane.js";
 import { Game } from "biplane-shared/sim/game.js";
 import { scriptedInput } from "biplane-shared/sim/scenario.js";
 import { takeSnapshot } from "biplane-shared/sim/snapshot.js";
-import { TICK_DT } from "biplane-shared/sim/time.js";
+import { TICK_DT } from "biplane-shared/sim/time.ts";
 import { createPredictor } from "../src/net/predictor.js";
 import { summarize } from "../src/netStats.js";
 

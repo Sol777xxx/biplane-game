@@ -1,4 +1,4 @@
-import { findCollisions } from "./collision.js";
+import { findCollisions } from "./collision.ts";
 
 export class World {
 	#entities = new Map(); // id -> Entity

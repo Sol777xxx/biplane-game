@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { Game } from "biplane-shared/sim/game.js";
-import { TICK_DT } from "biplane-shared/sim/time.js";
+import { TICK_DT } from "biplane-shared/sim/time.ts";
 
 describe("shared у сервері", () => {
 	it("Game з biplane-shared працює в Node", () => {

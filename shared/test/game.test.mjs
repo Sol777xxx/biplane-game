@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { Game } from "../sim/game.js";
-import { TICK_DT } from "../sim/time.js";
+import { TICK_DT } from "../sim/time.ts";
 
 describe("Game: кілька гравців", () => {
 	it("addPlayer: корабель у світі, зі щитом", () => {

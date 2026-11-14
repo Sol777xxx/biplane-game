@@ -1,7 +1,7 @@
-import { ARENA, wrapDelta } from "biplane-shared/sim/arena.js";
+import { ARENA, wrapDelta } from "biplane-shared/sim/arena.ts";
 import { Biplane } from "biplane-shared/sim/biplane.js";
 import { Bullet } from "biplane-shared/sim/objects.js";
-import { TICK_DT } from "biplane-shared/sim/time.js";
+import { TICK_DT } from "biplane-shared/sim/time.ts";
 
 const MAX_PENDING = 90; // 3 с input без ack
 const MAX_SHOTS = 40;

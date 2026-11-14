@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { Game } from "../sim/game.js";
 import { Bullet } from "../sim/objects.js";
-import { TICK_DT } from "../sim/time.js";
+import { TICK_DT } from "../sim/time.ts";
 
 function record(game, types) {
 	const seen = [];

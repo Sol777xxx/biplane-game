@@ -1,5 +1,5 @@
-import { ARENA, wrapDelta } from "./arena.js";
-import { Vector2 } from "./vector.js";
+import { ARENA, wrapDelta } from "./arena.ts";
+import { Vector2 } from "./vector.ts";
 
 // Поведінка: { name, attach?(self), update?(self, dt), onCollide?(self, other) }
 // Entity нічого не знає про конкретні поведінки, лише викликає хуки.

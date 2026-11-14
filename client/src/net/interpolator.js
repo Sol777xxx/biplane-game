@@ -1,5 +1,5 @@
-import { ARENA, wrap, wrapDelta } from "biplane-shared/sim/arena.js";
-import { TICK_RATE } from "biplane-shared/sim/time.js";
+import { ARENA, wrap, wrapDelta } from "biplane-shared/sim/arena.ts";
+import { TICK_RATE } from "biplane-shared/sim/time.ts";
 
 export const TICK_MS = 1000 / TICK_RATE;
 export const MAX_DELAY = 500;
