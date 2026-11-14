@@ -1,7 +1,7 @@
 // npm run drift -w client: поправки звірки без Math.random() і з ним у Biplane.update.
 // Сервер і клієнт в одному процесі, мережа це затримка в тіках. Math.random без seed,
 // тож числа трохи різняться між запусками.
-import { Biplane } from "biplane-shared/sim/biplane.js";
+import { Biplane } from "biplane-shared/sim/biplane.ts";
 import { Game } from "biplane-shared/sim/game.js";
 import { scriptedInput } from "biplane-shared/sim/scenario.js";
 import { takeSnapshot } from "biplane-shared/sim/snapshot.js";

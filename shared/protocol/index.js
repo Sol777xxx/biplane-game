@@ -36,7 +36,7 @@ export const INPUT_KEYS = Object.freeze([
 ]);
 
 // seq вміщується в Uint32 (у бінарному форматі це 4 байти)
-export const MAX_SEQ = 0xffffffff;
+export { MAX_SEQ } from "../sim/ids.ts";
 
 // межі штучної мережі: lag і jitter в мс (RTT), loss у відсотках
 export const NETSIM_LIMITS = Object.freeze({

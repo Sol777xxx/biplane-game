@@ -1,5 +1,5 @@
-import { drag, lifetime } from "biplane-shared/sim/behaviors.js";
-import { Entity } from "biplane-shared/sim/entity.js";
+import { drag, lifetime } from "biplane-shared/sim/behaviors.ts";
+import { Entity } from "biplane-shared/sim/entity.ts";
 import { World } from "biplane-shared/sim/world.js";
 
 // Візуальні ефекти живуть лише на клієнті, у власному світі, і слухають шину подій

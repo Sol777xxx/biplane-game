@@ -1,10 +1,18 @@
 import { ARENA, wrapDelta } from "./arena.ts";
+import type { Biplane } from "./biplane.ts";
+import type { Behavior, Entity } from "./entity.ts";
+import type { Pickup } from "./objects.ts";
 import { Vector2 } from "./vector.ts";
 
 // Поведінка: { name, attach?(self), update?(self, dt), onCollide?(self, other) }
 // Entity нічого не знає про конкретні поведінки, лише викликає хуки.
 
-function offset(self, other) {
+interface Offset {
+	readonly dx: number;
+	readonly dy: number;
+}
+
+function offset(self: Entity, other: Entity): Offset {
 	if (self.edges === "bounce") {
 		return { dx: other.pos.x - self.pos.x, dy: other.pos.y - self.pos.y };
 	}
@@ -14,13 +22,23 @@ function offset(self, other) {
 	};
 }
 
-function nearest(self, kinds, range) {
+// у кулі є owner, в інших сутностей немає: `in` звужує тип без приведення
+function ownerOf(self: Entity): unknown {
+	return "owner" in self ? self.owner : undefined;
+}
+
+function nearest(
+	self: Entity,
+	kinds: readonly string[],
+	range: number,
+): Offset | null {
 	if (!self.world) return null;
-	let best = null;
+	const owner = ownerOf(self);
+	let best: Offset | null = null;
 	let bestD2 = range * range;
 	for (const kind of kinds) {
 		for (const e of self.world.ofKind(kind)) {
-			if (!e.alive || e === self.owner) continue;
+			if (!e.alive || e === owner) continue;
 			const { dx, dy } = offset(self, e);
 			const d2 = dx * dx + dy * dy;
 			if (d2 < bestD2) {
@@ -32,8 +50,18 @@ function nearest(self, kinds, range) {
 	return best;
 }
 
+interface HomingOptions {
+	readonly kinds: readonly string[];
+	readonly turnRate?: number;
+	readonly range?: number;
+}
+
 // homing: плавно повертає вектор швидкості до найближчої цілі, швидкість не змінюється
-export function homing({ kinds, turnRate = 3, range = 600 }) {
+export function homing({
+	kinds,
+	turnRate = 3,
+	range = 600,
+}: HomingOptions): Behavior {
 	return {
 		name: "homing",
 		update(self, dt) {
@@ -51,7 +79,7 @@ export function homing({ kinds, turnRate = 3, range = 600 }) {
 }
 
 // self.life: 1 → 0; наприкінці сутність помирає (частинки, вибухи, pickup)
-export function lifetime(seconds) {
+export function lifetime(seconds: number): Behavior {
 	let left = seconds;
 	return {
 		name: "lifetime",
@@ -66,7 +94,7 @@ export function lifetime(seconds) {
 	};
 }
 
-export function drag(k) {
+export function drag(k: number): Behavior {
 	return {
 		name: "drag",
 		update(self, dt) {
@@ -78,7 +106,7 @@ export function drag(k) {
 }
 
 // pickup: при дотику корабля застосовує ефект і зникає
-export function pickup(apply) {
+export function pickup(apply: (ship: Biplane) => void): Behavior<Pickup> {
 	return {
 		name: "pickup",
 		onCollide(self, other) {

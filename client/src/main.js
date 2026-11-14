@@ -1,4 +1,4 @@
-import { Biplane } from "biplane-shared/sim/biplane.js";
+import { Biplane } from "biplane-shared/sim/biplane.ts";
 import {
 	dumpScenario,
 	runScenario,

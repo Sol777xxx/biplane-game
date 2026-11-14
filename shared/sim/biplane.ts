@@ -1,7 +1,10 @@
 import { ARENA } from "./arena.ts";
-import { homing } from "./behaviors.js";
-import { Entity } from "./entity.js";
-import { Bullet } from "./objects.js";
+import { homing } from "./behaviors.ts";
+import { EFFECT_NAMES, type EffectName, type Effects } from "./effects.ts";
+import { Entity } from "./entity.ts";
+import { NO_SEQ, type Seq } from "./ids.ts";
+import { Bullet } from "./objects.ts";
+import type { InputState, SimEntity } from "./types.ts";
 import { Vector2 } from "./vector.ts";
 
 const ACCEL = 650;
@@ -16,30 +19,39 @@ const RAPID_COOLDOWN = 0.09;
 const BULLET_SPEED = 720;
 const NOSE = 96; // кінчик спінера у спрайті ≈ 60 px × масштаб 1.6
 
-export class Biplane extends Entity {
-	#hp = MAX_HP;
+export interface BiplaneOptions {
+	readonly x?: number;
+	readonly y?: number;
+}
 
-	constructor({ x = ARENA.width / 2, y = ARENA.height / 2 } = {}) {
+export class Biplane extends Entity<"biplane"> {
+	#hp = MAX_HP;
+	facing = 1;
+	pitch = 0;
+	prevPitch = 0;
+	cooldown = 0;
+	effects: Effects = { shield: 0, rapid: 0, homing: 0 }; // секунд, що лишилось
+	flash = 0;
+	maxHp = MAX_HP;
+	inputSeq: Seq = NO_SEQ; // seq input поточного кроку (його ставлять кулі)
+	playerId?: string; // ставить Game, коли корабель належить гравцю
+
+	constructor({
+		x = ARENA.width / 2,
+		y = ARENA.height / 2,
+	}: BiplaneOptions = {}) {
 		super({ kind: "biplane", x, y, radius: 46 });
-		this.facing = 1;
-		this.pitch = 0;
-		this.prevPitch = 0;
-		this.cooldown = 0;
-		this.effects = { shield: 0, rapid: 0, homing: 0 }; // секунд, що лишилось
-		this.flash = 0;
-		this.maxHp = MAX_HP;
-		this.inputSeq = 0; // seq input поточного кроку (його ставлять кулі)
 	}
 
-	get hp() {
+	get hp(): number {
 		return this.#hp;
 	}
 
-	grant(effect, seconds) {
+	grant(effect: EffectName, seconds: number): void {
 		this.effects[effect] = Math.max(this.effects[effect], seconds);
 	}
 
-	takeDamage(amount, by = null) {
+	override takeDamage(amount: number, by: SimEntity | null = null): void {
 		if (!this.alive || this.effects.shield > 0) return;
 		this.#hp = Math.max(0, this.#hp - amount);
 		this.flash = 0.12;
@@ -50,7 +62,7 @@ export class Biplane extends Entity {
 	}
 
 	// Повертає кулю або null. Увага: this залежить від місця виклику (див. README).
-	fire() {
+	fire(): Bullet | null {
 		if (!this.alive || this.cooldown > 0 || !this.world) return null;
 		this.cooldown = this.effects.rapid > 0 ? RAPID_COOLDOWN : FIRE_COOLDOWN;
 
@@ -79,11 +91,11 @@ export class Biplane extends Entity {
 	}
 
 	// input.seq необов'язковий: його додає сервер/клієнт, коли крок відповідає реальному input
-	update(dt, input = {}) {
-		this.inputSeq = input.seq ?? 0;
+	override update(dt: number, input: InputState = {}): void {
+		this.inputSeq = input.seq ?? NO_SEQ;
 		this.cooldown = Math.max(0, this.cooldown - dt);
 		this.flash = Math.max(0, this.flash - dt);
-		for (const k of Object.keys(this.effects)) {
+		for (const k of EFFECT_NAMES) {
 			this.effects[k] = Math.max(0, this.effects[k] - dt);
 		}
 
