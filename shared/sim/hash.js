@@ -1,13 +1,17 @@
-// FNV-1a по 32-бітних словах. Числа з рухомою комою хешуємо за точними бітами
-// (DataView, little-endian), тож найменша розбіжність у стані змінює хеш.
+// FNV-1a по 32-бітних словах. Числа з рухомою комою округляємо до 1e-6 і хешуємо
+// за бітами (DataView, little-endian). Math.sin/cos/atan2 у Node і Chrome можуть
+// різнитися в останньому біті; заокруглення прибирає цей шум, а реальна
+// розбіжність стану (≥ 1e-6) змінює хеш.
 const FNV_OFFSET = 2166136261;
 const FNV_PRIME = 16777619;
+const QUANT = 1e6;
 const bits = new DataView(new ArrayBuffer(8));
 
 const word = (h, n) => Math.imul(h ^ n, FNV_PRIME) >>> 0;
 
 function float(h, value) {
-	bits.setFloat64(0, value, true);
+	// + 0 перетворює -0 на 0, щоб знак нуля не міняв хеш
+	bits.setFloat64(0, Math.round(value * QUANT) + 0, true);
 	return word(word(h, bits.getUint32(0, true)), bits.getUint32(4, true));
 }
 

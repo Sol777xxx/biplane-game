@@ -1,5 +1,9 @@
 import { Biplane } from "biplane-shared/sim/biplane.js";
-import { runScenario } from "biplane-shared/sim/scenario.js";
+import {
+	dumpScenario,
+	runScenario,
+	traceScenario,
+} from "biplane-shared/sim/scenario.js";
 import { TICK_DT } from "biplane-shared/sim/time.js";
 import { createAudio } from "./assets/audio/audio.js";
 import { fetchJson, loadAll, sleep, withRetry } from "./assets/loader.js";
@@ -343,6 +347,10 @@ async function main() {
 	// ?hash: той самий сценарій, що й у тесті Node; хеші мають збігтися
 	if (params.has("hash")) {
 		console.log(`hash (1000 кроків, seed 1): ${runScenario()}`);
+		const marks = Array.from({ length: 20 }, (_, i) => i + 1);
+		console.log(traceScenario({ marks }).join("\n"));
+		const dump = Number(params.get("dump"));
+		if (dump > 0) console.log(dumpScenario(dump).join("\n"));
 	}
 
 	// AudioContext створюється тут, щоб decodeAudioData встиг на екрані завантаження;

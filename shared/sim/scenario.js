@@ -34,3 +34,44 @@ export function runScenario({ ticks = 1000, seed = 1, players = 2 } = {}) {
 	for (let i = 0; i < ticks; i++) scenario.step();
 	return hashGame(scenario.game).toString(16).padStart(8, "0");
 }
+
+// Хеш після вибраних кроків: видно, де Node і Chrome вперше розходяться.
+// Хеш після вибраних кроків: видно, де Node і Chrome вперше розходяться.
+export function traceScenario({
+	marks = [1, 2, 3, 5, 10, 20, 50, 100, 200, 500, 1000],
+	seed = 1,
+	players = 2,
+} = {}) {
+	const scenario = createScenario({ seed, players });
+	const out = [];
+	for (let i = 1; i <= marks[marks.length - 1]; i++) {
+		scenario.step();
+		if (marks.includes(i)) {
+			out.push(
+				`${i}: ${hashGame(scenario.game).toString(16).padStart(8, "0")}`,
+			);
+		}
+	}
+	return out;
+}
+
+const DUMP_KEYS = ["hp", "pitch", "facing", "cooldown", "flash", "ttl", "life"];
+
+// Стан після кроку tick: рядок на сутність, числа повністю (ті самі поля, що в хеші).
+export function dumpScenario(tick, { seed = 1, players = 2 } = {}) {
+	const scenario = createScenario({ seed, players });
+	for (let i = 0; i < tick; i++) scenario.step();
+	const rows = [];
+	for (const e of scenario.game.world) {
+		const extra = DUMP_KEYS.filter((k) => typeof e[k] === "number")
+			.map((k) => `${k}=${e[k]}`)
+			.join(" ");
+		const fx = e.effects
+			? ` shield=${e.effects.shield} rapid=${e.effects.rapid} homing=${e.effects.homing}`
+			: "";
+		rows.push(
+			`${e.kind}#${e.id} alive=${e.alive} pos=${e.pos.x},${e.pos.y} vel=${e.vel.x},${e.vel.y} ${extra}${fx}`,
+		);
+	}
+	return rows;
+}

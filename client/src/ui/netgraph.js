@@ -50,12 +50,13 @@ function drawGraph(canvas, intervals) {
 	g.setLineDash([]);
 }
 
-// Панель мережі; клавіша N ховає/показує, update() викликається щокадру.
+// Панель мережі; клавіша N ховає/показує (за замовчуванням схована),
+// update() викликається щокадру.
 // session: RoomSession, view: snapshotView, stats: netStats,
 // predictor, interp: необов'язкові (кнопка prediction і повзунок затримки).
 export function mountNetgraph(
 	root,
-	{ session, view, stats, predictor = null, interp = null, visible = true },
+	{ session, view, stats, predictor = null, interp = null, visible = false },
 ) {
 	const ac = new AbortController();
 	const { signal } = ac;
@@ -108,6 +109,7 @@ export function mountNetgraph(
 	}
 
 	const presets = el("div", { className: "net-presets", hidden: true });
+	const presetButtons = [];
 	for (const preset of PRESETS) {
 		const btn = el("button", {
 			type: "button",
@@ -123,8 +125,21 @@ export function mountNetgraph(
 			},
 			{ signal },
 		);
+		presetButtons.push({ preset, btn });
 		presets.append(btn);
 	}
+	// підсвічуємо кнопку, чиї значення зараз діють на сервері
+	const markActive = (s) => {
+		for (const { preset, btn } of presetButtons) {
+			btn.classList.toggle(
+				"active",
+				Boolean(s) &&
+					s.lag === preset.lag &&
+					s.jitter === preset.jitter &&
+					s.loss === preset.loss,
+			);
+		}
+	};
 	children.push(presets);
 	root.replaceChildren(...children);
 	root.hidden = !visible;
@@ -142,10 +157,14 @@ export function mountNetgraph(
 		"netsim",
 		(e) => {
 			presets.hidden = !e.detail.enabled;
+			markActive(e.detail);
 		},
 		{ signal },
 	);
-	if (session.netsim) presets.hidden = !session.netsim.enabled;
+	if (session.netsim) {
+		presets.hidden = !session.netsim.enabled;
+		markActive(session.netsim);
+	}
 
 	session.ping();
 	const pingTimer = setInterval(() => session.ping(), 1000);
