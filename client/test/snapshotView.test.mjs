@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+﻿import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { Biplane } from "biplane-shared/sim/biplane.ts";
 import { Game } from "biplane-shared/sim/game.ts";
@@ -7,7 +7,7 @@ import { eventToWire, takeSnapshot } from "biplane-shared/sim/snapshot.ts";
 import { TICK_DT } from "biplane-shared/sim/time.ts";
 import { createFx } from "../src/fx.js";
 import { createHud } from "../src/hud.js";
-import { eventFromWire } from "../src/net/events.js";
+import { eventFromWire } from "../src/net/events.ts";
 import {
 	BULLET_RADIUS,
 	createSnapshotView,

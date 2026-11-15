@@ -451,7 +451,7 @@ describe("кодеки", () => {
 		);
 		assert.equal(json.decodeInput(json.encodeInput(5, { up: true })).seq, 5);
 	});
-	
+
 	it("реєстр: невідоме ім'я це json", () => {
 		assert.equal(getCodec("binary"), binary);
 		assert.equal(getCodec("json"), json);

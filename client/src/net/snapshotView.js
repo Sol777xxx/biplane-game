@@ -1,4 +1,4 @@
-import { eventFromWire } from "./events.js";
+﻿import { eventFromWire } from "./events.ts";
 
 // радіуси дублюють shared/sim (Biplane, Bullet, Pickup); збіг стереже тест
 export const SHIP_RADIUS = 46;
