@@ -1,4 +1,4 @@
-import { getCodec } from "biplane-shared/codec/index.js";
+import { getCodec } from "biplane-shared/codec/index.ts";
 import { MSG, make, makeInput } from "biplane-shared/protocol/index.ts";
 import { Connection, isRetryableClose } from "./connection.js";
 

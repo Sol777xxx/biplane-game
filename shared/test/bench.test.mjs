@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { binary } from "../codec/binary.js";
-import { json } from "../codec/json.js";
+import { binary } from "../codec/binary.ts";
+import { json } from "../codec/json.ts";
 import { TICK_RATE } from "../sim/time.ts";
 import {
 	averageCounts,

@@ -3,8 +3,8 @@
 import { writeFileSync } from "node:fs";
 import os from "node:os";
 import { pathToFileURL } from "node:url";
-import { binary } from "../codec/binary.js";
-import { json } from "../codec/json.js";
+import { binary } from "../codec/binary.ts";
+import { json } from "../codec/json.ts";
 import { make } from "../protocol/index.ts";
 import { createScenario, scriptedInput } from "../sim/scenario.ts";
 import { eventToWire, takeSnapshot } from "../sim/snapshot.ts";

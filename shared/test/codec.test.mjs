@@ -11,9 +11,9 @@ import {
 	FRAME,
 	frameType,
 	PICKUP_TYPES as WIRE_PICKUPS,
-} from "../codec/binary.js";
-import { CODECS, getCodec } from "../codec/index.js";
-import { json } from "../codec/json.js";
+} from "../codec/binary.ts";
+import { CODECS, getCodec } from "../codec/index.ts";
+import { json } from "../codec/json.ts";
 import { INPUT_KEYS, MAX_SEQ, make } from "../protocol/index.ts";
 import { PICKUP_TYPES } from "../sim/objects.ts";
 import { createScenario } from "../sim/scenario.ts";
@@ -309,7 +309,7 @@ describe("бінарний знімок: round-trip", () => {
 		assert.equal(s.shield, 655.35);
 	});
 
-	it("невідоме пропускається: події, бонуси; корабель невідомого гравця без власника", () => {
+	it("невідоме пропускається: події, бонуси, корабель невідомого гравця", () => {
 		const msg = empty({
 			players: players("a"),
 			ships: [SHIP(1, "ghost")],
@@ -344,7 +344,26 @@ describe("бінарний знімок: round-trip", () => {
 			out.pickups.map((p) => p.id),
 			[3],
 		);
-		assert.equal(out.ships[0].player, null);
+		assert.equal(out.ships.length, 0); // player у знімку це рядок, тож без гравця корабля немає
+	});
+
+	it("scored і respawned невідомого гравця пропускаються", () => {
+		const out = decodeSnapshot(
+			encodeSnapshot(
+				empty({
+					players: players("a"),
+					events: [
+						{ type: "scored", player: "ghost", delta: 1, x: 1, y: 2 },
+						{ type: "respawned", player: "ghost", x: 1, y: 2 },
+						{ type: "scored", player: "a", delta: 1, x: 1, y: 2 },
+					],
+				}),
+			),
+		);
+		assert.deepEqual(
+			out.events.map((e) => e.type),
+			["scored"],
+		);
 	});
 
 	it("понад 255 гравців обрізається без винятків", () => {
@@ -384,9 +403,28 @@ describe("бінарний знімок: декодер суворий", () => {
 		assert.throws(() => decodeSnapshot(set(1, 1)), CodecError);
 	});
 
-	it("індекс гравця: 255 це «немає», 7 при одному гравці це помилка", () => {
-		assert.equal(decodeSnapshot(set(33, 255)).ships[0].player, null);
+	it("індекс гравця: у корабля 255 («немає») і 7 при одному гравці це помилка", () => {
+		assert.throws(() => decodeSnapshot(set(33, 255)), CodecError);
 		assert.throws(() => decodeSnapshot(set(33, 7)), CodecError);
+	});
+
+	it("NaN і Infinity у f32 це помилка", () => {
+		for (const bytes of [
+			[0, 0, 0xc0, 0x7f], // NaN
+			[0, 0, 0x80, 0x7f], // +Infinity
+			[0, 0, 0x80, 0xff], // -Infinity
+		]) {
+			const b = good();
+			b.set(bytes, 34); // x першого корабля
+			assert.throws(() => decodeSnapshot(b), CodecError, bytes.join());
+		}
+	});
+
+	it("лічильник більший за кадр це помилка, а не величезний масив", () => {
+		const b = good();
+		b[14] = 0xff; // nBullets: u16 (байти 14–15)
+		b[15] = 0xff;
+		assert.throws(() => decodeSnapshot(b), CodecError);
 	});
 
 	it("невідомий тип бонусу, код події, зарезервовані біти, поганий UTF-8", () => {
@@ -403,6 +441,17 @@ describe("бінарний знімок: декодер суворий", () => {
 });
 
 describe("кодеки", () => {
+	it("json: сміття й чужі повідомлення це CodecError", () => {
+		for (const bad of ["{", "[]", '{"v":1,"type":"pong","t":1}', "null"]) {
+			assert.throws(() => json.decodeSnapshot(bad), CodecError, bad);
+		}
+		assert.throws(
+			() => json.decodeInput('{"v":1,"type":"ping","t":1}'),
+			CodecError,
+		);
+		assert.equal(json.decodeInput(json.encodeInput(5, { up: true })).seq, 5);
+	});
+	
 	it("реєстр: невідоме ім'я це json", () => {
 		assert.equal(getCodec("binary"), binary);
 		assert.equal(getCodec("json"), json);

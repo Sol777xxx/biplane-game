@@ -1,14 +1,14 @@
 // Обгортка WebSocket: dispatch за type, черга send, перепідключення з backoff.
 // Події життєвого циклу (EventTarget): "open", "close" { code, reason, willRetry },
 // "reconnecting" { attempt, delay }. Повідомлення сервера: on(type, handler).
-// Текстові кадри це JSON; бінарні це знімки (shared/codec/binary.js), їх теж віддаємо як
+// Текстові кадри це JSON; бінарні це знімки (shared/codec/binary.ts), їх теж віддаємо як
 // on("snapshot").
 import {
 	CodecError,
 	decodeSnapshot,
 	FRAME,
 	frameType,
-} from "biplane-shared/codec/binary.js";
+} from "biplane-shared/codec/binary.ts";
 
 // Перепідключаємось лише після тимчасових обривів. 4xxx (порушення протоколу,
 // кімната заповнена) і 1000 повтором не лікуються.

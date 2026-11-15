@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { after, afterEach, before, describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
-import { decodeSnapshot, encodeInput } from "biplane-shared/codec/binary.js";
+import { decodeSnapshot, encodeInput } from "biplane-shared/codec/binary.ts";
 import WebSocket from "ws";
 import { createApp } from "../src/app.js";
 import { silentLogger } from "../src/logger.js";

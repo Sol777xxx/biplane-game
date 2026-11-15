@@ -4,8 +4,8 @@ import {
 	CodecError,
 	decodeInput,
 	FORMAT_VERSION,
-} from "biplane-shared/codec/binary.js";
-import { getCodec } from "biplane-shared/codec/index.js";
+} from "biplane-shared/codec/binary.ts";
+import { getCodec } from "biplane-shared/codec/index.ts";
 import {
 	inputFromMessage,
 	parseClientMessage,
