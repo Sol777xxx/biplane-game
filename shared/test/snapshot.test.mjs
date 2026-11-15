@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { Game } from "../sim/game.js";
-import { createScenario } from "../sim/scenario.js";
-import { eventToWire, takeSnapshot } from "../sim/snapshot.js";
+import { Game } from "../sim/game.ts";
+import { createScenario } from "../sim/scenario.ts";
+import { eventToWire, takeSnapshot } from "../sim/snapshot.ts";
 import { TICK_DT } from "../sim/time.ts";
 
 const twoDecimals = (v) => Math.abs(v * 100 - Math.round(v * 100)) < 1e-6;

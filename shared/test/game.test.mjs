@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { Game } from "../sim/game.js";
+import { Game } from "../sim/game.ts";
 import { TICK_DT } from "../sim/time.ts";
 
 describe("Game: кілька гравців", () => {

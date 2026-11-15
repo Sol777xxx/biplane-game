@@ -31,7 +31,7 @@ const SIM_KINDS: ReadonlySet<string> = new Set<SimKind>([
 ]);
 
 // Колізії обробляють лише сутності симуляції; частинки й вибухи клієнта радіуса не мають.
-function isSimEntity(e: Entity): e is SimEntity {
+export function isSimEntity(e: Entity): e is SimEntity {
 	return SIM_KINDS.has(e.kind);
 }
 

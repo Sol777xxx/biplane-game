@@ -1,4 +1,4 @@
-import { dumpScenario, traceScenario } from "../sim/scenario.js";
+import { dumpScenario, traceScenario } from "../sim/scenario.ts";
 
 // node tools/hash-trace.mjs        хеші за кроками 1..20
 // node tools/hash-trace.mjs 15     ще й стан усіх сутностей після кроку 15

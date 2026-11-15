@@ -6,8 +6,8 @@ import { pathToFileURL } from "node:url";
 import { binary } from "../codec/binary.js";
 import { json } from "../codec/json.js";
 import { make } from "../protocol/index.js";
-import { createScenario, scriptedInput } from "../sim/scenario.js";
-import { eventToWire, takeSnapshot } from "../sim/snapshot.js";
+import { createScenario, scriptedInput } from "../sim/scenario.ts";
+import { eventToWire, takeSnapshot } from "../sim/snapshot.ts";
 import { TICK_RATE } from "../sim/time.ts";
 
 export const DEFAULTS = {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { DEFAULT_ARENA, Game, resolveArena } from "biplane-shared/sim/game.js";
+import { DEFAULT_ARENA, Game, resolveArena } from "biplane-shared/sim/game.ts";
 
 describe("resolveArena", () => {
 	it("без шарів дає значення за замовчуванням", () => {

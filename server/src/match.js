@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
-import { Game } from "biplane-shared/sim/game.js";
-import { eventToWire, takeSnapshot } from "biplane-shared/sim/snapshot.js";
+import { Game } from "biplane-shared/sim/game.ts";
+import { eventToWire, takeSnapshot } from "biplane-shared/sim/snapshot.ts";
 import { TICK_DT, TICK_RATE } from "biplane-shared/sim/time.ts";
 import { RollingStats } from "./stats.js";
 

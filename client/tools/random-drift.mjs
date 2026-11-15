@@ -2,9 +2,9 @@
 // Сервер і клієнт в одному процесі, мережа це затримка в тіках. Math.random без seed,
 // тож числа трохи різняться між запусками.
 import { Biplane } from "biplane-shared/sim/biplane.ts";
-import { Game } from "biplane-shared/sim/game.js";
-import { scriptedInput } from "biplane-shared/sim/scenario.js";
-import { takeSnapshot } from "biplane-shared/sim/snapshot.js";
+import { Game } from "biplane-shared/sim/game.ts";
+import { scriptedInput } from "biplane-shared/sim/scenario.ts";
+import { takeSnapshot } from "biplane-shared/sim/snapshot.ts";
 import { TICK_DT } from "biplane-shared/sim/time.ts";
 import { createPredictor } from "../src/net/predictor.js";
 import { summarize } from "../src/netStats.js";

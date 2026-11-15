@@ -16,8 +16,8 @@ import { CODECS, getCodec } from "../codec/index.js";
 import { json } from "../codec/json.js";
 import { INPUT_KEYS, MAX_SEQ, make } from "../protocol/index.js";
 import { PICKUP_TYPES } from "../sim/objects.ts";
-import { createScenario } from "../sim/scenario.js";
-import { eventToWire, takeSnapshot } from "../sim/snapshot.js";
+import { createScenario } from "../sim/scenario.ts";
+import { eventToWire, takeSnapshot } from "../sim/snapshot.ts";
 
 // те, що побачив би клієнт після JSON (зокрема «-0» стає 0)
 const viaJson = (m) => JSON.parse(JSON.stringify(m));

@@ -3,7 +3,7 @@ import {
 	dumpScenario,
 	runScenario,
 	traceScenario,
-} from "biplane-shared/sim/scenario.js";
+} from "biplane-shared/sim/scenario.ts";
 import { TICK_DT } from "biplane-shared/sim/time.ts";
 import { createAudio } from "./assets/audio/audio.js";
 import { fetchJson, loadAll, sleep, withRetry } from "./assets/loader.js";
