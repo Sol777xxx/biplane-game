@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { CLOSE, validate } from "../src/protocol.js";
+import { CLOSE, parseClientMessage } from "../src/protocol.js";
 
 const INPUT = {
 	v: 1,
@@ -13,19 +13,24 @@ const INPUT = {
 	fire: true,
 };
 
-describe("validate", () => {
+describe("parseClientMessage", () => {
 	it("правильний join, ім'я обрізається", () => {
-		const r = validate({ v: 1, type: "join", room: "calm", name: "  Оля " });
+		const r = parseClientMessage({
+			v: 1,
+			type: "join",
+			room: "calm",
+			name: "  Оля ",
+		});
 		assert.equal(r.ok, true);
 		assert.deepEqual(r.msg, { v: 1, type: "join", room: "calm", name: "Оля" });
 	});
 
 	it("правильні chat і leave", () => {
 		assert.equal(
-			validate({ v: 1, type: "chat", text: " привіт " }).msg.text,
+			parseClientMessage({ v: 1, type: "chat", text: " привіт " }).msg.text,
 			"привіт",
 		);
-		assert.equal(validate({ v: 1, type: "leave" }).ok, true);
+		assert.equal(parseClientMessage({ v: 1, type: "leave" }).ok, true);
 	});
 
 	it("не об'єкт, чужа версія, немає type: BAD_FORMAT", () => {
@@ -39,7 +44,7 @@ describe("validate", () => {
 			{ v: 1 },
 			{ v: 1, type: 5 },
 		]) {
-			const r = validate(raw);
+			const r = parseClientMessage(raw);
 			assert.equal(r.ok, false, JSON.stringify(raw));
 			assert.equal(r.code, CLOSE.BAD_FORMAT, JSON.stringify(raw));
 		}
@@ -47,7 +52,7 @@ describe("validate", () => {
 
 	it("невідомий type, зокрема з прототипа: UNKNOWN_TYPE", () => {
 		for (const type of ["dance", "toString", "__proto__", "constructor"]) {
-			const r = validate({ v: 1, type });
+			const r = parseClientMessage({ v: 1, type });
 			assert.equal(r.code, CLOSE.UNKNOWN_TYPE, type);
 		}
 	});
@@ -66,23 +71,23 @@ describe("validate", () => {
 			{ v: 1, type: "leave", extra: 1 },
 		];
 		for (const raw of bad) {
-			const r = validate(raw);
+			const r = parseClientMessage(raw);
 			assert.equal(r.ok, false, JSON.stringify(raw));
 			assert.equal(r.code, CLOSE.BAD_FORMAT, JSON.stringify(raw));
 		}
 	});
 });
 
-describe("validate: input", () => {
+describe("parseClientMessage: input", () => {
 	it("правильний input проходить без змін", () => {
-		const r = validate({ ...INPUT });
+		const r = parseClientMessage({ ...INPUT });
 		assert.equal(r.ok, true);
 		assert.deepEqual(r.msg, INPUT);
 	});
 
 	it("seq: межі Uint32", () => {
-		assert.equal(validate({ ...INPUT, seq: 0 }).ok, true);
-		assert.equal(validate({ ...INPUT, seq: 0xffffffff }).ok, true);
+		assert.equal(parseClientMessage({ ...INPUT, seq: 0 }).ok, true);
+		assert.equal(parseClientMessage({ ...INPUT, seq: 0xffffffff }).ok, true);
 	});
 
 	it("зламаний input: BAD_FORMAT", () => {
@@ -101,16 +106,16 @@ describe("validate: input", () => {
 			{ ...INPUT, up: null },
 		];
 		for (const raw of bad) {
-			const r = validate(raw);
+			const r = parseClientMessage(raw);
 			assert.equal(r.ok, false, JSON.stringify(raw));
 			assert.equal(r.code, CLOSE.BAD_FORMAT, JSON.stringify(raw));
 		}
 	});
 });
 
-describe("validate: ping", () => {
+describe("parseClientMessage: ping", () => {
 	it("правильний ping", () => {
-		const r = validate({ v: 1, type: "ping", t: 12.5 });
+		const r = parseClientMessage({ v: 1, type: "ping", t: 12.5 });
 		assert.equal(r.ok, true);
 		assert.deepEqual(r.msg, { v: 1, type: "ping", t: 12.5 });
 	});
@@ -125,7 +130,7 @@ describe("validate: ping", () => {
 			{ v: 1, type: "ping", t: 1, extra: true },
 		];
 		for (const raw of bad) {
-			const r = validate(raw);
+			const r = parseClientMessage(raw);
 			assert.equal(r.ok, false, JSON.stringify(raw));
 			assert.equal(r.code, CLOSE.BAD_FORMAT, JSON.stringify(raw));
 		}

@@ -1,10 +1,10 @@
-import { makeInput } from "../protocol/index.js";
+import { makeInput } from "../protocol/index.ts";
 
 const decoder = new TextDecoder();
 const text = (data) => (typeof data === "string" ? data : decoder.decode(data));
 
 // JSON-кодек з тим самим інтерфейсом, що й бінарний (для порівняння).
-// Перевірку вхідного робить сервер (validate), тому decode тут без неї.
+// Перевірку вхідного робить сервер (parseClientMessage), тому decode тут без неї.
 export const json = Object.freeze({
 	name: "json",
 	isBinary: false,

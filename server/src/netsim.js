@@ -1,4 +1,4 @@
-import { NETSIM_LIMITS } from "biplane-shared/protocol/index.js";
+import { NETSIM_LIMITS } from "biplane-shared/protocol/index.ts";
 
 // Штучна мережа для розробки: затримка, розкид і втрати на шляху повідомлень.
 //   lag    : затримка RTT, мс. Ділиться порівну між напрямками: у кожен бік lag / 2.

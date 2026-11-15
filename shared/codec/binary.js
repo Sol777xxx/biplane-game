@@ -1,4 +1,4 @@
-import { INPUT_KEYS, MAX_SEQ, make } from "../protocol/index.js";
+import { INPUT_KEYS, MAX_SEQ, make } from "../protocol/index.ts";
 
 // Бінарний протокол v1, little-endian скрізь. Кадр: u8 версія · u8 тип · тіло.
 //
@@ -193,7 +193,7 @@ export function encodeInput(seq, keys) {
 	return w.done();
 }
 
-// повертає те саме повідомлення, що й validate() для JSON-input
+// повертає те саме повідомлення, що й parseClientMessage() для JSON-input
 export function decodeInput(input) {
 	const r = new Reader(input);
 	if (r.length !== INPUT_SIZE)

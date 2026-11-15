@@ -1,5 +1,5 @@
 import { getCodec } from "biplane-shared/codec/index.js";
-import { MSG, make, makeInput } from "biplane-shared/protocol/index.js";
+import { MSG, make, makeInput } from "biplane-shared/protocol/index.ts";
 import { Connection, isRetryableClose } from "./connection.js";
 
 const CLOSE_TEXT = {

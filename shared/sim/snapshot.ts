@@ -1,71 +1,27 @@
+import type {
+	BulletSnapshot,
+	ObstacleSnapshot,
+	PickupSnapshot,
+	PlayerSnapshot,
+	ShipSnapshot,
+	Snapshot,
+	WireEvent,
+} from "../protocol/index.ts";
 import type { Game } from "./game.ts";
-import type { EntityId, Seq, Tick } from "./ids.ts";
-import type { PickupType } from "./objects.ts";
-import type { BusEvents, ExplosionColor, SimKind } from "./types.ts";
+import type { BusEvents } from "./types.ts";
 
 // Знімок стану для мережі: JSON-сумісний об'єкт. Порядок сутностей збігається з порядком
 // створення. Координати округлені до 0.01: без цього JSON роздувся б 17-значними числами.
-// Усе readonly: знімок це дані, їх читають, а не змінюють.
-export interface PlayerSnapshot {
-	readonly id: string;
-	readonly score: number;
-	readonly destroyed: number;
-	readonly crashes: number;
-	readonly deaths: number;
-}
-
-export interface ShipSnapshot {
-	readonly id: EntityId;
-	readonly player: string;
-	readonly x: number;
-	readonly y: number;
-	readonly vx: number;
-	readonly vy: number;
-	readonly pitch: number;
-	readonly facing: number;
-	readonly hp: number;
-	readonly cooldown: number;
-	readonly shield: number;
-	readonly rapid: number;
-	readonly homing: number;
-}
-
-export interface ObstacleSnapshot {
-	readonly id: EntityId;
-	readonly x: number;
-	readonly y: number;
-	readonly vx: number;
-	readonly vy: number;
-	readonly r: number;
-}
-
-export interface BulletSnapshot {
-	readonly id: EntityId;
-	readonly owner: string | null;
-	readonly seq: Seq; // seq input-пострілу (0: повтор клавіш)
-	readonly x: number;
-	readonly y: number;
-	readonly vx: number;
-	readonly vy: number;
-	readonly ttl: number;
-}
-
-export interface PickupSnapshot {
-	readonly id: EntityId;
-	readonly type: PickupType;
-	readonly x: number;
-	readonly y: number;
-	readonly life: number;
-}
-
-export interface Snapshot {
-	readonly tick: Tick;
-	readonly players: readonly PlayerSnapshot[];
-	readonly ships: readonly ShipSnapshot[];
-	readonly obstacles: readonly ObstacleSnapshot[];
-	readonly bullets: readonly BulletSnapshot[];
-	readonly pickups: readonly PickupSnapshot[];
-}
+// Типи знімка виведені зі схем Zod у shared/protocol: вони одні для сервера, клієнта й кодеків.
+export type {
+	BulletSnapshot,
+	ObstacleSnapshot,
+	PickupSnapshot,
+	PlayerSnapshot,
+	ShipSnapshot,
+	Snapshot,
+	WireEvent,
+};
 
 // Сутності знімка в одному списку, кожна з полем kind (те саме, що в сутностей симуляції).
 // Формат у мережі не змінюється: kind додаємо лише тут, під час обходу.
@@ -163,55 +119,8 @@ export function takeSnapshot(game: Game): Snapshot {
 
 const px = (v: number): number => Math.round(v);
 
-// Подія шини світу у вигляді для мережі.
+// Подія шини світу у вигляді для мережі (тип WireEvent виведений зі схеми в protocol).
 // Події це лише косметика (звук, ефекти): стан гри з них не відновлюється.
-export type WireEvent =
-	| {
-			readonly type: "fired";
-			readonly player: string | null;
-			readonly x: number;
-			readonly y: number;
-	  }
-	| {
-			readonly type: "hit";
-			readonly kind: SimKind;
-			readonly x: number;
-			readonly y: number;
-	  }
-	| {
-			readonly type: "exploded";
-			readonly kind: SimKind;
-			readonly x: number;
-			readonly y: number;
-			readonly size: number;
-			readonly color: ExplosionColor;
-			readonly count: number;
-	  }
-	| {
-			readonly type: "scored";
-			readonly player: string;
-			readonly delta: number;
-			readonly x: number;
-			readonly y: number;
-	  }
-	| {
-			readonly type: "pickup";
-			readonly player: string | null;
-			readonly pickup: PickupType;
-	  }
-	| {
-			readonly type: "crash";
-			readonly player: string | null;
-			readonly x: number;
-			readonly y: number;
-	  }
-	| {
-			readonly type: "respawned";
-			readonly player: string;
-			readonly x: number;
-			readonly y: number;
-	  };
-
 // Таблиця замість switch: тип { [K in keyof BusEvents]: … } вимагає обробник для КОЖНОЇ
 // події шини, тож нова подія без обробника це помилка tsc (так само, як never у default),
 // а для обробника K зв'язує назву з типом detail.

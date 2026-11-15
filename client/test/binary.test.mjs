@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { after, before, describe, it, mock } from "node:test";
 import { encodeSnapshot } from "biplane-shared/codec/binary.js";
-import { make } from "biplane-shared/protocol/index.js";
+import { make } from "biplane-shared/protocol/index.ts";
 import { createScenario } from "biplane-shared/sim/scenario.ts";
 import { takeSnapshot } from "biplane-shared/sim/snapshot.ts";
 import { WebSocketServer } from "ws";

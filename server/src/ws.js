@@ -6,11 +6,14 @@ import {
 	FORMAT_VERSION,
 } from "biplane-shared/codec/binary.js";
 import { getCodec } from "biplane-shared/codec/index.js";
-import { inputFromMessage } from "biplane-shared/protocol/index.js";
+import {
+	inputFromMessage,
+	parseClientMessage,
+} from "biplane-shared/protocol/index.ts";
 import { WebSocketServer } from "ws";
 import { TokenBucket } from "./limits.js";
 import { NetSim, parseNetsimUrl } from "./netsim.js";
-import { CLOSE, MAX_MESSAGE_BYTES, make, validate } from "./protocol.js";
+import { CLOSE, MAX_MESSAGE_BYTES, make } from "./protocol.js";
 import { RoomError } from "./rooms.js";
 
 export const WS_DEFAULTS = Object.freeze({
@@ -200,7 +203,7 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 	}
 
 	// Кадр у повідомлення. Бінарним може бути лише input версії 1: чужа версія це 1003,
-	// зламана розкладка це 4000. Текстовий кадр це JSON за validate. Відхилений кадр дає
+	// зламана розкладка це 4000. Текстовий кадр це JSON за parseClientMessage. Відхилений кадр дає
 	// undefined (з'єднання вже закривається).
 	function parse(ws, data, isBinary) {
 		if (isBinary) {
@@ -220,7 +223,7 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 		} catch {
 			return reject(ws, CLOSE.BAD_FORMAT, "invalid json");
 		}
-		const result = validate(raw);
+		const result = parseClientMessage(raw);
 		return result.ok ? result.msg : reject(ws, result.code, result.reason);
 	}
 

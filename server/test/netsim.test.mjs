@@ -6,7 +6,7 @@ import WebSocket from "ws";
 import { createApp } from "../src/app.js";
 import { silentLogger } from "../src/logger.js";
 import { NetSim, parseNetsimUrl } from "../src/netsim.js";
-import { CLOSE, validate } from "../src/protocol.js";
+import { CLOSE, parseClientMessage } from "../src/protocol.js";
 import { RoomManager } from "../src/rooms.js";
 
 // Підроблений годинник: advance(ms) запускає таймери за порядком часу.
@@ -227,15 +227,18 @@ describe("parseNetsimUrl", () => {
 	});
 });
 
-describe("validate: netsim", () => {
+describe("parseClientMessage: netsim", () => {
 	const OK = { v: 1, type: "netsim", lag: 100, jitter: 30, loss: 2 };
 
 	it("правильне повідомлення проходить", () => {
-		const r = validate({ ...OK });
+		const r = parseClientMessage({ ...OK });
 		assert.equal(r.ok, true);
 		assert.deepEqual(r.msg, OK);
-		assert.equal(validate({ ...OK, loss: 2.5 }).ok, true);
-		assert.equal(validate({ ...OK, lag: 0, jitter: 0, loss: 0 }).ok, true);
+		assert.equal(parseClientMessage({ ...OK, loss: 2.5 }).ok, true);
+		assert.equal(
+			parseClientMessage({ ...OK, lag: 0, jitter: 0, loss: 0 }).ok,
+			true,
+		);
 	});
 
 	it("зламане: BAD_FORMAT", () => {
@@ -254,7 +257,7 @@ describe("validate: netsim", () => {
 			{ ...OK, loss: null },
 		];
 		for (const raw of bad) {
-			const r = validate(raw);
+			const r = parseClientMessage(raw);
 			assert.equal(r.ok, false, JSON.stringify(raw));
 			assert.equal(r.code, CLOSE.BAD_FORMAT, JSON.stringify(raw));
 		}

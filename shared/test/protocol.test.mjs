@@ -8,7 +8,7 @@ import {
 	make,
 	makeInput,
 	PROTOCOL_VERSION,
-} from "../protocol/index.js";
+} from "../protocol/index.ts";
 
 describe("shared/protocol", () => {
 	it("make додає версію", () => {

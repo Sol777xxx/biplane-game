@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { after, before, describe, it } from "node:test";
-import { makeInput } from "biplane-shared/protocol/index.js";
+import { makeInput } from "biplane-shared/protocol/index.ts";
 import { createApp } from "../../server/src/app.js";
 import { silentLogger } from "../../server/src/logger.js";
 import { RoomManager } from "../../server/src/rooms.js";

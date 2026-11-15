@@ -14,7 +14,7 @@ import {
 } from "../codec/binary.js";
 import { CODECS, getCodec } from "../codec/index.js";
 import { json } from "../codec/json.js";
-import { INPUT_KEYS, MAX_SEQ, make } from "../protocol/index.js";
+import { INPUT_KEYS, MAX_SEQ, make } from "../protocol/index.ts";
 import { PICKUP_TYPES } from "../sim/objects.ts";
 import { createScenario } from "../sim/scenario.ts";
 import { eventToWire, takeSnapshot } from "../sim/snapshot.ts";
