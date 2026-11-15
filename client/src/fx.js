@@ -1,6 +1,6 @@
 import { drag, lifetime } from "biplane-shared/sim/behaviors.ts";
 import { Entity } from "biplane-shared/sim/entity.ts";
-import { World } from "biplane-shared/sim/world.js";
+import { World } from "biplane-shared/sim/world.ts";
 
 // Візуальні ефекти живуть лише на клієнті, у власному світі, і слухають шину подій
 // гри. На стан симуляції вони не впливають, тож випадковість тут дозволена.

@@ -3,7 +3,7 @@ import { homing } from "./behaviors.ts";
 import { Biplane } from "./biplane.ts";
 import { Obstacle, PICKUP_TYPES, Pickup } from "./objects.ts";
 import { mulberry32 } from "./random.ts";
-import { World } from "./world.js";
+import { World } from "./world.ts";
 
 const RESPAWN_DELAY = 2;
 const RESPAWN_SHIELD = 2;
