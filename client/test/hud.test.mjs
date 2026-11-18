@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { createHud } from "../src/hud.js";
+import { TypedBus } from "biplane-shared/sim/bus.ts";
+import { createHud } from "../src/hud.ts";
 
 // ctx-заглушка: запам'ятовує виклики методів, присвоєння властивостей ігнорує
 function fakeCtx() {
@@ -23,7 +24,7 @@ function scored(bus, delta, at = { x: 100, y: 200 }) {
 
 describe("hud", () => {
 	it("scored додає попап, який малює +N", () => {
-		const bus = new EventTarget();
+		const bus = new TypedBus();
 		const hud = createHud(bus);
 		scored(bus, 45);
 		assert.equal(hud.count, 1);
@@ -33,7 +34,7 @@ describe("hud", () => {
 	});
 
 	it("попап зникає з часом", () => {
-		const bus = new EventTarget();
+		const bus = new TypedBus();
 		const hud = createHud(bus);
 		scored(bus, 70);
 		hud.draw(fakeCtx(), performance.now() + 5000);
@@ -41,7 +42,7 @@ describe("hud", () => {
 	});
 
 	it("dispose відписує від шини", () => {
-		const bus = new EventTarget();
+		const bus = new TypedBus();
 		const hud = createHud(bus);
 		hud.dispose();
 		scored(bus, 45);

@@ -1,15 +1,12 @@
-import { describeError } from "../loadingScreen.js";
+import type { RoomSummary } from "biplane-shared/protocol/index.ts";
+import { describeError } from "../loadingScreen.ts";
+import type { JoinChoice, Lobby } from "../lobby.ts";
 import { describeJoinError } from "../net/roomSession.ts";
+import { el, messageOf } from "./dom.ts";
 
 const NAME_KEY = "biplane-name";
 
-function el(tag, props = {}, ...children) {
-	const node = Object.assign(document.createElement(tag), props);
-	node.append(...children);
-	return node;
-}
-
-function savedName() {
+function savedName(): string {
 	try {
 		return localStorage.getItem(NAME_KEY) ?? "";
 	} catch {
@@ -17,7 +14,7 @@ function savedName() {
 	}
 }
 
-function saveName(name) {
+function saveName(name: string): void {
 	try {
 		localStorage.setItem(NAME_KEY, name);
 	} catch {
@@ -25,14 +22,30 @@ function saveName(name) {
 	}
 }
 
+export interface LobbyViewOptions<R extends object> {
+	// підключає до кімнати; відхилення лишає гравця в лобі з поясненням
+	readonly enter: (choice: JoinChoice) => Promise<R>;
+}
+
 // Показує лобі й повертає проміс із вибором гравця { name, room, ...результат enter }.
-// enter(choice) підключає до кімнати; якщо воно відхилене, гравець лишається в лобі
-// з поясненням. Усі слухачі підписані з одним signal, тож cleanup() знімає їх одним abort().
-export function showLobby(root, lobby, { enter = async () => ({}) } = {}) {
+// Усі слухачі підписані з одним signal, тож cleanup() знімає їх одним abort().
+// Без enter результатом буде лише вибір; з enter до нього додаються поля результату.
+export function showLobby(root: HTMLElement, lobby: Lobby): Promise<JoinChoice>;
+export function showLobby<R extends object>(
+	root: HTMLElement,
+	lobby: Lobby,
+	options: LobbyViewOptions<R>,
+): Promise<JoinChoice & R>;
+export function showLobby<R extends object>(
+	root: HTMLElement,
+	lobby: Lobby,
+	options?: Partial<LobbyViewOptions<R>>,
+): Promise<JoinChoice> {
+	const enter = options?.enter;
 	return new Promise((resolve) => {
 		const ac = new AbortController();
 		const { signal } = ac;
-		let selected = null;
+		let selected: string | null = null;
 		let busy = false;
 		let sticky = ""; // повідомлення про невдалий вхід: не стирається оновленням списку
 
@@ -62,14 +75,14 @@ export function showLobby(root, lobby, { enter = async () => ({}) } = {}) {
 		);
 		root.hidden = false;
 
-		function setBusy(on) {
+		function setBusy(on: boolean): void {
 			busy = on;
 			nameInput.disabled = on;
 			joinBtn.disabled = on;
 			list.inert = on;
 		}
 
-		function render(rooms) {
+		function render(rooms: readonly RoomSummary[]): void {
 			if (selected === null) {
 				selected = rooms.find((r) => r.players < r.max)?.id ?? null;
 			}
@@ -102,27 +115,27 @@ export function showLobby(root, lobby, { enter = async () => ({}) } = {}) {
 			);
 		}
 
-		function cleanup() {
+		function cleanup(): void {
 			ac.abort();
 			root.hidden = true;
 			root.replaceChildren();
 		}
 
-		async function join() {
+		async function join(): Promise<void> {
 			if (busy) return;
 			sticky = "";
-			let choice;
+			let choice: JoinChoice;
 			try {
 				choice = lobby.join(nameInput.value, selected); // перевірка + stop() опитування
 			} catch (error) {
-				note.textContent = error.message;
+				note.textContent = messageOf(error);
 				return;
 			}
 			saveName(choice.name);
 			setBusy(true);
 			note.textContent = "Підключення…";
 			try {
-				const result = await enter(choice);
+				const result = enter ? await enter(choice) : {};
 				cleanup();
 				resolve({ ...choice, ...result });
 			} catch (error) {
@@ -134,21 +147,22 @@ export function showLobby(root, lobby, { enter = async () => ({}) } = {}) {
 			}
 		}
 
-		lobby.addEventListener(
-			"rooms",
-			(e) => {
-				render(e.detail);
+		const offs = [
+			lobby.listen("rooms", (rooms) => {
+				render(rooms);
 				if (!sticky) note.textContent = "";
-			},
-			{ signal },
-		);
-		lobby.addEventListener(
-			"error",
-			(e) => {
+			}),
+			lobby.listen("error", (error) => {
 				if (sticky) return;
-				note.textContent = `Не вдалося оновити список: ${describeError(e.detail)}`;
+				note.textContent = `Не вдалося оновити список: ${describeError(error)}`;
+			}),
+		];
+		signal.addEventListener(
+			"abort",
+			() => {
+				for (const off of offs) off();
 			},
-			{ signal },
+			{ once: true },
 		);
 		joinBtn.addEventListener("click", join, { signal });
 		nameInput.addEventListener(

@@ -3,6 +3,7 @@ import {
 	make,
 	makeInput,
 	PROTOCOL_VERSION,
+	type RoomSummary,
 	type ServerOf,
 	type SnapshotMessage,
 } from "biplane-shared/protocol/index.ts";
@@ -68,7 +69,7 @@ function withBinary(url: string): string {
 }
 
 export type RosterEntry = ServerOf<"roster">["players"][number];
-export type RoomSummary = ServerOf<"joined">["room"];
+export type { RoomSummary };
 export type ChatMessage = ServerOf<"chat">;
 
 export interface Pong {

@@ -8,7 +8,7 @@ import {
 	loadAll,
 	loadAllSequential,
 	withRetry,
-} from "../src/assets/loader.js";
+} from "../src/assets/loader.ts";
 
 let server;
 let base;

@@ -63,6 +63,12 @@ export type NetEvent =
 			readonly detail: { readonly player: string; readonly at: Vec2 };
 	  };
 
+// Шина клієнта: назва події → detail (з NetEvent). Споживачі (audio, hud, fx) беруть із неї
+// лише потрібні події через Pick і підписуються методом on().
+export type NetBusEvents = {
+	readonly [E in NetEvent as E["type"]]: E["detail"];
+};
+
 // Перевірена подія в подію шини. Кожна гілка повертає свій варіант NetEvent,
 // а default це never: нова подія в WireEvent без гілки тут це помилка tsc.
 function toNetEvent(w: WireEvent): NetEvent {

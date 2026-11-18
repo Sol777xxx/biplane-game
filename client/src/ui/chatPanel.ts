@@ -1,16 +1,13 @@
-import { describeClose } from "../net/roomSession.ts";
+import { describeClose, type RoomSession } from "../net/roomSession.ts";
+import { el } from "./dom.ts";
 
 const MAX_LINES = 50;
 
-function el(tag, props = {}, ...children) {
-	const node = Object.assign(document.createElement(tag), props);
-	node.append(...children);
-	return node;
-}
-
 // Чужий текст потрапляє в DOM лише як текстовий вузол (append зі string / textContent),
 // ніколи як HTML: інакше чат став би дірою для XSS.
-export function mountChat(root, session) {
+export function mountChat(root: HTMLElement, session: RoomSession): () => void {
+	const room = session.room;
+	if (!room) throw new Error("чат потрібен після входу в кімнату");
 	const ac = new AbortController();
 	const { signal } = ac;
 
@@ -26,13 +23,15 @@ export function mountChat(root, session) {
 	root.replaceChildren(roster, log, status, input);
 	root.hidden = false;
 
-	function line(className, ...children) {
+	function line(className: string, ...children: (string | Node)[]): void {
 		log.append(el("div", { className }, ...children));
-		while (log.children.length > MAX_LINES) log.firstChild.remove();
+		while (log.children.length > MAX_LINES) log.firstElementChild?.remove();
 		log.scrollTop = log.scrollHeight;
 	}
 
-	function renderRoster(players) {
+	function renderRoster(
+		players: readonly { id: string; name: string }[],
+	): void {
 		roster.replaceChildren(
 			...players.map((p) =>
 				el("span", {
@@ -44,34 +43,34 @@ export function mountChat(root, session) {
 	}
 
 	renderRoster(session.players);
-	line("msg sys", `Ви в кімнаті «${session.room.name}»`);
+	line("msg sys", `Ви в кімнаті «${room.name}»`);
 
-	session.addEventListener("roster", (e) => renderRoster(e.detail), { signal });
-	session.addEventListener(
-		"chat",
-		(e) => {
-			const m = e.detail;
+	// підписки сеансу знімаються разом з рештою, коли спрацьовує signal
+	const offs = [
+		session.listen("roster", renderRoster),
+		session.listen("chat", (m) => {
 			line(
 				m.from === session.you?.id ? "msg me" : "msg",
 				el("b", {}, `${m.name}: `),
 				m.text,
 			);
-		},
-		{ signal },
-	);
-	session.addEventListener(
-		"status",
-		(e) => {
-			const s = e.detail;
+		}),
+		session.listen("status", (s) => {
 			if (s.state === "online") status.textContent = "";
 			else if (s.state === "reconnecting") {
 				status.textContent = `Зв'язок втрачено, повторне підключення (спроба ${s.attempt})…`;
-			} else if (s.state === "closed") {
+			} else {
 				status.textContent = describeClose(s.code);
 				line("msg sys", `З'єднання закрито: ${describeClose(s.code)}`);
 			}
+		}),
+	];
+	signal.addEventListener(
+		"abort",
+		() => {
+			for (const off of offs) off();
 		},
-		{ signal },
+		{ once: true },
 	);
 
 	input.addEventListener(

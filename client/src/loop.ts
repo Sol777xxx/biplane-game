@@ -1,12 +1,32 @@
+export interface LoopStats {
+	readonly stepsPerSec: number;
+	readonly framesPerSec: number;
+	readonly frameMs: number;
+	readonly minMs: number;
+	readonly maxMs: number;
+	readonly jitterMs: number;
+}
+
+export interface LoopOptions {
+	readonly update: (dt: number) => void;
+	// alpha: частка кроку для інтерполяції кадрів, 0..1
+	readonly render: (alpha: number) => void;
+	readonly onStats?: (stats: LoopStats) => void;
+	readonly step?: number; // крок симуляції/с
+	readonly maxFrame?: number; // ліміт кадру проти «спіралі смерті»
+	readonly mode?: "fixed" | "variable";
+	readonly driver?: "raf" | "interval";
+}
+
 export function createLoop({
 	update,
 	render,
 	onStats,
-	step = 1 / 60, // крок симуляції/с
-	maxFrame = 0.25, // ліміт кадру проти «спіралі смерті»
-	mode = "fixed", // "fixed" | "variable"
-	driver = "raf", // "raf" | "interval"
-}) {
+	step = 1 / 60,
+	maxFrame = 0.25,
+	mode = "fixed",
+	driver = "raf",
+}: LoopOptions) {
 	let handle = 0;
 	let running = false;
 	let last = 0;
@@ -21,7 +41,7 @@ export function createLoop({
 	let sumMs = 0;
 	let sumSqMs = 0;
 
-	function frame(nowMs) {
+	function frame(nowMs: number): void {
 		if (!running) return;
 		const t = nowMs / 1000;
 		const realDelta = t - last;
@@ -75,7 +95,7 @@ export function createLoop({
 	}
 
 	return {
-		start() {
+		start(): void {
 			if (running) return;
 			running = true;
 			last = performance.now() / 1000;
@@ -85,10 +105,12 @@ export function createLoop({
 				handle = requestAnimationFrame(frame);
 			}
 		},
-		stop() {
+		stop(): void {
 			running = false;
 			if (driver === "interval") clearInterval(handle);
 			else cancelAnimationFrame(handle);
 		},
 	};
 }
+
+export type Loop = ReturnType<typeof createLoop>;

@@ -1,14 +1,15 @@
-﻿import type {
+import type {
 	BulletSnapshot,
 	ObstacleSnapshot,
 	PickupSnapshot,
 	PlayerSnapshot,
 	ShipSnapshot,
 } from "biplane-shared/protocol/index.ts";
+import { TypedBus } from "biplane-shared/sim/bus.ts";
 import type { EntityId } from "biplane-shared/sim/ids.ts";
 import type { Bullet, PickupType } from "biplane-shared/sim/objects.ts";
 import type { Vec2 } from "biplane-shared/sim/vector.ts";
-import { eventFromWire } from "./events.ts";
+import { eventFromWire, type NetBusEvents } from "./events.ts";
 import type { InterpFrame, Interpolator } from "./interpolator.ts";
 
 // радіуси дублюють shared/sim (Biplane, Bullet, Pickup); збіг стереже тест
@@ -178,7 +179,7 @@ export function createSnapshotView({
 	interp = null,
 	shots = null,
 }: SnapshotViewOptions = {}) {
-	const bus = new EventTarget();
+	const bus = new TypedBus<NetBusEvents>();
 	let views = emptyViews();
 	let players: ReadonlyMap<string, PlayerSnapshot> = new Map();
 	let latest: ViewFrame | null = null;

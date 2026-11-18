@@ -1,10 +1,11 @@
-import { HttpError } from "./assets/loader.js";
+import { HttpError, type LoadProgress } from "./assets/loader.ts";
 
-export function describeError(err) {
+export function describeError(err: unknown): string {
 	if (err instanceof HttpError) {
 		return `Не вдалося завантажити ${err.url} (HTTP ${err.status})`;
 	}
-	switch (err?.name) {
+	const name = err instanceof Error ? err.name : undefined;
+	switch (name) {
 		case "TimeoutError":
 			return "Час очікування мережі вичерпано";
 		case "AbortError":
@@ -12,22 +13,27 @@ export function describeError(err) {
 		case "SyntaxError":
 			return "Файл пошкоджений (некоректний JSON)";
 		default:
-			return err?.message ?? String(err);
+			return err instanceof Error ? err.message : String(err);
 	}
 }
 
 // Екран завантаження на canvas: справжня смуга прогресу (done/total), повідомлення, Retry.
-export function createLoadingScreen(canvas, retryBtn) {
+export function createLoadingScreen(
+	canvas: HTMLCanvasElement,
+	retryBtn: HTMLButtonElement,
+) {
 	const ctx = canvas.getContext("2d");
+	if (!ctx) throw new Error("canvas 2d недоступний");
 	let target = 0;
 	let shown = 0;
 	let label = "";
 	let note = "";
 	let error = "";
-	let warnings = [];
+	let warnings: readonly string[] = [];
 	let raf = 0;
 
-	function fit() {
+	function fit(): { w: number; h: number } {
+		if (!ctx) throw new Error("canvas 2d недоступний");
 		const dpr = window.devicePixelRatio || 1;
 		const w = canvas.clientWidth;
 		const h = canvas.clientHeight;
@@ -39,7 +45,8 @@ export function createLoadingScreen(canvas, retryBtn) {
 		return { w, h };
 	}
 
-	function draw() {
+	function draw(): void {
+		if (!ctx) return;
 		const { w, h } = fit();
 		ctx.clearRect(0, 0, w, h);
 		const cx = w / 2;
@@ -80,7 +87,7 @@ export function createLoadingScreen(canvas, retryBtn) {
 		});
 	}
 
-	function tick() {
+	function tick(): void {
 		shown += (target - shown) * 0.2;
 		if (Math.abs(target - shown) < 0.002) shown = target;
 		draw();
@@ -88,7 +95,7 @@ export function createLoadingScreen(canvas, retryBtn) {
 	}
 
 	return {
-		start() {
+		start(): void {
 			target = shown = 0;
 			error = note = label = "";
 			warnings = [];
@@ -97,28 +104,28 @@ export function createLoadingScreen(canvas, retryBtn) {
 			tick();
 		},
 		// подія прогресу з loadAll
-		progress(e) {
+		progress(e: LoadProgress): void {
 			if (e.type === "item") {
 				target = e.fraction;
 				label = e.failed ? `${e.id} — пропущено` : e.id;
-			} else if (e.type === "retry") {
+			} else {
 				note = `Повтор ${e.attempt}/${e.attempts - 1}: ${e.id} (через ${Math.round(e.delay)} мс)`;
 			}
 		},
-		setWarnings(list) {
+		setWarnings(list: readonly string[]): void {
 			warnings = list;
 		},
 		// показує помилку й чекає натискання Retry
-		fail(err) {
+		fail(err: unknown): Promise<void> {
 			error = describeError(err);
 			note = "";
 			retryBtn.hidden = false;
 			retryBtn.focus();
 			return new Promise((resolve) =>
-				retryBtn.addEventListener("click", resolve, { once: true }),
+				retryBtn.addEventListener("click", () => resolve(), { once: true }),
 			);
 		},
-		stop() {
+		stop(): void {
 			cancelAnimationFrame(raf);
 			retryBtn.hidden = true;
 			const { w, h } = fit();
@@ -126,3 +133,5 @@ export function createLoadingScreen(canvas, retryBtn) {
 		},
 	};
 }
+
+export type LoadingScreen = ReturnType<typeof createLoadingScreen>;

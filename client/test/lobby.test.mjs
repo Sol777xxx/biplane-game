@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import http from "node:http";
 import { after, before, describe, it } from "node:test";
-import { sleep } from "../src/assets/loader.js";
-import { Lobby } from "../src/lobby.js";
+import { DEFAULT_ARENA } from "biplane-shared/sim/game.ts";
+import { sleep } from "../src/assets/loader.ts";
+import { Lobby } from "../src/lobby.ts";
 
 const ROOMS = {
 	rooms: [
-		{ id: "a", name: "A", players: 1, max: 4, arena: {} },
-		{ id: "full", name: "F", players: 4, max: 4, arena: {} },
+		{ id: "a", name: "A", players: 1, max: 4, arena: DEFAULT_ARENA },
+		{ id: "full", name: "F", players: 4, max: 4, arena: DEFAULT_ARENA },
 	],
 };
 

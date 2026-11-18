@@ -5,14 +5,14 @@ import {
 	traceScenario,
 } from "biplane-shared/sim/scenario.ts";
 import { TICK_DT } from "biplane-shared/sim/time.ts";
-import { createAudio } from "./assets/audio/audio.js";
-import { fetchJson, loadAll, sleep, withRetry } from "./assets/loader.js";
-import { createFx } from "./fx.js";
-import { createHud } from "./hud.js";
-import { createInput } from "./input.js";
-import { createLoadingScreen } from "./loadingScreen.js";
-import { Lobby } from "./lobby.js";
-import { createLoop } from "./loop.js";
+import { createAudio } from "./assets/audio/audio.ts";
+import { fetchJson, loadAll, sleep, withRetry } from "./assets/loader.ts";
+import { createFx } from "./fx.ts";
+import { createHud } from "./hud.ts";
+import { createInput } from "./input.ts";
+import { createLoadingScreen } from "./loadingScreen.ts";
+import { Lobby } from "./lobby.ts";
+import { createLoop } from "./loop.ts";
 import { createInterpolator } from "./net/interpolator.ts";
 import { createPredictor } from "./net/predictor.ts";
 import { joinRoom } from "./net/roomSession.ts";
@@ -21,9 +21,9 @@ import { createNetStats, summarize } from "./netStats.ts";
 import { DEFAULT_PILOT, PILOTS } from "./render/pilots/index.js";
 import { createRenderer } from "./render/renderer.js";
 import { downloadSheet, initSprites } from "./render/sprites.js";
-import { mountChat } from "./ui/chatPanel.js";
-import { showLobby } from "./ui/lobbyView.js";
-import { mountNetgraph } from "./ui/netgraph.js";
+import { mountChat } from "./ui/chatPanel.ts";
+import { showLobby } from "./ui/lobbyView.ts";
+import { mountNetgraph } from "./ui/netgraph.ts";
 import { createPilotPicker } from "./ui/pilotPicker.js";
 
 const STORAGE_KEY = "biplane-pilot";

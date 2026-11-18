@@ -5,8 +5,8 @@ import { Game } from "biplane-shared/sim/game.ts";
 import { Bullet, Pickup } from "biplane-shared/sim/objects.ts";
 import { eventToWire, takeSnapshot } from "biplane-shared/sim/snapshot.ts";
 import { TICK_DT } from "biplane-shared/sim/time.ts";
-import { createFx } from "../src/fx.js";
-import { createHud } from "../src/hud.js";
+import { createFx } from "../src/fx.ts";
+import { createHud } from "../src/hud.ts";
 import { eventFromWire } from "../src/net/events.ts";
 import {
 	BULLET_RADIUS,

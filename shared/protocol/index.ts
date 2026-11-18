@@ -167,12 +167,17 @@ const arenaSchema = z.object({
 	refillEvery: num,
 });
 
-const roomSummarySchema = z.object({
+export const roomSummarySchema = z.object({
 	id: z.string(),
 	name: z.string(),
 	players: num,
 	max: num,
 	arena: arenaSchema,
+});
+
+// відповідь GET /api/rooms
+export const roomListSchema = z.object({
+	rooms: z.array(roomSummarySchema).readonly(),
 });
 
 const simKindSchema = z.enum(["biplane", "bullet", "obstacle", "pickup"]);
@@ -337,6 +342,9 @@ export type SnapshotMessage = z.infer<typeof snapshotMessageSchema>;
 export type Message = ClientMessage | ServerMessage;
 export type MessageType = Message["type"];
 export type MessageOf<T extends MessageType> = Extract<Message, { type: T }>;
+
+export type RoomSummary = z.infer<typeof roomSummarySchema>;
+export type RoomList = z.infer<typeof roomListSchema>;
 
 export type WireEvent = z.infer<typeof wireEventSchema>;
 export type Snapshot = z.infer<typeof snapshotSchema>;
