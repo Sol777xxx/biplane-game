@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { after, before, describe, it } from "node:test";
 import { createApp } from "../src/app.js";
-import { RoomManager } from "../src/rooms.js";
+import { RoomManager } from "../src/rooms.ts";
 
 let app;
 let url;

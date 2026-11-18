@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
-import { Room, RoomError, RoomManager } from "../src/rooms.js";
+import { Room, RoomError, RoomManager } from "../src/rooms.ts";
 
 function collect(emitter, name) {
 	const seen = [];

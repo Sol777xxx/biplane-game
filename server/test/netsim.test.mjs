@@ -5,9 +5,9 @@ import { setTimeout as sleep } from "node:timers/promises";
 import WebSocket from "ws";
 import { createApp } from "../src/app.js";
 import { silentLogger } from "../src/logger.ts";
-import { NetSim, parseNetsimUrl } from "../src/netsim.js";
+import { NetSim, parseNetsimUrl } from "../src/netsim.ts";
 import { CLOSE, parseClientMessage } from "../src/protocol.ts";
-import { RoomManager } from "../src/rooms.js";
+import { RoomManager } from "../src/rooms.ts";
 
 // Підроблений годинник: advance(ms) запускає таймери за порядком часу.
 function fakeClock() {

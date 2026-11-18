@@ -1,10 +1,12 @@
-import { createReadStream } from "node:fs";
+import { createReadStream, type Stats } from "node:fs";
 import { stat } from "node:fs/promises";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
+import { hasCode } from "./errors.ts";
 import { sendText } from "./respond.ts";
 
-const MIME = {
+const MIME: Readonly<Record<string, string>> = {
 	".html": "text/html; charset=utf-8",
 	".js": "text/javascript; charset=utf-8",
 	".mjs": "text/javascript; charset=utf-8",
@@ -21,9 +23,14 @@ const MIME = {
 
 // Перетворює шлях із запиту на файл усередині root. Працює із СИРИМ url:
 // WHATWG URL сам прибирає "/../", тож перевіряти треба до нього.
-export function resolveSafe(root, rawUrl) {
-	const raw = rawUrl.split("?")[0].split("#")[0];
-	let decoded;
+// Результат: або { status } (відмова), або { file }; відрізняємо їх за наявністю status.
+export type Resolved =
+	| { readonly status: 400 | 403 }
+	| { readonly file: string };
+
+export function resolveSafe(root: string, rawUrl: string): Resolved {
+	const raw = rawUrl.split("?")[0]?.split("#")[0] ?? "";
+	let decoded: string;
 	try {
 		decoded = decodeURIComponent(raw);
 	} catch {
@@ -42,7 +49,7 @@ export function resolveSafe(root, rawUrl) {
 	return { file };
 }
 
-async function statOrNull(file) {
+async function statOrNull(file: string): Promise<Stats | null> {
 	try {
 		return await stat(file);
 	} catch {
@@ -50,20 +57,24 @@ async function statOrNull(file) {
 	}
 }
 
-export function createStaticHandler(root) {
+export function createStaticHandler(
+	root: string,
+): (req: IncomingMessage, res: ServerResponse) => Promise<void> {
 	return async function serveStatic(req, res) {
 		if (req.method !== "GET" && req.method !== "HEAD") {
 			res.setHeader("Allow", "GET, HEAD");
-			return sendText(res, 405, "Method Not Allowed");
+			sendText(res, 405, "Method Not Allowed");
+			return;
 		}
 
-		const resolved = resolveSafe(root, req.url);
-		if (resolved.status) {
-			return sendText(
+		const resolved = resolveSafe(root, req.url ?? "/");
+		if ("status" in resolved) {
+			sendText(
 				res,
 				resolved.status,
 				resolved.status === 403 ? "Forbidden" : "Bad Request",
 			);
+			return;
 		}
 
 		let file = resolved.file;
@@ -76,7 +87,8 @@ export function createStaticHandler(root) {
 			const hint = (await statOrNull(root))
 				? ""
 				: " (client/dist немає: виконайте npm run build)";
-			return sendText(res, 404, `Not Found${hint}`);
+			sendText(res, 404, `Not Found${hint}`);
+			return;
 		}
 
 		const ext = path.extname(file).toLowerCase();
@@ -85,11 +97,14 @@ export function createStaticHandler(root) {
 			"Content-Length": info.size,
 			"Cache-Control": ext === ".html" ? "no-cache" : "public, max-age=300",
 		});
-		if (req.method === "HEAD") return res.end();
+		if (req.method === "HEAD") {
+			res.end();
+			return;
+		}
 
 		// файл летить потоком, у пам'ять не читається; обрив клієнта не помилка сервера
-		await pipeline(createReadStream(file), res).catch((error) => {
-			if (error.code !== "ERR_STREAM_PREMATURE_CLOSE") throw error;
+		await pipeline(createReadStream(file), res).catch((error: unknown) => {
+			if (!hasCode(error, "ERR_STREAM_PREMATURE_CLOSE")) throw error;
 		});
 	};
 }

@@ -12,9 +12,9 @@ import {
 } from "biplane-shared/protocol/index.ts";
 import { WebSocketServer } from "ws";
 import { TokenBucket } from "./limits.ts";
-import { NetSim, parseNetsimUrl } from "./netsim.js";
+import { NetSim, parseNetsimUrl } from "./netsim.ts";
 import { CLOSE, MAX_MESSAGE_BYTES, make } from "./protocol.ts";
-import { RoomError } from "./rooms.js";
+import { RoomError } from "./rooms.ts";
 
 export const WS_DEFAULTS = Object.freeze({
 	joinTimeoutMs: 5000, // join має прийти за 5 с

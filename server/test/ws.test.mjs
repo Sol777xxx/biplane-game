@@ -6,7 +6,7 @@ import WebSocket from "ws";
 import { createApp } from "../src/app.js";
 import { silentLogger } from "../src/logger.ts";
 import { CLOSE } from "../src/protocol.ts";
-import { RoomManager } from "../src/rooms.js";
+import { RoomManager } from "../src/rooms.ts";
 
 const apps = [];
 

@@ -1,11 +1,11 @@
 import http from "node:http";
-import { createApi } from "./api.js";
+import { createApi } from "./api.ts";
 import { createMatchLogs } from "./log/matchlog.js";
 import { consoleLogger } from "./logger.ts";
 import { createMatches } from "./matches.js";
 import { HttpError, sendError, sendJson } from "./respond.ts";
-import { RoomManager } from "./rooms.js";
-import { createStaticHandler } from "./static.js";
+import { RoomManager } from "./rooms.ts";
+import { createStaticHandler } from "./static.ts";
 import { attachWebSocket } from "./ws.js";
 
 const FORCE_CLOSE_MS = 3000;

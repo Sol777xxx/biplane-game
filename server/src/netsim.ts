@@ -10,21 +10,47 @@ import { NETSIM_LIMITS } from "biplane-shared/protocol/index.ts";
 // кадри): повідомлення, якому випав менший розкид, чекає за попереднім. Для цього в кожного
 // напрямку одна черга й один таймер, а не окремий setTimeout на повідомлення.
 
-const clamp = (value, [min, max]) => Math.min(max, Math.max(min, value));
-const fix = (value, limits) =>
+type Limits = readonly [min: number, max: number];
+type Dir = "in" | "out";
+type Timer = ReturnType<typeof setTimeout>;
+
+export interface NetSimSettings {
+	readonly lag: number;
+	readonly jitter: number;
+	readonly loss: number;
+}
+
+export interface NetSimOptions extends Partial<NetSimSettings> {
+	readonly random?: () => number;
+	readonly now?: () => number;
+	readonly setTimer?: (fn: () => void, ms: number) => Timer;
+	readonly clearTimer?: (timer: Timer) => void;
+	readonly onError?: (error: unknown) => void;
+}
+
+interface Queued {
+	readonly due: number;
+	readonly fn: () => void;
+}
+
+const clamp = (value: number, [min, max]: Limits): number =>
+	Math.min(max, Math.max(min, value));
+
+// значення може прийти з будь-якого місця (адреса, повідомлення): не число це 0
+const fix = (value: unknown, limits: Limits): number =>
 	typeof value === "number" && Number.isFinite(value)
 		? clamp(value, limits)
 		: 0;
 
 // "100", "2.5": лише невід'ємні числа до 4 цифр; усе інше це 0
-function fromText(raw, limits) {
+function fromText(raw: string | null, limits: Limits): number {
 	if (raw === null || !/^\d{1,4}(\.\d{1,2})?$/.test(raw)) return 0;
 	return clamp(Number(raw), limits);
 }
 
 // параметри з адреси сокета: /ws?lag=100&jitter=30&loss=2
-export function parseNetsimUrl(url) {
-	const params = new URL(url, "http://x").searchParams;
+export function parseNetsimUrl(url: string | undefined): NetSimSettings {
+	const params = new URL(url ?? "/", "http://x").searchParams;
 	return {
 		lag: fromText(params.get("lag"), NETSIM_LIMITS.lag),
 		jitter: fromText(params.get("jitter"), NETSIM_LIMITS.jitter),
@@ -36,14 +62,15 @@ export class NetSim {
 	#lag = 0;
 	#jitter = 0;
 	#loss = 0;
-	#random;
-	#now;
-	#setTimer;
-	#clearTimer;
-	#onError;
-	#queues = { in: [], out: [] };
-	#timers = { in: null, out: null };
-	#last = { in: 0, out: 0 }; // найпізніший призначений час: нижче нього не опускаємось
+	readonly #random: () => number;
+	readonly #now: () => number;
+	readonly #setTimer: (fn: () => void, ms: number) => Timer;
+	readonly #clearTimer: (timer: Timer) => void;
+	readonly #onError: ((error: unknown) => void) | undefined;
+	readonly #queues: Record<Dir, Queued[]> = { in: [], out: [] };
+	readonly #timers: Record<Dir, Timer | null> = { in: null, out: null };
+	// найпізніший призначений час: нижче нього не опускаємось
+	readonly #last: Record<Dir, number> = { in: 0, out: 0 };
 	dropped = 0;
 	delayed = 0;
 
@@ -56,7 +83,7 @@ export class NetSim {
 		setTimer = setTimeout,
 		clearTimer = clearTimeout,
 		onError,
-	} = {}) {
+	}: NetSimOptions = {}) {
 		this.#random = random;
 		this.#now = now;
 		this.#setTimer = setTimer;
@@ -65,31 +92,41 @@ export class NetSim {
 		this.set({ lag, jitter, loss });
 	}
 
-	get settings() {
+	get settings(): NetSimSettings {
 		return { lag: this.#lag, jitter: this.#jitter, loss: this.#loss };
 	}
 
-	get active() {
+	get active(): boolean {
 		return this.#lag > 0 || this.#jitter > 0 || this.#loss > 0;
 	}
 
 	// замінює всі три значення: відсутнє стає нулем
-	set({ lag, jitter, loss } = {}) {
+	set({
+		lag,
+		jitter,
+		loss,
+	}: Partial<Record<keyof NetSimSettings, unknown>> = {}): void {
 		this.#lag = fix(lag, NETSIM_LIMITS.lag);
 		this.#jitter = fix(jitter, NETSIM_LIMITS.jitter);
 		this.#loss = fix(loss, NETSIM_LIMITS.loss);
 	}
 
 	// Повертає true, якщо fn виконано або поставлено в чергу, false, якщо повідомлення втрачено.
-	inbound(fn, { lossy = false } = {}) {
+	inbound(
+		fn: () => void,
+		{ lossy = false }: { lossy?: boolean } = {},
+	): boolean {
 		return this.#run("in", fn, lossy);
 	}
 
-	outbound(fn, { lossy = false } = {}) {
+	outbound(
+		fn: () => void,
+		{ lossy = false }: { lossy?: boolean } = {},
+	): boolean {
 		return this.#run("out", fn, lossy);
 	}
 
-	#run(dir, fn, lossy) {
+	#run(dir: Dir, fn: () => void, lossy: boolean): boolean {
 		const queue = this.#queues[dir];
 		// вимкнено й нічого не чекає: виконуємо одразу, без жодних накладних витрат
 		if (!this.active && queue.length === 0) {
@@ -117,7 +154,7 @@ export class NetSim {
 		return true;
 	}
 
-	#arm(dir, now) {
+	#arm(dir: Dir, now: number): void {
 		if (this.#timers[dir] !== null) return;
 		const head = this.#queues[dir][0];
 		if (!head) return;
@@ -125,28 +162,31 @@ export class NetSim {
 		this.#timers[dir] = this.#setTimer(() => this.#drain(dir), delay);
 	}
 
-	#drain(dir) {
+	#drain(dir: Dir): void {
 		this.#timers[dir] = null;
 		const queue = this.#queues[dir];
 		const now = this.#now();
-		while (queue.length > 0 && queue[0].due <= now)
-			this.#call(queue.shift().fn);
+		for (let head = queue[0]; head && head.due <= now; head = queue[0]) {
+			queue.shift();
+			this.#call(head.fn);
+		}
 		// таймер міг спрацювати на мілісекунду раніше: тоді ставимо наступний
 		this.#arm(dir, this.#now());
 	}
 
 	// виняток в одному повідомленні не має зупиняти решту черги
-	#call(fn) {
+	#call(fn: () => void): void {
 		try {
 			fn();
-		} catch (error) {
+		} catch (error: unknown) {
 			this.#onError?.(error);
 		}
 	}
 
-	dispose() {
-		for (const dir of ["in", "out"]) {
-			if (this.#timers[dir] !== null) this.#clearTimer(this.#timers[dir]);
+	dispose(): void {
+		for (const dir of ["in", "out"] satisfies Dir[]) {
+			const timer = this.#timers[dir];
+			if (timer !== null) this.#clearTimer(timer);
 			this.#timers[dir] = null;
 			this.#queues[dir].length = 0;
 		}

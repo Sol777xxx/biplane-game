@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { after, before, describe, it } from "node:test";
 import { createApp } from "../../server/src/app.js";
 import { silentLogger } from "../../server/src/logger.ts";
-import { RoomManager } from "../../server/src/rooms.js";
+import { RoomManager } from "../../server/src/rooms.ts";
 import { JoinError, joinRoom } from "../src/net/roomSession.js";
 import { waitFor } from "./helpers.mjs";
 

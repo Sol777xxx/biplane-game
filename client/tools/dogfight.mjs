@@ -9,7 +9,7 @@ import { scriptedInput } from "biplane-shared/sim/scenario.ts";
 import { TICK_DT } from "biplane-shared/sim/time.ts";
 import { createApp } from "../../server/src/app.js";
 import { silentLogger } from "../../server/src/logger.ts";
-import { RoomManager } from "../../server/src/rooms.js";
+import { RoomManager } from "../../server/src/rooms.ts";
 import { createInterpolator } from "../src/net/interpolator.js";
 import { createPredictor } from "../src/net/predictor.js";
 import { joinRoom } from "../src/net/roomSession.js";

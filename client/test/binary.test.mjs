@@ -8,7 +8,7 @@ import { takeSnapshot } from "biplane-shared/sim/snapshot.ts";
 import { WebSocketServer } from "ws";
 import { createApp } from "../../server/src/app.js";
 import { silentLogger } from "../../server/src/logger.ts";
-import { RoomManager } from "../../server/src/rooms.js";
+import { RoomManager } from "../../server/src/rooms.ts";
 import { Connection } from "../src/net/connection.js";
 import { joinRoom } from "../src/net/roomSession.js";
 import { waitFor } from "./helpers.mjs";

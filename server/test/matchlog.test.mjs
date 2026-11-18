@@ -8,7 +8,7 @@ import { after, before, describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
 import { createMatchLogs, NdjsonTransform } from "../src/log/matchlog.js";
 import { silentLogger } from "../src/logger.ts";
-import { Room } from "../src/rooms.js";
+import { Room } from "../src/rooms.ts";
 
 let base;
 before(async () => {

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { silentLogger } from "../src/logger.ts";
 import { Match } from "../src/match.js";
-import { Room } from "../src/rooms.js";
+import { Room } from "../src/rooms.ts";
 
 // Підроблений годинник: advance(target) запускає таймери в порядку часу,
 // кожен із запізненням late (імітація нерівного таймера ОС).

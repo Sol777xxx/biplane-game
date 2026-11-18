@@ -6,7 +6,7 @@ import { decodeSnapshot, encodeInput } from "biplane-shared/codec/binary.ts";
 import WebSocket from "ws";
 import { createApp } from "../src/app.js";
 import { silentLogger } from "../src/logger.ts";
-import { RoomManager } from "../src/rooms.js";
+import { RoomManager } from "../src/rooms.ts";
 
 let app;
 let rooms;
