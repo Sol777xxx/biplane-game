@@ -1,8 +1,8 @@
 import http from "node:http";
 import { createApi } from "./api.ts";
-import { createMatchLogs } from "./log/matchlog.js";
+import { createMatchLogs } from "./log/matchlog.ts";
 import { consoleLogger } from "./logger.ts";
-import { createMatches } from "./matches.js";
+import { createMatches } from "./matches.ts";
 import { HttpError, sendError, sendJson } from "./respond.ts";
 import { RoomManager } from "./rooms.ts";
 import { createStaticHandler } from "./static.ts";

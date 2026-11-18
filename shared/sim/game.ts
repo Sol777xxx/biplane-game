@@ -12,13 +12,13 @@ import { World } from "./world.ts";
 const RESPAWN_DELAY = 2;
 const RESPAWN_SHIELD = 2;
 
-export interface ArenaConfig {
+export type ArenaConfig = {
 	readonly obstacles: number;
 	readonly pickupEvery: number;
 	readonly homingChance: number;
 	readonly speed: number;
 	readonly refillEvery: number;
-}
+};
 
 type ArenaKey = keyof ArenaConfig;
 

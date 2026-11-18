@@ -3,8 +3,8 @@ import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
-import { createMatchLogs } from "../src/log/matchlog.js";
-import { readEvents, replayStream } from "../src/log/replay.js";
+import { createMatchLogs } from "../src/log/matchlog.ts";
+import { readEvents, replayStream } from "../src/log/replay.ts";
 import { silentLogger } from "../src/logger.ts";
 import { Room } from "../src/rooms.ts";
 

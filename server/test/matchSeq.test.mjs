@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { silentLogger } from "../src/logger.ts";
-import { Match } from "../src/match.js";
+import { Match } from "../src/match.ts";
 import { Room } from "../src/rooms.ts";
 
 // мінімальний підроблений годинник
