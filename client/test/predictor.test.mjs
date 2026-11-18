@@ -3,8 +3,8 @@ import { describe, it } from "node:test";
 import { Game } from "biplane-shared/sim/game.ts";
 import { takeSnapshot } from "biplane-shared/sim/snapshot.ts";
 import { TICK_DT } from "biplane-shared/sim/time.ts";
-import { createPredictor } from "../src/net/predictor.js";
-import { createSnapshotView } from "../src/net/snapshotView.js";
+import { createPredictor } from "../src/net/predictor.ts";
+import { createSnapshotView } from "../src/net/snapshotView.ts";
 
 const NONE = { up: false, down: false, left: false, right: false, fire: false };
 const RIGHT = { ...NONE, right: true };

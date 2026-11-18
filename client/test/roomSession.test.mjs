@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { after, before, describe, it } from "node:test";
+import { DEFAULT_ARENA } from "biplane-shared/sim/game.ts";
 import { createApp } from "../../server/src/app.ts";
 import { silentLogger } from "../../server/src/logger.ts";
 import { RoomManager } from "../../server/src/rooms.ts";
-import { JoinError, joinRoom } from "../src/net/roomSession.js";
+import { JoinError, joinRoom } from "../src/net/roomSession.ts";
 import { waitFor } from "./helpers.mjs";
 
 let app;
@@ -26,7 +27,7 @@ before(async () => {
 after(() => app.close());
 
 const newRoom = (max = 4) =>
-	rooms.create({ name: "T", max, permanent: true }).id;
+	rooms.create({ name: "T", max, permanent: true, arena: DEFAULT_ARENA }).id;
 const once = (target, type) =>
 	new Promise((resolve) =>
 		target.addEventListener(type, (e) => resolve(e.detail), { once: true }),

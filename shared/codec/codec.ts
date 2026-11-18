@@ -28,7 +28,7 @@ export interface TextCodec extends CodecBase<string> {
 	readonly isBinary: false;
 }
 
-export interface BinaryCodec extends CodecBase<Uint8Array> {
+export interface BinaryCodec extends CodecBase<Uint8Array<ArrayBuffer>> {
 	readonly isBinary: true;
 }
 

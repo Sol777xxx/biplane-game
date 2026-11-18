@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { createPredictor } from "../src/net/predictor.js";
-import { createSnapshotView } from "../src/net/snapshotView.js";
+import { createPredictor } from "../src/net/predictor.ts";
+import { createSnapshotView } from "../src/net/snapshotView.ts";
 
 const row = (id, x) => ({
 	id,

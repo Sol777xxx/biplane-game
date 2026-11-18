@@ -1,14 +1,66 @@
+import type {
+	BulletSnapshot,
+	ShipSnapshot,
+} from "biplane-shared/protocol/index.ts";
 import { ARENA, wrapDelta } from "biplane-shared/sim/arena.ts";
 import { Biplane } from "biplane-shared/sim/biplane.ts";
+import type { Entity, EntityWorld } from "biplane-shared/sim/entity.ts";
+import { type EntityId, NO_SEQ, type Seq } from "biplane-shared/sim/ids.ts";
 import { Bullet } from "biplane-shared/sim/objects.ts";
 import { TICK_DT } from "biplane-shared/sim/time.ts";
+import type { InputState } from "biplane-shared/sim/types.ts";
+import type { Vec2 } from "biplane-shared/sim/vector.ts";
 
 const MAX_PENDING = 90; // 3 с input без ack
 const MAX_SHOTS = 40;
 export const SMOOTH_S = 0.1; // за скільки секунд згасає поправка (~95%)
 
+// стан клавіш одного кроку (без seq: його додає predictor)
+export type PredictorKeys = Omit<InputState, "seq">;
+
+export interface PredictorOptions {
+	// секунди згладжування (0: вимкнено)
+	readonly smooth?: number;
+	// викликається при локальному пострілі
+	readonly onFire?: ((at: Vec2) => void) | null;
+}
+
+// Що predictor бере зі знімка (повний знімок сервера теж підходить).
+export interface ReconcileInput {
+	readonly ack?: number;
+	readonly bullets?: readonly BulletSnapshot[];
+	readonly ships?: readonly ShipSnapshot[];
+}
+
+// Те, що малюємо для власного корабля: позиція зі зсувом, решта як є.
+export interface Pose {
+	readonly pos: Vec2;
+	readonly prevPos: Vec2;
+	readonly vel: Vec2;
+	readonly pitch: number;
+	readonly prevPitch: number;
+	readonly facing: number;
+}
+
+export interface Reconciled {
+	readonly reset: boolean;
+	readonly correction: number | null;
+}
+
+interface Pending {
+	readonly seq: Seq;
+	readonly keys: PredictorKeys;
+}
+
+// своя куля: seq input-пострілу, серверний id (null, поки сервер її не підтвердив)
+interface Shot {
+	seq: Seq;
+	id: EntityId | null;
+	readonly bullet: Bullet;
+}
+
 // стан сервера (рядок знімка) у корабель для повтору
-function load(plane, s) {
+function load(plane: Biplane, s: ShipSnapshot): void {
 	plane.pos.set(s.x, s.y);
 	plane.prevPos.set(s.x, s.y);
 	plane.vel.set(s.vx, s.vy);
@@ -21,7 +73,7 @@ function load(plane, s) {
 }
 
 // куля в стан сервера + стільки кроків, на скільки клієнт попереду
-function adopt(bullet, b, ahead) {
+function adopt(bullet: Bullet, b: BulletSnapshot, ahead: number): void {
 	bullet.alive = true;
 	bullet.pos.set(b.x, b.y);
 	bullet.prevPos.set(b.x, b.y);
@@ -31,19 +83,21 @@ function adopt(bullet, b, ahead) {
 }
 
 // Передбачення власного корабля й куль: той самий код, що й на сервері.
-// smooth: секунди згладжування (0: вимкнено); onFire({ x, y }): викликається при локальному пострілі.
-export function createPredictor({ smooth = SMOOTH_S, onFire = null } = {}) {
+export function createPredictor({
+	smooth = SMOOTH_S,
+	onFire = null,
+}: PredictorOptions = {}) {
 	let enabled = true;
-	let plane = null;
-	let planeId = null;
-	let pending = []; // надіслані input без ack: { seq, keys }
-	let shots = []; // свої кулі: { seq, id (серверний або null), bullet }
-	let offset = { x: 0, y: 0 };
-	let prevOffset = { x: 0, y: 0 }; // зсув на попередньому кроці (для інтерполяції кадрів)
+	let plane: Biplane | null = null;
+	let planeId: EntityId | null = null;
+	let pending: Pending[] = []; // надіслані input без ack
+	let shots: Shot[] = []; // свої кулі
+	let offset: Vec2 = { x: 0, y: 0 };
+	let prevOffset: Vec2 = { x: 0, y: 0 }; // зсув на попередньому кроці (для інтерполяції кадрів)
 
 	// світ-заглушка: Biplane.fire кладе кулі сюди, а не у світ гри
-	const spawned = [];
-	const stub = {
+	const spawned: Entity[] = [];
+	const stub: EntityWorld = {
 		events: [],
 		emit() {},
 		spawn(e) {
@@ -51,13 +105,14 @@ export function createPredictor({ smooth = SMOOTH_S, onFire = null } = {}) {
 			spawned.push(e);
 			return e;
 		},
+		ofKind: () => [],
 	};
 
-	const clearOffset = () => {
+	const clearOffset = (): void => {
 		offset = { x: 0, y: 0 };
 		prevOffset = { x: 0, y: 0 };
 	};
-	const clear = () => {
+	const clear = (): void => {
 		plane = null;
 		planeId = null;
 		pending = [];
@@ -66,18 +121,22 @@ export function createPredictor({ smooth = SMOOTH_S, onFire = null } = {}) {
 		clearOffset();
 	};
 
-	const advanceShots = () => {
+	const advanceShots = (): void => {
 		for (const s of shots) s.bullet.update(TICK_DT);
 		shots = shots.filter((s) => s.bullet.alive);
 	};
 
 	// Звірка куль зі знімком. Куля з тим самим seq (або id) усиновлюється: стан сервера плюс
 	// кроки, на які клієнт попереду. Локальна без пари зникає, коли сервер її вже обробив.
-	function syncShots(bullets, youId, ack) {
+	function syncShots(
+		bullets: readonly BulletSnapshot[] | undefined,
+		youId: string | null,
+		ack: number,
+	): void {
 		const ahead = pending.length;
 		const mine = (bullets ?? []).filter((b) => b.owner === youId);
-		const used = new Set();
-		const next = [];
+		const used = new Set<EntityId>();
+		const next: Shot[] = [];
 		for (const shot of shots) {
 			const b =
 				shot.id !== null
@@ -105,26 +164,26 @@ export function createPredictor({ smooth = SMOOTH_S, onFire = null } = {}) {
 				ttl: b.ttl,
 			});
 			adopt(bullet, b, ahead);
-			if (bullet.alive) next.push({ seq: b.seq ?? 0, id: b.id, bullet });
+			if (bullet.alive) next.push({ seq: b.seq ?? NO_SEQ, id: b.id, bullet });
 		}
 		shots = next;
 	}
 
 	return {
-		get enabled() {
+		get enabled(): boolean {
 			return enabled;
 		},
 		// зміна стану скидає все: стан підтягнеться з наступного знімка
-		set enabled(on) {
+		set enabled(on: boolean) {
 			enabled = Boolean(on);
 			clear();
 		},
 		// сирий передбачений корабель (без зсуву)
-		get ship() {
+		get ship(): Biplane | null {
 			return enabled ? plane : null;
 		},
 		// те, що малюємо: позиція зі зсувом, решта як є (null: передбачення немає)
-		get pose() {
+		get pose(): Pose | null {
 			if (!enabled || !plane) return null;
 			return {
 				pos: { x: plane.pos.x + offset.x, y: plane.pos.y + offset.y },
@@ -139,16 +198,16 @@ export function createPredictor({ smooth = SMOOTH_S, onFire = null } = {}) {
 			};
 		},
 		// свої кулі як сутності Bullet (порожньо, поки передбачення вимкнене)
-		get shots() {
+		get shots(): Bullet[] {
 			return enabled ? shots.map((s) => s.bullet) : [];
 		},
-		get pending() {
+		get pending(): number {
 			return pending.length;
 		},
 		reset: clear,
 
 		// input щойно надіслано: запам'ятати й одразу застосувати
-		step(seq, keys) {
+		step(seq: Seq, keys: PredictorKeys): void {
 			if (!enabled) return;
 			pending.push({ seq, keys });
 			if (pending.length > MAX_PENDING) pending.shift();
@@ -156,6 +215,8 @@ export function createPredictor({ smooth = SMOOTH_S, onFire = null } = {}) {
 			if (!plane) return;
 			plane.update(TICK_DT, { ...keys, seq });
 			for (const bullet of spawned.splice(0)) {
+				// заглушка приймає будь-яку сутність, але Biplane.fire кладе в неї лише кулі
+				if (!(bullet instanceof Bullet)) continue;
 				shots.push({ seq, id: null, bullet });
 				onFire?.({ x: bullet.pos.x, y: bullet.pos.y });
 			}
@@ -163,7 +224,7 @@ export function createPredictor({ smooth = SMOOTH_S, onFire = null } = {}) {
 		},
 
 		// згасання зсуву: раз на крок симуляції
-		tick(dt) {
+		tick(dt: number): void {
 			prevOffset = offset;
 			if (!(smooth > 0)) return;
 			const k = Math.exp((-3 * dt) / smooth);
@@ -174,7 +235,7 @@ export function createPredictor({ smooth = SMOOTH_S, onFire = null } = {}) {
 
 		// Повертає { reset, correction }: correction це сирий зсув від звірки в px
 		// (null: немає що міряти). Згладжування на нього не впливає.
-		reconcile(msg, youId) {
+		reconcile(msg: ReconcileInput, youId: string | null): Reconciled {
 			if (!enabled) return { reset: false, correction: null };
 			const ack = msg.ack ?? 0;
 			pending = pending.filter((p) => p.seq > ack);
@@ -189,24 +250,27 @@ export function createPredictor({ smooth = SMOOTH_S, onFire = null } = {}) {
 			}
 
 			const fresh = !plane || planeId !== s.id;
-			const before = fresh ? null : { x: plane.pos.x, y: plane.pos.y };
-			if (fresh) {
-				plane = new Biplane();
-				plane.world = stub;
+			const before =
+				!plane || fresh ? null : { x: plane.pos.x, y: plane.pos.y };
+			let current = plane;
+			if (!current || fresh) {
+				current = new Biplane();
+				current.world = stub;
+				plane = current;
 				planeId = s.id;
 				clearOffset(); // відродження: жорстке скидання
 			}
-			load(plane, s);
+			load(current, s);
 			for (const p of pending) {
-				plane.update(TICK_DT, { ...p.keys, seq: p.seq });
+				current.update(TICK_DT, { ...p.keys, seq: p.seq });
 				spawned.length = 0; // кулі повтору вже є серед shots
 			}
 
 			let correction = 0;
 			if (before) {
 				// зсув «було мінус стало»: корабель на екрані лишається там, де був
-				const dx = wrapDelta(plane.pos.x, before.x, ARENA.width);
-				const dy = wrapDelta(plane.pos.y, before.y, ARENA.height);
+				const dx = wrapDelta(current.pos.x, before.x, ARENA.width);
+				const dy = wrapDelta(current.pos.y, before.y, ARENA.height);
 				correction = Math.hypot(dx, dy);
 				if (smooth > 0) {
 					offset = { x: offset.x + dx, y: offset.y + dy };
@@ -217,3 +281,5 @@ export function createPredictor({ smooth = SMOOTH_S, onFire = null } = {}) {
 		},
 	};
 }
+
+export type Predictor = ReturnType<typeof createPredictor>;

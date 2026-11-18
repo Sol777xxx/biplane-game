@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { createInterpolator, TICK_MS } from "../src/net/interpolator.js";
-import { formatNet } from "../src/netStats.js";
+import { createInterpolator, TICK_MS } from "../src/net/interpolator.ts";
+import { formatNet } from "../src/netStats.ts";
 
 const LAT = 50; // постійна затримка пакета в тестах, мс
 const near = (a, b, eps = 1e-6) =>

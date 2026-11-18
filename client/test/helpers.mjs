@@ -7,3 +7,14 @@ export async function waitFor(condition, ms = 1500) {
 		await sleep(5);
 	}
 }
+
+// Повідомлення chat від сервера у правильній формі: Connection відкидає все, що не
+// проходить схему протоколу, тож тестам не годиться скорочений { type, text }.
+export const chatMsg = (text) => ({
+	v: 1,
+	type: "chat",
+	t: 0,
+	from: "p1",
+	name: "Оля",
+	text,
+});

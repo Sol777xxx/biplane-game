@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { after, before, describe, it } from "node:test";
 import { makeInput } from "biplane-shared/protocol/index.ts";
+import { DEFAULT_ARENA } from "biplane-shared/sim/game.ts";
 import { createApp } from "../../server/src/app.ts";
 import { silentLogger } from "../../server/src/logger.ts";
 import { RoomManager } from "../../server/src/rooms.ts";
-import { joinRoom, RoomSession } from "../src/net/roomSession.js";
+import { joinRoom, RoomSession } from "../src/net/roomSession.ts";
 import { waitFor } from "./helpers.mjs";
 
 const apps = [];
@@ -30,7 +31,9 @@ async function startApp(enableNetsim) {
 	apps.push(app);
 	return {
 		url: `ws://127.0.0.1:${port}/ws`,
-		room: () => rooms.create({ name: "T", max: 4, permanent: true }).id,
+		room: () =>
+			rooms.create({ name: "T", max: 4, permanent: true, arena: DEFAULT_ARENA })
+				.id,
 	};
 }
 

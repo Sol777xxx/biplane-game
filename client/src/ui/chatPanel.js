@@ -1,4 +1,4 @@
-import { describeClose } from "../net/roomSession.js";
+import { describeClose } from "../net/roomSession.ts";
 
 const MAX_LINES = 50;
 

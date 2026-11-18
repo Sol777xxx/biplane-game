@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { after, before, describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
+import { DEFAULT_ARENA } from "biplane-shared/sim/game.ts";
 import { createApp } from "../../server/src/app.ts";
 import { silentLogger } from "../../server/src/logger.ts";
 import { RoomManager } from "../../server/src/rooms.ts";
-import { joinRoom, RoomSession } from "../src/net/roomSession.js";
-import { createSnapshotView } from "../src/net/snapshotView.js";
+import { joinRoom, RoomSession } from "../src/net/roomSession.ts";
+import { createSnapshotView } from "../src/net/snapshotView.ts";
 import { waitFor } from "./helpers.mjs";
 
 let app;
@@ -32,7 +33,8 @@ before(async () => {
 });
 after(() => app.close());
 
-const newRoom = () => rooms.create({ name: "T", max: 4, permanent: true }).id;
+const newRoom = () =>
+	rooms.create({ name: "T", max: 4, permanent: true, arena: DEFAULT_ARENA }).id;
 
 describe("input і знімки через RoomSession", { timeout: 15_000 }, () => {
 	it("sendInput: seq росте з 1, ack повертається у знімку", async () => {

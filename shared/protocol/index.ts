@@ -463,8 +463,11 @@ export function make<T extends MessageType>(
 }
 // Те саме для повідомлень, які шле сервер. У make тип "chat" чи "netsim" означає і клієнтське,
 // і серверне повідомлення; тут лише серверні, тож результат підходить до ServerMessage.
-type ServerType = ServerMessage["type"];
-type ServerOf<T extends ServerType> = Extract<ServerMessage, { type: T }>;
+export type ServerType = ServerMessage["type"];
+export type ServerOf<T extends ServerType> = Extract<
+	ServerMessage,
+	{ type: T }
+>;
 type ServerData<T extends ServerType> = Omit<ServerOf<T>, "v" | "type">;
 
 const BUILD_SERVER: {

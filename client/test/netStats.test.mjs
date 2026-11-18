@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { createNetStats, formatNet } from "../src/netStats.js";
+import { createNetStats, formatNet } from "../src/netStats.ts";
 
 describe("createNetStats", () => {
 	it("проміжки між знімками й вік знімка", () => {

@@ -3,15 +3,16 @@ import { tmpdir } from "node:os";
 import { after, before, describe, it, mock } from "node:test";
 import { encodeSnapshot } from "biplane-shared/codec/binary.ts";
 import { make } from "biplane-shared/protocol/index.ts";
+import { DEFAULT_ARENA } from "biplane-shared/sim/game.ts";
 import { createScenario } from "biplane-shared/sim/scenario.ts";
 import { takeSnapshot } from "biplane-shared/sim/snapshot.ts";
 import { WebSocketServer } from "ws";
 import { createApp } from "../../server/src/app.ts";
 import { silentLogger } from "../../server/src/logger.ts";
 import { RoomManager } from "../../server/src/rooms.ts";
-import { Connection } from "../src/net/connection.js";
-import { joinRoom } from "../src/net/roomSession.js";
-import { waitFor } from "./helpers.mjs";
+import { Connection } from "../src/net/connection.ts";
+import { joinRoom } from "../src/net/roomSession.ts";
+import { chatMsg, waitFor } from "./helpers.mjs";
 
 const viaJson = (m) => JSON.parse(JSON.stringify(m));
 
@@ -67,7 +68,7 @@ describe("Connection: бінарні кадри", { timeout: 15_000 }, () => {
 				ws.send(Uint8Array.of(1, 2)); // знімок без тіла
 				ws.send(frame.subarray(0, 20)); // обрізаний
 				ws.send(Uint8Array.of(1, 1, 0, 0, 0, 0, 0)); // input від сервера
-				ws.send(JSON.stringify({ type: "chat", text: "ok" }));
+				ws.send(JSON.stringify(chatMsg("ok")));
 			});
 			const c = client(url);
 			const snaps = [];
@@ -123,7 +124,8 @@ after(async () => {
 	await app.close();
 });
 
-const newRoom = () => rooms.create({ name: "T", max: 4, permanent: true }).id;
+const newRoom = () =>
+	rooms.create({ name: "T", max: 4, permanent: true, arena: DEFAULT_ARENA }).id;
 
 describe("RoomSession: кодек binary", { timeout: 20_000 }, () => {
 	it("input займає 7 байт, ack і знімок приходять, форма та сама", async () => {

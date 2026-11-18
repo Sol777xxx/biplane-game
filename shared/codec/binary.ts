@@ -126,7 +126,7 @@ const indexIn = (table: readonly string[], value: string): number =>
 	table.indexOf(value);
 
 class Writer {
-	readonly bytes: Uint8Array;
+	readonly bytes: Uint8Array<ArrayBuffer>;
 	readonly view: DataView;
 	#o = 0;
 
@@ -165,7 +165,7 @@ class Writer {
 		this.#o += bytes.length;
 	}
 
-	done(): Uint8Array {
+	done(): Uint8Array<ArrayBuffer> {
 		return this.bytes.subarray(0, this.#o);
 	}
 }
@@ -250,7 +250,7 @@ const list = <T>(n: number, read: () => T): T[] =>
 	Array.from({ length: n }, read);
 
 // ---------- input ----------
-export function encodeInput(seq: Seq, keys: KeysLike): Uint8Array {
+export function encodeInput(seq: Seq, keys: KeysLike): Uint8Array<ArrayBuffer> {
 	const w = new Writer(INPUT_SIZE);
 	w.u8(FORMAT_VERSION);
 	w.u8(FRAME.INPUT);
@@ -361,7 +361,7 @@ function writeEvent(
 }
 
 // повертає Uint8Array; усе, що не вміщується у формат, обрізає або пропускає
-export function encodeSnapshot(msg: SnapshotMessage): Uint8Array {
+export function encodeSnapshot(msg: SnapshotMessage): Uint8Array<ArrayBuffer> {
 	const players = msg.players.slice(0, 255);
 	const ids = players.map((p) => encoder.encode(p.id).subarray(0, 255));
 	const index: PlayerIndex = new Map(players.map((p, i) => [p.id, i]));

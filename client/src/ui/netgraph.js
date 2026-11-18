@@ -1,4 +1,4 @@
-import { formatNet } from "../netStats.js";
+import { formatNet } from "../netStats.ts";
 
 const GRAPH_W = 240;
 const GRAPH_H = 44;

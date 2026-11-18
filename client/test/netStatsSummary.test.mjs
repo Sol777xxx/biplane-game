@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { summarize } from "../src/netStats.js";
+import { summarize } from "../src/netStats.ts";
 
 describe("summarize", () => {
 	it("порожній список: нулі", () => {

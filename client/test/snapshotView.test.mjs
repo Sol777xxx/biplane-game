@@ -1,4 +1,4 @@
-﻿import assert from "node:assert/strict";
+import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { Biplane } from "biplane-shared/sim/biplane.ts";
 import { Game } from "biplane-shared/sim/game.ts";
@@ -13,7 +13,7 @@ import {
 	createSnapshotView,
 	PICKUP_RADIUS,
 	SHIP_RADIUS,
-} from "../src/net/snapshotView.js";
+} from "../src/net/snapshotView.ts";
 
 // справжній знімок справжньої гри: два гравці, дві хмарки, куля, бонус
 function fixture() {

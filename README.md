@@ -69,7 +69,7 @@ client/                  усе, що було в лабах 1–3 (Vite, canvas
     predictor.js         передбачення свого корабля, звірка, згладжування поправки
     interpolator.js      буфер знімків, чужі сутності малюються на now − delay
     snapshotView.js, events.js   знімок → стан для малювання, події
-  src/ui/netgraph.js     панель мережі; src/netStats.js вимірювання
+  src/ui/netgraph.js     панель мережі; src/netStats.ts вимірювання
   src/ui/chatPanel.js    чат (textContent, без innerHTML)
   tools/                 dogfight.mjs (боти), random-drift.mjs (дослід з Math.random)
 shared/                  код, спільний для клієнта й сервера
@@ -230,8 +230,8 @@ room "event" → NdjsonTransform (objectMode) → createWriteStream(<LOG_DIR>/<r
 | `shared/protocol`, `shared/codec` | типи повідомлень, JSON-кодек і бінарний кодек на `DataView` |
 | `server/src/match.js` | 30 Гц за абсолютним цільовим часом (`setTimeout`, не `setInterval`), черги input, `ack`, знімки |
 | `server/src/netsim.js` | затримка, розкид і втрати на шляху повідомлень |
-| `client/src/net/predictor.js` | передбачення свого корабля й куль, звірка з повтором input, згладжування поправки |
-| `client/src/net/interpolator.js` | буфер знімків, чужі сутності малюються на `now − delay` |
+| `client/src/net/predictor.ts` | передбачення свого корабля й куль, звірка з повтором input, згладжування поправки |
+| `client/src/net/interpolator.ts` | буфер знімків, чужі сутності малюються на `now − delay` |
 | `client/src/ui/netgraph.js` | RTT, вік знімка, байти/с, input без `ack`, поправка |
 
 Потік даних: клавіші → `input {seq}` → сервер бере по одному input за тік і рахує світ → знімок із `tick` і `ack` → клієнт скидає свій корабель у стан сервера, відкидає input з `seq ≤ ack` і заново програє решту.

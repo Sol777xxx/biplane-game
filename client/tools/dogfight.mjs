@@ -5,16 +5,17 @@ import { tmpdir } from "node:os";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import { ARENA, wrapDelta } from "biplane-shared/sim/arena.ts";
+import { DEFAULT_ARENA } from "biplane-shared/sim/game.ts";
 import { scriptedInput } from "biplane-shared/sim/scenario.ts";
 import { TICK_DT } from "biplane-shared/sim/time.ts";
 import { createApp } from "../../server/src/app.ts";
 import { silentLogger } from "../../server/src/logger.ts";
 import { RoomManager } from "../../server/src/rooms.ts";
-import { createInterpolator } from "../src/net/interpolator.js";
-import { createPredictor } from "../src/net/predictor.js";
-import { joinRoom } from "../src/net/roomSession.js";
-import { createSnapshotView } from "../src/net/snapshotView.js";
-import { summarize } from "../src/netStats.js";
+import { createInterpolator } from "../src/net/interpolator.ts";
+import { createPredictor } from "../src/net/predictor.ts";
+import { joinRoom } from "../src/net/roomSession.ts";
+import { createSnapshotView } from "../src/net/snapshotView.ts";
+import { summarize } from "../src/netStats.ts";
 
 export const DEFAULTS = {
 	lag: 100,
@@ -170,7 +171,12 @@ async function createBot({
 export async function runDogfight(options = {}) {
 	const o = { ...DEFAULTS, ...options };
 	const rooms = new RoomManager();
-	const room = rooms.create({ name: "Dogfight", max: 8, permanent: true });
+	const room = rooms.create({
+		name: "Dogfight",
+		max: 8,
+		permanent: true,
+		arena: DEFAULT_ARENA,
+	});
 	const config = {
 		port: 0,
 		host: "127.0.0.1",

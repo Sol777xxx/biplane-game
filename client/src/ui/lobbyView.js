@@ -1,5 +1,5 @@
 import { describeError } from "../loadingScreen.js";
-import { describeJoinError } from "../net/roomSession.js";
+import { describeJoinError } from "../net/roomSession.ts";
 
 const NAME_KEY = "biplane-name";
 

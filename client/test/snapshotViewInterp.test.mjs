@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { createInterpolator, TICK_MS } from "../src/net/interpolator.js";
-import { createSnapshotView } from "../src/net/snapshotView.js";
+import { createInterpolator, TICK_MS } from "../src/net/interpolator.ts";
+import { createSnapshotView } from "../src/net/snapshotView.ts";
 
 const LAT = 50;
 const at = (tick) => tick * TICK_MS + LAT;

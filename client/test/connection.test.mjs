@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { after, describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
 import { WebSocketServer } from "ws";
-import { backoffDelay, Connection } from "../src/net/connection.js";
-import { waitFor } from "./helpers.mjs";
+import { backoffDelay, Connection } from "../src/net/connection.ts";
+import { chatMsg, waitFor } from "./helpers.mjs";
 
 const servers = [];
 const conns = [];
@@ -63,9 +63,7 @@ describe("Connection", () => {
 
 	it("dispatch за type; відписка працює", async () => {
 		const { url } = await server((ws) =>
-			ws.on("message", () =>
-				ws.send(JSON.stringify({ type: "chat", text: "hi" })),
-			),
+			ws.on("message", () => ws.send(JSON.stringify(chatMsg("hi")))),
 		);
 		const c = client(url);
 		const a = [];

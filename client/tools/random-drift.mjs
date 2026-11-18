@@ -6,8 +6,8 @@ import { Game } from "biplane-shared/sim/game.ts";
 import { scriptedInput } from "biplane-shared/sim/scenario.ts";
 import { takeSnapshot } from "biplane-shared/sim/snapshot.ts";
 import { TICK_DT } from "biplane-shared/sim/time.ts";
-import { createPredictor } from "../src/net/predictor.js";
-import { summarize } from "../src/netStats.js";
+import { createPredictor } from "../src/net/predictor.ts";
+import { summarize } from "../src/netStats.ts";
 
 const TICKS = 900; // 30 с
 const NOISE = 120; // шум швидкості: ±60 px/с за крок
