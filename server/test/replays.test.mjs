@@ -6,7 +6,7 @@ import path from "node:path";
 import { after, before, describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
 import { createApp } from "../src/app.js";
-import { silentLogger } from "../src/logger.js";
+import { silentLogger } from "../src/logger.ts";
 
 let base;
 let logDir;

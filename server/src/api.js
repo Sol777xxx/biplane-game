@@ -1,7 +1,7 @@
 import { setTimeout as sleep } from "node:timers/promises";
-import { readJsonBody } from "./body.js";
+import { readJsonBody } from "./body.ts";
 import { listReplays, sendReplay } from "./replayRoutes.js";
-import { HttpError, sendJson } from "./respond.js";
+import { HttpError, sendJson } from "./respond.ts";
 import { PRESETS, RoomError } from "./rooms.js";
 
 const MAX_BODY = 1024;

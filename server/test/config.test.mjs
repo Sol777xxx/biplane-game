@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { describe, it } from "node:test";
-import { ConfigError, loadConfig } from "../src/config.js";
+import { ConfigError, loadConfig } from "../src/config.ts";
 
 describe("loadConfig", () => {
 	it("значення за замовчуванням", () => {

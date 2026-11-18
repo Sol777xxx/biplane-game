@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { CLOSE, parseClientMessage } from "../src/protocol.js";
+import { CLOSE, parseClientMessage } from "../src/protocol.ts";
 
 const INPUT = {
 	v: 1,

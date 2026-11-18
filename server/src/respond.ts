@@ -1,4 +1,10 @@
-export function sendJson(res, status, body) {
+import type { IncomingMessage, ServerResponse } from "node:http";
+
+export function sendJson(
+	res: ServerResponse,
+	status: number,
+	body: unknown,
+): void {
 	const data = Buffer.from(JSON.stringify(body));
 	res.writeHead(status, {
 		"Content-Type": "application/json; charset=utf-8",
@@ -8,7 +14,11 @@ export function sendJson(res, status, body) {
 	res.end(data);
 }
 
-export function sendText(res, status, text) {
+export function sendText(
+	res: ServerResponse,
+	status: number,
+	text: string,
+): void {
 	const data = Buffer.from(text);
 	res.writeHead(status, {
 		"Content-Type": "text/plain; charset=utf-8",
@@ -18,7 +28,14 @@ export function sendText(res, status, text) {
 }
 
 export class HttpError extends Error {
-	constructor(status, message, { close = false } = {}) {
+	readonly status: number;
+	readonly close: boolean;
+
+	constructor(
+		status: number,
+		message: string,
+		{ close = false }: { close?: boolean } = {},
+	) {
 		super(message);
 		this.name = "HttpError";
 		this.status = status;
@@ -26,7 +43,11 @@ export class HttpError extends Error {
 	}
 }
 
-export function sendError(req, res, error) {
+export function sendError(
+	req: IncomingMessage,
+	res: ServerResponse,
+	error: HttpError,
+): void {
 	if (error.close) {
 		res.setHeader("Connection", "close");
 		res.once("finish", () => req.destroy());

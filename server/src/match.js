@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { Game } from "biplane-shared/sim/game.ts";
 import { eventToWire, takeSnapshot } from "biplane-shared/sim/snapshot.ts";
 import { TICK_DT, TICK_RATE } from "biplane-shared/sim/time.ts";
-import { RollingStats } from "./stats.js";
+import { RollingStats } from "./stats.ts";
 
 const INTERVAL_MS = 1000 / TICK_RATE;
 const MAX_BACKLOG = 4; // input у черзі одного гравця; зайві найстаріші відкидаються

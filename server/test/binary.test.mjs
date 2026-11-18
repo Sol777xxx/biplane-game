@@ -5,7 +5,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { decodeSnapshot, encodeInput } from "biplane-shared/codec/binary.ts";
 import WebSocket from "ws";
 import { createApp } from "../src/app.js";
-import { silentLogger } from "../src/logger.js";
+import { silentLogger } from "../src/logger.ts";
 import { RoomManager } from "../src/rooms.js";
 
 let app;

@@ -3,7 +3,7 @@ import { createWriteStream } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
-import { loadConfig } from "../src/config.js";
+import { loadConfig } from "../src/config.ts";
 import { REPLAY_ID } from "../src/replayRoutes.js";
 
 const [mbArg = "200", name = "big-200mb"] = process.argv.slice(2);

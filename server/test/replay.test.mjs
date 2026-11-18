@@ -5,7 +5,7 @@ import path from "node:path";
 import { after, before, describe, it } from "node:test";
 import { createMatchLogs } from "../src/log/matchlog.js";
 import { readEvents, replayStream } from "../src/log/replay.js";
-import { silentLogger } from "../src/logger.js";
+import { silentLogger } from "../src/logger.ts";
 import { Room } from "../src/rooms.js";
 
 let base;

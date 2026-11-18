@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { RollingStats } from "../src/stats.js";
+import { RollingStats } from "../src/stats.ts";
 
 describe("RollingStats", () => {
 	it("порожній: нулі", () => {

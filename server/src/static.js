@@ -2,7 +2,7 @@ import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
-import { sendText } from "./respond.js";
+import { sendText } from "./respond.ts";
 
 const MIME = {
 	".html": "text/html; charset=utf-8",

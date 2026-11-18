@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { after, describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
 import { createApp } from "../src/app.js";
-import { silentLogger } from "../src/logger.js";
+import { silentLogger } from "../src/logger.ts";
 
 const apps = [];
 async function start(extra = {}) {

@@ -4,8 +4,8 @@ import { after, describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
 import WebSocket from "ws";
 import { createApp } from "../src/app.js";
-import { silentLogger } from "../src/logger.js";
-import { CLOSE } from "../src/protocol.js";
+import { silentLogger } from "../src/logger.ts";
+import { CLOSE } from "../src/protocol.ts";
 import { RoomManager } from "../src/rooms.js";
 
 const apps = [];

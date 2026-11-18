@@ -7,7 +7,7 @@ import { pipeline } from "node:stream/promises";
 import { after, before, describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
 import { createMatchLogs, NdjsonTransform } from "../src/log/matchlog.js";
-import { silentLogger } from "../src/logger.js";
+import { silentLogger } from "../src/logger.ts";
 import { Room } from "../src/rooms.js";
 
 let base;

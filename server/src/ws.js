@@ -11,9 +11,9 @@ import {
 	parseClientMessage,
 } from "biplane-shared/protocol/index.ts";
 import { WebSocketServer } from "ws";
-import { TokenBucket } from "./limits.js";
+import { TokenBucket } from "./limits.ts";
 import { NetSim, parseNetsimUrl } from "./netsim.js";
-import { CLOSE, MAX_MESSAGE_BYTES, make } from "./protocol.js";
+import { CLOSE, MAX_MESSAGE_BYTES, make } from "./protocol.ts";
 import { RoomError } from "./rooms.js";
 
 export const WS_DEFAULTS = Object.freeze({

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { after, before, describe, it } from "node:test";
 import { makeInput } from "biplane-shared/protocol/index.ts";
 import { createApp } from "../../server/src/app.js";
-import { silentLogger } from "../../server/src/logger.js";
+import { silentLogger } from "../../server/src/logger.ts";
 import { RoomManager } from "../../server/src/rooms.js";
 import { joinRoom, RoomSession } from "../src/net/roomSession.js";
 import { waitFor } from "./helpers.mjs";

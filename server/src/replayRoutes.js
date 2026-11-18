@@ -2,7 +2,7 @@ import { createReadStream } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
-import { HttpError } from "./respond.js";
+import { HttpError } from "./respond.ts";
 
 const EXT = ".ndjson";
 

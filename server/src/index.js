@@ -1,5 +1,5 @@
 import { createApp } from "./app.js";
-import { ConfigError, loadConfig } from "./config.js";
+import { ConfigError, loadConfig } from "./config.ts";
 import { seedRooms } from "./rooms.js";
 
 let config;

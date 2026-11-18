@@ -1,8 +1,13 @@
-import { HttpError } from "./respond.js";
+import type { IncomingMessage } from "node:http";
+import { HttpError } from "./respond.ts";
 
 // Читає JSON-тіло з жорстким лімітом. Ліміт діє двічі: за заголовком
 // Content-Length (відповідаємо, нічого не читаючи) і за фактичними байтами.
-export function readJsonBody(req, limit) {
+// Повертає unknown: що саме прийшло, вирішує той, хто викликає, а не JSON.parse.
+export function readJsonBody(
+	req: IncomingMessage,
+	limit: number,
+): Promise<unknown> {
 	return new Promise((resolve, reject) => {
 		if (!/^application\/json\b/i.test(req.headers["content-type"] ?? "")) {
 			return reject(
@@ -16,10 +21,10 @@ export function readJsonBody(req, limit) {
 			);
 		}
 
-		const chunks = [];
+		const chunks: Buffer[] = [];
 		let size = 0;
 		let tooBig = false;
-		req.on("data", (chunk) => {
+		req.on("data", (chunk: Buffer) => {
 			if (tooBig) return;
 			size += chunk.length;
 			if (size > limit) {
@@ -35,7 +40,10 @@ export function readJsonBody(req, limit) {
 		req.on("end", () => {
 			if (tooBig) return;
 			try {
-				resolve(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+				const parsed: unknown = JSON.parse(
+					Buffer.concat(chunks).toString("utf8"),
+				);
+				resolve(parsed);
 			} catch {
 				reject(new HttpError(400, "некоректний JSON"));
 			}

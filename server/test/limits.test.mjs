@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { TokenBucket } from "../src/limits.js";
+import { TokenBucket } from "../src/limits.ts";
 
 function bucket(capacity, refillPerSec) {
 	const clock = { now: 0 };

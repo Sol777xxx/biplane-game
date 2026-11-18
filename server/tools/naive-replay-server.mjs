@@ -3,7 +3,7 @@
 import { readFile } from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
-import { loadConfig } from "../src/config.js";
+import { loadConfig } from "../src/config.ts";
 
 const [name = "big-200mb", port = "3001"] = process.argv.slice(2);
 const { logDir } = loadConfig();

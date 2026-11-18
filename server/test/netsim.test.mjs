@@ -4,9 +4,9 @@ import { after, afterEach, describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
 import WebSocket from "ws";
 import { createApp } from "../src/app.js";
-import { silentLogger } from "../src/logger.js";
+import { silentLogger } from "../src/logger.ts";
 import { NetSim, parseNetsimUrl } from "../src/netsim.js";
-import { CLOSE, parseClientMessage } from "../src/protocol.js";
+import { CLOSE, parseClientMessage } from "../src/protocol.ts";
 import { RoomManager } from "../src/rooms.js";
 
 // Підроблений годинник: advance(ms) запускає таймери за порядком часу.
