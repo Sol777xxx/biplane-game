@@ -3,6 +3,7 @@
 export {
 	CLOSE,
 	make,
+	makeServer,
 	PROTOCOL_VERSION,
 	parseClientMessage,
 } from "biplane-shared/protocol/index.ts";

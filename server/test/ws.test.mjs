@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { after, describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
 import WebSocket from "ws";
-import { createApp } from "../src/app.js";
+import { createApp } from "../src/app.ts";
 import { silentLogger } from "../src/logger.ts";
 import { CLOSE } from "../src/protocol.ts";
 import { RoomManager } from "../src/rooms.ts";
@@ -249,7 +249,7 @@ describe("WebSocket", () => {
 		await a.next("roster");
 		const slow = { bytes: 0 };
 		const server = [...ctx.app.sockets.wss.clients].find(
-			(c) => c.session.player?.name === "Анастасія",
+			(c) => ctx.app.sockets.sessionOf(c)?.player?.name === "Анастасія",
 		);
 		Object.defineProperty(server, "bufferedAmount", {
 			configurable: true,

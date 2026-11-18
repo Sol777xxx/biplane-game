@@ -7,7 +7,7 @@ import { pathToFileURL } from "node:url";
 import { ARENA, wrapDelta } from "biplane-shared/sim/arena.ts";
 import { scriptedInput } from "biplane-shared/sim/scenario.ts";
 import { TICK_DT } from "biplane-shared/sim/time.ts";
-import { createApp } from "../../server/src/app.js";
+import { createApp } from "../../server/src/app.ts";
 import { silentLogger } from "../../server/src/logger.ts";
 import { RoomManager } from "../../server/src/rooms.ts";
 import { createInterpolator } from "../src/net/interpolator.js";

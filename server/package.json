@@ -1,16 +1,19 @@
-{
+﻿{
 	"name": "biplane-server",
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"start": "node --env-file=.env src/index.js",
-		"dev": "node --watch --env-file=.env src/index.js",
+		"start": "node --env-file=.env src/index.ts",
+		"dev": "node --watch --env-file=.env src/index.ts",
 		"test": "node --test \"test/*.test.mjs\"",
 		"typecheck": "tsc -p tsconfig.json"
 	},
 	"dependencies": {
 		"biplane-shared": "*",
 		"ws": "^8.18.0"
+	},
+	"devDependencies": {
+		"@types/ws": "^8.18.2"
 	}
 }

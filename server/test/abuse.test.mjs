@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { after, describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
-import { createApp } from "../src/app.js";
+import { createApp } from "../src/app.ts";
 import { silentLogger } from "../src/logger.ts";
 
 const apps = [];

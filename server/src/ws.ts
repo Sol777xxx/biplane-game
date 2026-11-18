@@ -1,22 +1,55 @@
 import { randomBytes } from "node:crypto";
+import type { IncomingMessage, Server } from "node:http";
+import type { Duplex } from "node:stream";
 import { setTimeout as sleep } from "node:timers/promises";
 import {
 	CodecError,
 	decodeInput,
 	FORMAT_VERSION,
 } from "biplane-shared/codec/binary.ts";
-import { getCodec } from "biplane-shared/codec/index.ts";
+import { type Codec, getCodec } from "biplane-shared/codec/index.ts";
 import {
+	type ClientMessage,
 	inputFromMessage,
+	type JoinMessage,
 	parseClientMessage,
+	type ServerMessage,
 } from "biplane-shared/protocol/index.ts";
+import { NO_SEQ } from "biplane-shared/sim/ids.ts";
+import { assertNever } from "biplane-shared/sim/never.ts";
+import type WebSocket from "ws";
 import { WebSocketServer } from "ws";
 import { TokenBucket } from "./limits.ts";
+import type { Logger } from "./logger.ts";
 import { NetSim, parseNetsimUrl } from "./netsim.ts";
-import { CLOSE, MAX_MESSAGE_BYTES, make } from "./protocol.ts";
-import { RoomError } from "./rooms.ts";
+import { CLOSE, MAX_MESSAGE_BYTES, makeServer } from "./protocol.ts";
+import {
+	type ChatMessage,
+	type Room,
+	RoomError,
+	type RoomErrorCode,
+	type RoomManager,
+	type RoomPlayer,
+	type RoomSnapshot,
+} from "./rooms.ts";
 
-export const WS_DEFAULTS = Object.freeze({
+export interface WsOptions {
+	readonly joinTimeoutMs: number;
+	readonly pingIntervalMs: number;
+	readonly maxMissedPongs: number;
+	readonly maxPayload: number;
+	readonly frameCapacity: number;
+	readonly frameRefillPerSec: number;
+	readonly rateCapacity: number;
+	readonly rateRefillPerSec: number;
+	readonly inputCapacity: number;
+	readonly inputRefillPerSec: number;
+	readonly softBufferBytes: number;
+	readonly hardBufferBytes: number;
+	readonly netsim: boolean;
+}
+
+export const WS_DEFAULTS: Readonly<WsOptions> = Object.freeze({
 	joinTimeoutMs: 5000, // join має прийти за 5 с
 	pingIntervalMs: 15_000, // ping раз на 15 с
 	maxMissedPongs: 2, // два пропущені pong: розрив
@@ -33,14 +66,60 @@ export const WS_DEFAULTS = Object.freeze({
 	netsim: false, // штучна затримка/втрати (ENABLE_NETSIM=1), лише для розробки
 });
 
-const ROOM_ERROR_CODES = {
+// Не всі помилки кімнати стають кодом закриття: решта це збій сервера й летить далі.
+const ROOM_ERROR_CODES: Readonly<Partial<Record<RoomErrorCode, number>>> = {
 	full: CLOSE.ROOM_FULL,
 	name_taken: CLOSE.NAME_TAKEN,
 	already_joined: CLOSE.ALREADY_JOINED,
 };
 
-export function attachWebSocket({ server, rooms, log, ...options }) {
-	const opts = { ...WS_DEFAULTS, ...options };
+// Стан одного з'єднання. Живе в WeakMap, а не полем на сокеті: тип сокета не змінюємо.
+interface Session {
+	readonly id: string;
+	player: RoomPlayer | null;
+	room: Room | null;
+	missedPongs: number;
+	joinTimer: NodeJS.Timeout | null;
+	unsubscribe: (() => void) | null;
+	readonly frameBucket: TokenBucket;
+	readonly bucket: TokenBucket;
+	readonly inputBucket: TokenBucket;
+	readonly codec: Codec;
+	readonly sim: NetSim;
+	dropping: boolean;
+	dropped: number;
+	slow: boolean;
+}
+
+type NetsimRequest = Extract<ClientMessage, { type: "netsim" }>;
+
+export interface AttachOptions extends Partial<WsOptions> {
+	readonly server: Server;
+	readonly rooms: RoomManager;
+	readonly log: Logger;
+}
+
+export interface WebSocketHub {
+	readonly wss: WebSocketServer;
+	sessionOf(ws: WebSocket): Session | undefined;
+	shutdown(): Promise<void>;
+}
+
+// кадр ws може прийти шматками; для розбору потрібен один буфер
+function toBuffer(data: WebSocket.RawData): Buffer {
+	if (Buffer.isBuffer(data)) return data;
+	if (Array.isArray(data)) return Buffer.concat(data);
+	return Buffer.from(data);
+}
+
+export function attachWebSocket({
+	server,
+	rooms,
+	log,
+	...options
+}: AttachOptions): WebSocketHub {
+	const opts: WsOptions = { ...WS_DEFAULTS, ...options };
+	const sessions = new WeakMap<WebSocket, Session>();
 	// noServer: upgrade обробляємо самі, щоб приймати лише шлях /ws
 	const wss = new WebSocketServer({
 		noServer: true,
@@ -48,8 +127,8 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 	});
 	wss.on("error", (error) => log.error("wss:", error));
 
-	server.on("upgrade", (req, socket, head) => {
-		const { pathname } = new URL(req.url, "http://x");
+	server.on("upgrade", (req: IncomingMessage, socket: Duplex, head: Buffer) => {
+		const { pathname } = new URL(req.url ?? "/", "http://x");
 		if (pathname !== "/ws") {
 			socket.on("error", () => {}); // сирий сокет теж EventEmitter з "error"
 			socket.end("HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n");
@@ -67,12 +146,19 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 	// втратити (chat, snapshot: наступний знімок застарить цей). Стан (roster, joined, error)
 	// не відкидається. Знімок кодується кодеком клієнта (json або binary), решта це JSON.
 	// Штучна мережа стоїть після перевірки буфера: на сам буфер вона не впливає.
-	function send(ws, message, { droppable = false } = {}) {
+	function send(
+		ws: WebSocket,
+		s: Session,
+		message: ServerMessage,
+		{ droppable = false }: { droppable?: boolean } = {},
+	): void {
 		if (ws.readyState !== ws.OPEN) return;
-		const s = ws.session;
 		const buffered = ws.bufferedAmount;
 
-		if (buffered > opts.hardBufferBytes) return closeSlow(ws, buffered);
+		if (buffered > opts.hardBufferBytes) {
+			closeSlow(ws, s, buffered);
+			return;
+		}
 		if (droppable && buffered > opts.softBufferBytes) {
 			if (!s.dropping) {
 				s.dropping = true;
@@ -100,8 +186,7 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 		);
 	}
 
-	function closeSlow(ws, buffered) {
-		const s = ws.session;
+	function closeSlow(ws: WebSocket, s: Session, buffered: number): void {
 		if (s.slow) return;
 		s.slow = true;
 		log.warn(
@@ -115,28 +200,32 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 	}
 
 	// порушення протоколу: пояснюємо повідомленням і закриваємо з кодом
-	function reject(ws, code, reason) {
-		log.warn(`[${ws.session.id}] закрито ${code}: ${reason}`);
-		send(ws, make("error", { code, message: reason }));
+	function reject(
+		ws: WebSocket,
+		s: Session,
+		code: number,
+		reason: string,
+	): void {
+		log.warn(`[${s.id}] закрито ${code}: ${reason}`);
+		send(ws, s, makeServer("error", { code, message: reason }));
 		ws.close(code, reason); // reason у close-кадрі максимум 123 байти
 	}
 
 	// ---------- підписка сокета на події кімнати ----------
 	// Кімната нічого не знає про сокети: кожен сокет підписується сам.
-	function subscribe(ws, room) {
-		const onChat = (message) =>
-			send(ws, make("chat", message), { droppable: true });
-		const onRoster = () => send(ws, make("roster", { players: room.roster() }));
+	function subscribe(ws: WebSocket, s: Session, room: Room): () => void {
+		const onChat = (message: ChatMessage): void =>
+			send(ws, s, makeServer("chat", message), { droppable: true });
+		const onRoster = (): void =>
+			send(ws, s, makeServer("roster", { players: room.roster() }));
 		// знімок спільний, але ack (останній оброблений seq) у кожного свій
-		const onSnapshot = ({ snapshot, acks }) =>
-			send(
-				ws,
-				make("snapshot", {
-					...snapshot,
-					ack: acks.get(ws.session.player?.id) ?? 0,
-				}),
-				{ droppable: true },
-			);
+		const onSnapshot = ({ snapshot, acks }: RoomSnapshot): void => {
+			const id = s.player?.id;
+			const ack = (id === undefined ? undefined : acks.get(id)) ?? NO_SEQ;
+			send(ws, s, makeServer("snapshot", { ...snapshot, ack }), {
+				droppable: true,
+			});
+		};
 		room.on("chat", onChat);
 		room.on("join", onRoster);
 		room.on("leave", onRoster);
@@ -149,9 +238,8 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 		};
 	}
 
-	function detach(ws) {
-		const s = ws.session;
-		clearTimeout(s.joinTimer);
+	function detach(s: Session): void {
+		if (s.joinTimer !== null) clearTimeout(s.joinTimer);
 		s.unsubscribe?.();
 		s.unsubscribe = null;
 		if (s.room && s.player) s.room.leave(s.player.id); // інші отримають roster
@@ -160,27 +248,31 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 	}
 
 	// ---------- повідомлення ----------
-	function handleJoin(ws, msg) {
-		const s = ws.session;
+	function handleJoin(ws: WebSocket, s: Session, msg: JoinMessage): void {
 		const room = rooms.get(msg.room);
-		if (!room) return reject(ws, CLOSE.ROOM_NOT_FOUND, "room not found");
-
-		let player;
-		try {
-			player = room.join({ id: s.id, name: msg.name });
-		} catch (error) {
-			const code =
-				error instanceof RoomError ? ROOM_ERROR_CODES[error.code] : undefined;
-			if (!code) throw error;
-			return reject(ws, code, error.code.replaceAll("_", " "));
+		if (!room) {
+			reject(ws, s, CLOSE.ROOM_NOT_FOUND, "room not found");
+			return;
 		}
 
-		clearTimeout(s.joinTimer);
+		let player: RoomPlayer;
+		try {
+			player = room.join({ id: s.id, name: msg.name });
+		} catch (error: unknown) {
+			const code =
+				error instanceof RoomError ? ROOM_ERROR_CODES[error.code] : undefined;
+			if (code === undefined || !(error instanceof RoomError)) throw error;
+			reject(ws, s, code, error.code.replaceAll("_", " "));
+			return;
+		}
+
+		if (s.joinTimer !== null) clearTimeout(s.joinTimer);
 		s.player = player;
 		s.room = room;
 		send(
 			ws,
-			make("joined", {
+			s,
+			makeServer("joined", {
 				you: { id: player.id, name: player.name },
 				room: room.summary(),
 				players: room.roster(),
@@ -188,57 +280,76 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 		);
 		// клієнт дізнається про штучну мережу лише коли вона дозволена на сервері
 		if (opts.netsim) {
-			send(ws, make("netsim", { enabled: true, ...s.sim.settings }));
+			send(ws, s, makeServer("netsim", { enabled: true, ...s.sim.settings }));
 		}
-		s.unsubscribe = subscribe(ws, room);
+		s.unsubscribe = subscribe(ws, s, room);
 		log.info(`[${s.id}] ${player.name} зайшов у ${room.id}`);
 	}
 
 	// Зміна штучної мережі наживо. Вимкнено на сервері: відповідаємо enabled: false
 	// і нічого не закриваємо.
-	function handleNetsim(ws, msg) {
-		const s = ws.session;
+	function handleNetsim(ws: WebSocket, s: Session, msg: NetsimRequest): void {
 		if (opts.netsim) s.sim.set(msg);
-		send(ws, make("netsim", { enabled: opts.netsim, ...s.sim.settings }));
+		send(
+			ws,
+			s,
+			makeServer("netsim", { enabled: opts.netsim, ...s.sim.settings }),
+		);
 	}
 
 	// Кадр у повідомлення. Бінарним може бути лише input версії 1: чужа версія це 1003,
 	// зламана розкладка це 4000. Текстовий кадр це JSON за parseClientMessage. Відхилений кадр дає
 	// undefined (з'єднання вже закривається).
-	function parse(ws, data, isBinary) {
+	function parse(
+		ws: WebSocket,
+		s: Session,
+		data: WebSocket.RawData,
+		isBinary: boolean,
+	): ClientMessage | undefined {
+		const buffer = toBuffer(data);
 		if (isBinary) {
-			if (data[0] !== FORMAT_VERSION) {
-				return reject(ws, CLOSE.UNSUPPORTED, "binary frames not supported");
+			if (buffer[0] !== FORMAT_VERSION) {
+				reject(ws, s, CLOSE.UNSUPPORTED, "binary frames not supported");
+				return undefined;
 			}
 			try {
-				return decodeInput(data);
-			} catch (error) {
+				return decodeInput(buffer);
+			} catch (error: unknown) {
 				if (!(error instanceof CodecError)) throw error;
-				return reject(ws, CLOSE.BAD_FORMAT, "bad binary frame");
+				reject(ws, s, CLOSE.BAD_FORMAT, "bad binary frame");
+				return undefined;
 			}
 		}
-		let raw;
+		let raw: unknown;
 		try {
-			raw = JSON.parse(data.toString("utf8"));
+			raw = JSON.parse(buffer.toString("utf8"));
 		} catch {
-			return reject(ws, CLOSE.BAD_FORMAT, "invalid json");
+			reject(ws, s, CLOSE.BAD_FORMAT, "invalid json");
+			return undefined;
 		}
 		const result = parseClientMessage(raw);
-		return result.ok ? result.msg : reject(ws, result.code, result.reason);
+		if (result.ok) return result.msg;
+		reject(ws, s, result.code, result.reason);
+		return undefined;
 	}
 
 	// Перевірки на вході (ліміти, розбір, валідація) йдуть без затримки: вони рахують
 	// те, що прийшло з мережі. Затримується лише обробка (dispatch).
-	function onMessage(ws, data, isBinary) {
+	function onMessage(
+		ws: WebSocket,
+		s: Session,
+		data: WebSocket.RawData,
+		isBinary: boolean,
+	): void {
 		// після закриття з нашого боку решту повідомлень у черзі ігноруємо
 		if (ws.readyState !== ws.OPEN) return;
-		const s = ws.session;
 		// ліміт кадрів стоїть ПЕРШИМ: порахувати повідомлення дешевше, ніж розібрати його
 		if (!s.frameBucket.take()) {
-			return reject(ws, CLOSE.RATE_LIMIT, "rate limit");
+			reject(ws, s, CLOSE.RATE_LIMIT, "rate limit");
+			return;
 		}
 
-		const msg = parse(ws, data, isBinary);
+		const msg = parse(ws, s, data, isBinary);
 		if (!msg) return;
 		// окреме відро на тип: часті input не з'їдають ліміт чату, а спам чату не душить input.
 		// ping окремого відра не має: його обмежує стеля кадрів.
@@ -249,62 +360,73 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 					? null
 					: s.bucket;
 		if (bucket && !bucket.take()) {
-			return reject(ws, CLOSE.RATE_LIMIT, "rate limit");
+			reject(ws, s, CLOSE.RATE_LIMIT, "rate limit");
+			return;
 		}
 
-		s.sim.inbound(() => guarded(ws, () => dispatch(ws, msg)), {
+		s.sim.inbound(() => guarded(ws, s, () => dispatch(ws, s, msg)), {
 			lossy: msg.type === "input",
 		});
 	}
 
 	// виняток у відкладеному обробнику не має куди підніматись: він би завалив процес
-	function guarded(ws, fn) {
+	function guarded(ws: WebSocket, s: Session, fn: () => void): void {
 		try {
 			fn();
-		} catch (error) {
-			log.error(`[${ws.session.id}] помилка обробника:`, error);
+		} catch (error: unknown) {
+			log.error(`[${s.id}] помилка обробника:`, error);
 			ws.close(CLOSE.INTERNAL, "internal error");
 		}
 	}
 
-	function dispatch(ws, msg) {
+	function dispatch(ws: WebSocket, s: Session, msg: ClientMessage): void {
 		// за час затримки сокет міг закритись
 		if (ws.readyState !== ws.OPEN) return;
-		const s = ws.session;
-		if (!s.player) {
-			if (msg.type !== "join")
-				return reject(ws, CLOSE.NOT_JOINED, "join first");
-			return handleJoin(ws, msg);
+		const { player, room } = s;
+		if (!player || !room) {
+			if (msg.type !== "join") {
+				reject(ws, s, CLOSE.NOT_JOINED, "join first");
+				return;
+			}
+			handleJoin(ws, s, msg);
+			return;
 		}
+		// Кожен тип повідомлення має гілку; default це never: новий тип у протоколі
+		// без обробника тут це помилка tsc.
 		switch (msg.type) {
 			case "join":
-				return reject(ws, CLOSE.ALREADY_JOINED, "already joined");
+				reject(ws, s, CLOSE.ALREADY_JOINED, "already joined");
+				return;
 			case "chat":
-				s.room.chat(s.player.id, msg.text); // подію отримають усі в кімнаті
+				room.chat(player.id, msg.text); // подію отримають усі в кімнаті
 				return;
 			case "input":
 				// Сервер лише передає input кімнаті; Match підписаний на цю подію
-				s.room.emit("input", {
-					playerId: s.player.id,
+				room.emit("input", {
+					playerId: player.id,
 					seq: msg.seq,
 					keys: inputFromMessage(msg),
 				});
 				return;
 			case "ping":
-				send(ws, make("pong", { t: msg.t }));
+				send(ws, s, makeServer("pong", { t: msg.t }));
 				return;
 			case "netsim":
-				return handleNetsim(ws, msg);
+				handleNetsim(ws, s, msg);
+				return;
 			case "leave":
-				detach(ws);
+				detach(s);
 				ws.close(CLOSE.NORMAL, "bye");
 				return;
+			default:
+				assertNever(msg, "повідомлення клієнта");
 		}
 	}
 
 	wss.on("connection", (ws, req) => {
-		const s = {
-			id: randomBytes(4).toString("hex"),
+		const id = randomBytes(4).toString("hex");
+		const s: Session = {
+			id,
 			player: null,
 			room: null,
 			missedPongs: 0,
@@ -323,26 +445,28 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 				refillPerSec: opts.inputRefillPerSec,
 			}),
 			// ?codec=binary: знімки бінарні; без параметра (або невідоме значення) це JSON
-			codec: getCodec(new URL(req.url, "http://x").searchParams.get("codec")),
+			codec: getCodec(
+				new URL(req.url ?? "/", "http://x").searchParams.get("codec"),
+			),
 			// штучна мережа: початкові значення з адреси, лише якщо дозволено на сервері
 			sim: new NetSim({
 				...(opts.netsim ? parseNetsimUrl(req.url) : {}),
-				onError: (error) => log.error(`[${s.id}] netsim:`, error),
+				onError: (error) => log.error(`[${id}] netsim:`, error),
 			}),
 			dropping: false,
 			dropped: 0,
 			slow: false,
 		};
-		ws.session = s; // { player, room } на кожному сокеті
+		sessions.set(ws, s);
 
 		// "error" першим рядком: без нього помилка сокета (наприклад, завеликий кадр)
 		// стала б необробленою подією і завалила б увесь процес
 		ws.on("error", (error) =>
-			log.warn(`[${s.id}] помилка сокета: ${error.message}`),
+			log.warn(`[${id}] помилка сокета: ${error.message}`),
 		);
 
 		s.joinTimer = setTimeout(
-			() => reject(ws, CLOSE.JOIN_TIMEOUT, "join timeout"),
+			() => reject(ws, s, CLOSE.JOIN_TIMEOUT, "join timeout"),
 			opts.joinTimeoutMs,
 		);
 
@@ -353,15 +477,15 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 		ws.on("message", (data, isBinary) => {
 			// виняток в обробнику події не має куди підніматись: він би завалив процес
 			try {
-				onMessage(ws, data, isBinary);
-			} catch (error) {
-				log.error(`[${s.id}] помилка обробника:`, error);
+				onMessage(ws, s, data, isBinary);
+			} catch (error: unknown) {
+				log.error(`[${id}] помилка обробника:`, error);
 				ws.close(CLOSE.INTERNAL, "internal error");
 			}
 		});
 
 		ws.on("close", () => {
-			detach(ws);
+			detach(s);
 			s.sim.dispose(); // відкладені повідомлення вже нікому не потрібні
 		});
 	});
@@ -369,7 +493,8 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 	// ---------- heartbeat ----------
 	const heartbeat = setInterval(() => {
 		for (const ws of wss.clients) {
-			const s = ws.session;
+			const s = sessions.get(ws);
+			if (!s) continue;
 			if (s.missedPongs >= opts.maxMissedPongs) {
 				log.warn(`[${s.id}] немає pong, розрив`);
 				ws.terminate();
@@ -382,22 +507,22 @@ export function attachWebSocket({ server, rooms, log, ...options }) {
 	heartbeat.unref();
 
 	// ---------- завершення ----------
-	async function shutdown() {
+	async function shutdown(): Promise<void> {
 		clearInterval(heartbeat);
 		const closing = [...wss.clients].map(
 			(ws) =>
-				new Promise((resolve) => {
-					ws.once("close", resolve);
+				new Promise<void>((resolve) => {
+					ws.once("close", () => resolve());
 					ws.close(CLOSE.GOING_AWAY, "server shutting down");
 				}),
 		);
 		await Promise.race([Promise.all(closing), sleep(2000)]);
 		for (const ws of wss.clients) ws.terminate(); // хто не встиг, того рубаємо
 		await Promise.race([
-			new Promise((resolve) => wss.close(resolve)),
+			new Promise<void>((resolve) => wss.close(() => resolve())),
 			sleep(1000),
 		]);
 	}
 
-	return { wss, shutdown };
+	return { wss, sessionOf: (ws) => sessions.get(ws), shutdown };
 }

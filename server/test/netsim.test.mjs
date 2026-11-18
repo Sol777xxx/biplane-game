@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { after, afterEach, describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
 import WebSocket from "ws";
-import { createApp } from "../src/app.js";
+import { createApp } from "../src/app.ts";
 import { silentLogger } from "../src/logger.ts";
 import { NetSim, parseNetsimUrl } from "../src/netsim.ts";
 import { CLOSE, parseClientMessage } from "../src/protocol.ts";

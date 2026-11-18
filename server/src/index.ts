@@ -1,11 +1,11 @@
-import { createApp } from "./app.js";
-import { ConfigError, loadConfig } from "./config.ts";
+import { createApp } from "./app.ts";
+import { type Config, ConfigError, loadConfig } from "./config.ts";
 import { seedRooms } from "./rooms.ts";
 
-let config;
+let config: Config;
 try {
 	config = loadConfig();
-} catch (error) {
+} catch (error: unknown) {
 	if (!(error instanceof ConfigError)) throw error;
 	console.error(error.message);
 	process.exit(1);
@@ -33,7 +33,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 			await app.close();
 			console.log("готово");
 			process.exit(0);
-		} catch (error) {
+		} catch (error: unknown) {
 			console.error("помилка при завершенні:", error);
 			process.exit(1);
 		}

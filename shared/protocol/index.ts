@@ -461,7 +461,30 @@ export function make<T extends MessageType>(
 ): MessageOf<T> {
 	return BUILD[type](data);
 }
+// Те саме для повідомлень, які шле сервер. У make тип "chat" чи "netsim" означає і клієнтське,
+// і серверне повідомлення; тут лише серверні, тож результат підходить до ServerMessage.
+type ServerType = ServerMessage["type"];
+type ServerOf<T extends ServerType> = Extract<ServerMessage, { type: T }>;
+type ServerData<T extends ServerType> = Omit<ServerOf<T>, "v" | "type">;
 
+const BUILD_SERVER: {
+	readonly [T in ServerType]: (data: ServerData<T>) => ServerOf<T>;
+} = {
+	joined: (d) => ({ v: PROTOCOL_VERSION, type: "joined", ...d }),
+	roster: (d) => ({ v: PROTOCOL_VERSION, type: "roster", ...d }),
+	chat: (d) => ({ v: PROTOCOL_VERSION, type: "chat", ...d }),
+	error: (d) => ({ v: PROTOCOL_VERSION, type: "error", ...d }),
+	pong: (d) => ({ v: PROTOCOL_VERSION, type: "pong", ...d }),
+	netsim: (d) => ({ v: PROTOCOL_VERSION, type: "netsim", ...d }),
+	snapshot: (d) => ({ v: PROTOCOL_VERSION, type: "snapshot", ...d }),
+};
+
+export function makeServer<T extends ServerType>(
+	type: T,
+	data: ServerData<T>,
+): ServerOf<T> {
+	return BUILD_SERVER[type](data);
+}
 // повідомлення input із довільного стану вводу: усі ключі булеві, зайве відкидається
 export function makeInput(
 	seq: Seq,

@@ -6,7 +6,7 @@ import { make } from "biplane-shared/protocol/index.ts";
 import { createScenario } from "biplane-shared/sim/scenario.ts";
 import { takeSnapshot } from "biplane-shared/sim/snapshot.ts";
 import { WebSocketServer } from "ws";
-import { createApp } from "../../server/src/app.js";
+import { createApp } from "../../server/src/app.ts";
 import { silentLogger } from "../../server/src/logger.ts";
 import { RoomManager } from "../../server/src/rooms.ts";
 import { Connection } from "../src/net/connection.js";
