@@ -18,7 +18,7 @@ const FRAMES = 4;
 const FRAME_MS = Math.PI / (4 * 0.03);
 
 const PICKUP_KINDS: readonly PickupType[] = ["shield", "rapid", "homing"];
-const CLOUD_RADII = [45, 70]; // як у game.js
+const CLOUD_RADII = [45, 70]; // як у game.ts
 
 // де в аркуші лежить спрайт і де його якір (ox, oy), q це роздільність запікання
 const spriteSchema = z.object({

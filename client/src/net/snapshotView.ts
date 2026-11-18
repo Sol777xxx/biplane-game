@@ -146,7 +146,7 @@ export interface SnapshotViewOptions {
 	readonly you?: () => string | null;
 	readonly local?: () => LocalPose | null;
 	readonly interp?: Interpolator | null;
-	readonly shots?: (() => readonly Bullet[]) | null;
+	readonly shots?: (() => readonly Bullet[] | null) | null;
 }
 
 interface Views {

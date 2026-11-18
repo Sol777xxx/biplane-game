@@ -22,11 +22,12 @@ export default defineConfig({
 			configureServer(server) {
 				const publicDir = server.config.publicDir;
 				server.middlewares.use((req, res, next) => {
-					const url = new URL(req.url, "http://x");
+					// req.url у Node має тип string | undefined
+					const url = new URL(req.url ?? "/", "http://x");
 					const missing =
 						url.pathname.startsWith("/assets/") &&
 						!existsSync(join(publicDir, url.pathname));
-					const go = () => {
+					const go = (): void => {
 						if (missing) {
 							res.statusCode = 404;
 							res.end("not found");

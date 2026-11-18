@@ -221,7 +221,7 @@ export class Game {
 		this.world.events.length = 0;
 	}
 
-	// лише повідомлення: частинки й вибухи малює клієнт (fx.js), у стані гри їх немає
+	// лише повідомлення: частинки й вибухи малює клієнт (fx.ts), у стані гри їх немає
 	#explode(entity: SimEntity, color: ExplosionColor, count: number): void {
 		this.world.emit("exploded", {
 			kind: entity.kind,

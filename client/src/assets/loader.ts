@@ -142,7 +142,7 @@ const assetBase = {
 	id: z.string(),
 	url: z.string(),
 	optional: z.boolean().optional(),
-	fallback: z.unknown(), // що віддати замість пропущеного optional-ассета
+	fallback: z.unknown().optional(), // що віддати замість пропущеного optional-ассета
 	timeoutMs: z.number().positive().optional(),
 	attempts: z.number().int().positive().optional(),
 };

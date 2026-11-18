@@ -1,27 +1,47 @@
+import type {
+	RoomSummary,
+	SnapshotMessage,
+} from "biplane-shared/protocol/index.ts";
 import { Biplane } from "biplane-shared/sim/biplane.ts";
+import { toSeq } from "biplane-shared/sim/ids.ts";
+import { assertNever } from "biplane-shared/sim/never.ts";
 import {
 	dumpScenario,
 	runScenario,
 	traceScenario,
 } from "biplane-shared/sim/scenario.ts";
 import { TICK_DT } from "biplane-shared/sim/time.ts";
-import { createAudio } from "./assets/audio/audio.ts";
-import { fetchJson, loadAll, sleep, withRetry } from "./assets/loader.ts";
+import { type Audio, createAudio } from "./assets/audio/audio.ts";
+import {
+	fetchJson,
+	HttpError,
+	type LoadResult,
+	loadAll,
+	type Manifest,
+	parseManifest,
+	sleep,
+	withRetry,
+} from "./assets/loader.ts";
 import { createFx } from "./fx.ts";
 import { createHud } from "./hud.ts";
 import { createInput } from "./input.ts";
-import { createLoadingScreen } from "./loadingScreen.ts";
+import { createLoadingScreen, type LoadingScreen } from "./loadingScreen.ts";
 import { Lobby } from "./lobby.ts";
 import { createLoop } from "./loop.ts";
 import { createInterpolator } from "./net/interpolator.ts";
 import { createPredictor } from "./net/predictor.ts";
-import { joinRoom } from "./net/roomSession.ts";
+import { joinRoom, type RoomSession } from "./net/roomSession.ts";
 import { createSnapshotView } from "./net/snapshotView.ts";
 import { createNetStats, summarize } from "./netStats.ts";
-import { DEFAULT_PILOT, PILOTS } from "./render/pilots/index.ts";
+import {
+	DEFAULT_PILOT,
+	isPilotId,
+	type PilotId,
+} from "./render/pilots/index.ts";
 import { createRenderer } from "./render/renderer.ts";
 import { downloadSheet, initSprites } from "./render/sprites.ts";
 import { mountChat } from "./ui/chatPanel.ts";
+import { messageOf, query } from "./ui/dom.ts";
 import { showLobby } from "./ui/lobbyView.ts";
 import { mountNetgraph } from "./ui/netgraph.ts";
 import { createPilotPicker } from "./ui/pilotPicker.ts";
@@ -33,35 +53,48 @@ const params = new URLSearchParams(location.search);
 const netsimQuery = new URLSearchParams(
 	["lag", "jitter", "loss"]
 		.filter((key) => params.has(key))
-		.map((key) => [key, params.get(key)]),
+		.map((key) => [key, params.get(key) ?? ""]),
 ).toString();
 const WS_URL = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws${netsimQuery ? `?${netsimQuery}` : ""}`;
 // лаб 5: ?codec=json вмикає JSON для порівняння (за замовчуванням binary)
 const codec = params.get("codec") === "json" ? "json" : "binary";
 // ?smooth=мс (згладжування поправки, 0 вимикає), ?interp=мс (затримка інтерполяції)
-const num = (name, fallback) =>
+const num = (name: string, fallback: number): number =>
 	/^\d{1,4}$/.test(params.get(name) ?? "")
 		? Number(params.get(name))
 		: fallback;
 const smoothMs = num("smooth", 100);
 const interpMs = num("interp", 100);
 // лаб 1: ?exp=block | interval | variable
-const exp = params.get("exp");
+type Experiment = "block" | "interval" | "variable";
+const EXPERIMENTS: readonly Experiment[] = ["block", "interval", "variable"];
+const exp: Experiment | null =
+	EXPERIMENTS.find((e) => e === params.get("exp")) ?? null;
 // лаб 3: ?chaos=404|404hard|timeout|abort|badjson, ?latency=300 (мс на файл), ?seq
-const chaos = params.get("chaos");
+type Chaos = "404" | "404hard" | "timeout" | "abort" | "badjson";
+const CHAOS_MODES: readonly Chaos[] = [
+	"404",
+	"404hard",
+	"timeout",
+	"abort",
+	"badjson",
+];
+const chaos: Chaos | null =
+	CHAOS_MODES.find((c) => c === params.get("chaos")) ?? null;
 const latency = Number(params.get("latency") ?? 0);
 const sequential = params.has("seq");
 
-function loadPilot() {
+function loadPilot(): PilotId {
 	try {
+		// у сховищі може лежати що завгодно, тож isPilotId, а не PILOTS[saved]
 		const saved = localStorage.getItem(STORAGE_KEY);
-		return saved && PILOTS[saved] ? saved : DEFAULT_PILOT;
+		return isPilotId(saved) ? saved : DEFAULT_PILOT;
 	} catch {
 		return DEFAULT_PILOT;
 	}
 }
 
-function savePilot(id) {
+function savePilot(id: PilotId): void {
 	try {
 		localStorage.setItem(STORAGE_KEY, id);
 	} catch {
@@ -70,61 +103,76 @@ function savePilot(id) {
 }
 
 // навмисне блокування потоку
-function busyWait(ms) {
+function busyWait(ms: number): void {
 	const end = performance.now() + ms;
 	while (performance.now() < end) {
 		// порожньо
 	}
 }
 
-const canvas = document.querySelector("#game");
-const hud = document.querySelector("#hud");
+const canvas = query("#game", HTMLCanvasElement);
+const hud = query("#hud", HTMLElement);
 hud.hidden = true; // діагностика схована, поки гравець не натисне H
-const status = document.querySelector("#status");
-const retryBtn = document.querySelector("#retry");
+const status = query("#status", HTMLElement);
+const retryBtn = query("#retry", HTMLButtonElement);
 
 // збої для галереї (діють лише на першу спробу, Retry йде чисто)
-function withChaos(manifest, mode) {
+function withChaos(manifest: Manifest, mode: Chaos | null): Manifest {
 	const m = structuredClone(manifest);
-	const find = (id) => m.assets.find((a) => a.id === id);
 	if (latency || mode === "abort") {
 		const ms = latency || 1500;
 		for (const a of m.assets) {
 			a.url += `${a.url.includes("?") ? "&" : "?"}delay=${ms}`;
 		}
 	}
-	if (mode === "404") {
-		// необов'язковий: гра стартує без нього
-		m.assets.push({
-			id: "bonus-sprites",
-			type: "image",
-			url: "/assets/missing.png",
-			optional: true,
-		});
-	} else if (mode === "404hard") {
-		// обов'язковий: екран помилки і Retry
-		m.assets.push({
-			id: "required-sprite",
-			type: "image",
-			url: "/assets/missing.png",
-		});
-	} else if (mode === "timeout") {
-		m.assets.push({
-			id: "slow",
-			type: "json",
-			url: "/assets/slow.json?delay=60000",
-			timeoutMs: 1200,
-			attempts: 2,
-		});
-	} else if (mode === "badjson") {
-		find("arena").url = "/assets/broken.json";
+	// null це «без збою»; default: never вимагає гілку для кожного нового режиму
+	switch (mode) {
+		case null:
+		case "abort": // лише затримка вище, скасування робить loadEverything
+			break;
+		case "404":
+			// необов'язковий: гра стартує без нього
+			m.assets.push({
+				id: "bonus-sprites",
+				type: "image",
+				url: "/assets/missing.png",
+				optional: true,
+			});
+			break;
+		case "404hard":
+			// обов'язковий: екран помилки і Retry
+			m.assets.push({
+				id: "required-sprite",
+				type: "image",
+				url: "/assets/missing.png",
+			});
+			break;
+		case "timeout":
+			m.assets.push({
+				id: "slow",
+				type: "json",
+				url: "/assets/slow.json?delay=60000",
+				timeoutMs: 1200,
+				attempts: 2,
+			});
+			break;
+		case "badjson": {
+			const arena = m.assets.find((a) => a.id === "arena");
+			if (arena) arena.url = "/assets/broken.json";
+			break;
+		}
+		default:
+			assertNever(mode, "режим chaos");
 	}
 	return m;
 }
 
 // завантаження з екрана, з Retry
-async function loadEverything(audioCtx, screen) {
-	let mode = chaos;
+async function loadEverything(
+	audioCtx: BaseAudioContext,
+	screen: LoadingScreen,
+): Promise<LoadResult> {
+	let mode: Chaos | null = chaos;
 	for (;;) {
 		const ctl = new AbortController();
 		screen.start();
@@ -138,7 +186,8 @@ async function loadEverything(audioCtx, screen) {
 					}),
 				{ signal: ctl.signal },
 			);
-			const manifest = withChaos(raw, mode);
+			// маніфест прийшов з мережі: форму перевіряє Zod, а не наша довіра
+			const manifest = withChaos(parseManifest(raw), mode);
 			const result = await loadAll(manifest, {
 				ctx: audioCtx,
 				signal: ctl.signal,
@@ -156,7 +205,7 @@ async function loadEverything(audioCtx, screen) {
 				screen.setWarnings(
 					result.failures.map(
 						(f) =>
-							`${f.id}: ${f.error.name === "HttpError" ? `HTTP ${f.error.status}` : f.error.name}`,
+							`${f.id}: ${f.error instanceof HttpError ? `HTTP ${f.error.status}` : f.error instanceof Error ? f.error.name : "помилка"}`,
 					),
 				);
 				await sleep(1800); // даємо прочитати, гра все одно стартує
@@ -173,7 +222,10 @@ async function loadEverything(audioCtx, screen) {
 }
 
 // гра: сервер рахує світ; клієнт шле input, передбачає свій корабель і кулі, чужі інтерполює
-function startGame(audio, session) {
+function startGame(
+	audio: Audio,
+	session: { name: string; room: RoomSummary; roomSession: RoomSession },
+): void {
 	const net = session.roomSession;
 	console.log(
 		`гравець ${session.name}, кімната ${session.room.id}, кодек ${net.codec}`,
@@ -185,28 +237,24 @@ function startGame(audio, session) {
 	const predictor = createPredictor({
 		smooth: smoothMs / 1000,
 		onFire: (at) =>
-			view.bus.dispatchEvent(
-				new CustomEvent("fired", {
-					detail: { by: { playerId: net.you?.id }, at },
-				}),
-			),
+			view.bus.emit("fired", { by: { playerId: net.you?.id ?? null }, at }),
 	});
 	const interp = createInterpolator({ delay: interpMs });
 	const netStats = createNetStats();
 	const view = createSnapshotView({
-		you: () => net.you?.id,
+		you: () => net.you?.id ?? null,
 		local: () => predictor.pose,
 		interp,
 		shots: () => (predictor.enabled ? predictor.shots : null),
 	});
 
 	// ?debug: журнал поправок; corr() віддає підсумок від попереднього виклику
-	const corrLog = params.has("debug") ? [] : null;
+	const corrLog: number[] | null = params.has("debug") ? [] : null;
 
 	// знімок: у буфер інтерполяції, потім звірка передбачення
-	const onSnapshot = (msg) => {
+	const onSnapshot = (msg: SnapshotMessage): void => {
 		view.apply(msg);
-		const r = predictor.reconcile(msg, net.you?.id);
+		const r = predictor.reconcile(msg, net.you?.id ?? null);
 		if (r.correction === null) netStats.clearCorrection();
 		else {
 			netStats.correction(r.correction);
@@ -214,16 +262,16 @@ function startGame(audio, session) {
 		}
 	};
 	if (net.snapshot) onSnapshot(net.snapshot); // знімок міг прийти до старту гри
-	net.addEventListener("snapshot", (e) => onSnapshot(e.detail));
+	net.listen("snapshot", onSnapshot);
 	// після перепідключення seq починається з 1, буфери недійсні
-	net.addEventListener("status", (e) => {
-		if (e.detail.state !== "online") return;
+	net.listen("status", (st) => {
+		if (st.state !== "online") return;
 		predictor.reset();
 		view.reset();
 	});
 
-	mountChat(document.querySelector("#chat"), net);
-	const netgraph = mountNetgraph(document.querySelector("#netgraph"), {
+	mountChat(query("#chat", HTMLElement), net);
+	const netgraph = mountNetgraph(query("#netgraph", HTMLElement), {
 		session: net,
 		view,
 		stats: netStats,
@@ -235,25 +283,26 @@ function startGame(audio, session) {
 	const scene = fx.view(view);
 	const renderer = createRenderer(canvas, { pilotId, overlay: floaters });
 	audio.attach(view.bus);
-	let probe = null; // вимірювання: окремий біплан поза світом
+	let probe: { plane: Biplane; time: number; steps: number } | null = null; // вимірювання: окремий біплан поза світом
 	let frameCount = 0;
 	let lastStatus = "";
 	let sendClock = 0;
 
 	// доступ із консолі: ?debug
+	// (Reflect.set замість window.x = …: не треба розширювати тип Window)
 	if (params.has("debug")) {
-		window.net = view;
-		window.netStats = netStats;
-		window.predictor = predictor;
-		window.interp = interp;
-		window.corr = () => {
-			const s = summarize(corrLog);
-			corrLog.length = 0;
+		Reflect.set(window, "net", view);
+		Reflect.set(window, "netStats", netStats);
+		Reflect.set(window, "predictor", predictor);
+		Reflect.set(window, "interp", interp);
+		Reflect.set(window, "corr", () => {
+			const s = summarize(corrLog ?? []);
+			corrLog?.splice(0);
 			return s;
-		};
+		});
 	}
 
-	createPilotPicker(document.querySelector("#pilots"), {
+	createPilotPicker(query("#pilots", HTMLElement), {
 		current: pilotId,
 		onSelect(id) {
 			renderer.setPilot(id);
@@ -292,7 +341,7 @@ function startGame(audio, session) {
 				sendClock = 0;
 				const keys = input.snapshot();
 				const seq = net.sendInput(keys);
-				if (seq) predictor.step(seq, keys);
+				if (seq) predictor.step(toSeq(seq), keys); // 0 означає «не надіслано»
 			}
 			fx.step(dt);
 			input.endStep();
@@ -343,7 +392,7 @@ function startGame(audio, session) {
 }
 
 // точка входу: loading → lobby → game
-async function main() {
+async function main(): Promise<void> {
 	// ?hash: той самий сценарій, що й у тесті Node; хеші мають збігтися
 	if (params.has("hash")) {
 		console.log(`hash (1000 кроків, seed 1): ${runScenario()}`);
@@ -354,7 +403,7 @@ async function main() {
 	}
 
 	// AudioContext створюється тут, щоб decodeAudioData встиг на екрані завантаження;
-	// запускається він після жесту гравця (див. audio.js)
+	// запускається він після жесту гравця (див. audio.ts)
 	const audio = createAudio();
 	const screen = createLoadingScreen(canvas, retryBtn);
 
@@ -364,11 +413,11 @@ async function main() {
 	const sprites = initSprites(result.assets);
 	console.log(`спрайти: ${sprites.count} шт., ${sprites.source}`);
 	if (params.has("bake")) downloadSheet();
-	if (params.has("debug")) window.assets = result.assets;
+	if (params.has("debug")) Reflect.set(window, "assets", result.assets);
 
-	// ?delay=мс у адресі сторінки затримує і запити лобі (див. vite.config.js)
+	// ?delay=мс у адресі сторінки затримує і запити лобі (див. vite.config.ts)
 	const lobby = new Lobby({ url: `/api/rooms${location.search}` });
-	const session = await showLobby(document.querySelector("#lobby"), lobby, {
+	const session = await showLobby(query("#lobby", HTMLElement), lobby, {
 		// відмова повертає гравця в лобі з поясненням
 		enter: async ({ name, room }) => ({
 			roomSession: await joinRoom(WS_URL, { room: room.id, name, codec }),
@@ -377,7 +426,7 @@ async function main() {
 	startGame(audio, session);
 }
 
-main().catch((error) => {
+main().catch((error: unknown) => {
 	console.error(error);
-	status.textContent = `Помилка запуску: ${error.message}`;
+	status.textContent = `Помилка запуску: ${messageOf(error)}`;
 });
