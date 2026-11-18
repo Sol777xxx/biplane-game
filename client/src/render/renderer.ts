@@ -1,11 +1,48 @@
 import { ARENA } from "biplane-shared/sim/arena.ts";
-import { CLOUDS, drawCloud } from "./clouds.js";
-import { drawExplosion, drawParticle } from "./effects.js";
-import { drawObstacle } from "./obstacles.js";
-import { drawShield, SHIELD_RX, SHIELD_RY } from "./shield.js";
-import { drawBiplane, drawBullet, drawPickup } from "./sprites.js";
+import { assertNever } from "biplane-shared/sim/never.ts";
+import type { Bullet } from "biplane-shared/sim/objects.ts";
+import type { Explosion, Particle } from "../fx.ts";
+import type {
+	ViewBullet,
+	ViewObstacle,
+	ViewPickup,
+	ViewShip,
+} from "../net/snapshotView.ts";
+import { type Ctx, context2d } from "./canvas.ts";
+import { CLOUDS, drawCloud } from "./clouds.ts";
+import { drawExplosion, drawParticle } from "./effects.ts";
+import { drawObstacle } from "./obstacles.ts";
+import type { PilotId } from "./pilots/types.ts";
+import { drawShield, SHIELD_RX, SHIELD_RY } from "./shield.ts";
+import { drawBiplane, drawBullet, drawPickup } from "./sprites.ts";
 
-const LAYERS = [
+// Усе, що renderer уміє малювати. kind це дискримінант: switch у draw() звужує тип сутності,
+// а default: never вимагає гілки для кожного нового виду.
+export type Renderable =
+	| ViewShip
+	| ViewObstacle
+	| ViewBullet
+	| Bullet
+	| ViewPickup
+	| Particle
+	| Explosion;
+
+// Гра для renderer: сутності за видом (підходить і snapshotView, і fx.view(...)).
+export interface RenderGame {
+	readonly world: { ofKind(kind: string): Iterable<Renderable> };
+}
+
+// Накладка поверх арени (HUD): малюється в координатах арени.
+export interface Overlay {
+	draw(ctx: Ctx, time: number): void;
+}
+
+export interface RendererOptions {
+	readonly pilotId?: PilotId;
+	readonly overlay?: Overlay | null;
+}
+
+const LAYERS: readonly Renderable["kind"][] = [
 	"obstacle",
 	"pickup",
 	"bullet",
@@ -15,17 +52,17 @@ const LAYERS = [
 ];
 
 export function createRenderer(
-	canvas,
-	{ pilotId = "empty", overlay = null } = {},
+	canvas: HTMLCanvasElement,
+	{ pilotId = "empty", overlay = null }: RendererOptions = {},
 ) {
-	const ctx = canvas.getContext("2d");
+	const ctx = context2d(canvas);
 	const debug = new URLSearchParams(location.search).has("debug");
 	let currentPilot = pilotId;
 	let scale = 1;
 	let offsetX = 0;
 	let offsetY = 0;
 
-	function resize() {
+	function resize(): void {
 		const dpr = window.devicePixelRatio || 1;
 		const w = window.innerWidth;
 		const h = window.innerHeight;
@@ -44,12 +81,23 @@ export function createRenderer(
 	}
 
 	// інтерполяція без стрибка при загортанні країв
-	function lerp(prev, curr, alpha, max) {
+	function lerp(
+		prev: number,
+		curr: number,
+		alpha: number,
+		max: number,
+	): number {
 		if (Math.abs(curr - prev) > max / 2) return curr;
 		return prev + (curr - prev) * alpha;
 	}
 
-	function drawPlane(plane, x, y, alpha, time) {
+	function drawPlane(
+		plane: ViewShip,
+		x: number,
+		y: number,
+		alpha: number,
+		time: number,
+	): void {
 		const pitch = plane.prevPitch + (plane.pitch - plane.prevPitch) * alpha;
 		// свій корабель з обраним героєм, чужі без пілота (plane.mine є лише у сутностей зі знімка)
 		const pilot = plane.mine === false ? "empty" : currentPilot;
@@ -74,7 +122,7 @@ export function createRenderer(
 	}
 
 	// коло зіткнення: лише для налагодження (?debug)
-	function drawHitbox(e, x, y) {
+	function drawHitbox(e: Renderable, x: number, y: number): void {
 		ctx.strokeStyle = "rgba(255, 0, 100, 0.8)";
 		ctx.lineWidth = 2;
 		ctx.beginPath();
@@ -82,7 +130,7 @@ export function createRenderer(
 		ctx.stroke();
 	}
 
-	function draw(game, alpha, time) {
+	function draw(game: RenderGame, alpha: number, time: number): void {
 		ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
 		ctx.save();
@@ -102,22 +150,28 @@ export function createRenderer(
 			for (const e of game.world.ofKind(kind)) {
 				const x = lerp(e.prevPos.x, e.pos.x, alpha, ARENA.width);
 				const y = lerp(e.prevPos.y, e.pos.y, alpha, ARENA.height);
-				if (kind === "obstacle") drawObstacle(ctx, e, x, y, time);
-				// if (kind === "obstacle" && e.has("homing")) {
-				// ctx.save();
-				// ctx.strokeStyle = "rgba(255, 90, 140, 0.7)";
-				// ctx.lineWidth = 3;
-				// ctx.setLineDash([8, 8]);
-				// ctx.beginPath();
-				// ctx.arc(x, y, e.radius * 1.15, 0, Math.PI * 2);
-				// ctx.stroke();
-				// ctx.restore();
-				// }демонстрація самонаведених хмарок
-				else if (kind === "pickup") drawPickup(ctx, e, x, y, time);
-				else if (kind === "bullet") drawBullet(ctx, e, x, y);
-				else if (kind === "particle") drawParticle(ctx, e, x, y);
-				else if (kind === "explosion") drawExplosion(ctx, e, x, y);
-				else if (kind === "biplane") drawPlane(e, x, y, alpha, time);
+				switch (e.kind) {
+					case "obstacle":
+						drawObstacle(ctx, e, x, y, time);
+						break;
+					case "pickup":
+						drawPickup(ctx, e, x, y, time);
+						break;
+					case "bullet":
+						drawBullet(ctx, e, x, y);
+						break;
+					case "particle":
+						drawParticle(ctx, e, x, y);
+						break;
+					case "explosion":
+						drawExplosion(ctx, e, x, y);
+						break;
+					case "biplane":
+						drawPlane(e, x, y, alpha, time);
+						break;
+					default:
+						assertNever(e, "вид сутності");
+				}
 				if (debug && e.radius > 0) drawHitbox(e, x, y);
 			}
 		}
@@ -132,7 +186,7 @@ export function createRenderer(
 	return {
 		draw,
 		resize,
-		setPilot(id) {
+		setPilot(id: PilotId): void {
 			currentPilot = id;
 		},
 	};

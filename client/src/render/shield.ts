@@ -1,3 +1,5 @@
+import type { Ctx } from "./canvas.ts";
+
 const TAU = Math.PI * 2;
 
 // півосі щита: витягнутий горизонтально, приплюснутий по вертикалі
@@ -9,8 +11,11 @@ const LATITUDES = [-60, -30, 0, 30, 60]; // градуси
 const TILT = 0.45;
 const SEG = 56;
 
-// точка сфери (широта, довгота) з нахилом навколо осі X → [x, y, z]
-function spherePoint(phi, theta) {
+// точка сфери: [x, y, z]
+type Point3 = readonly [x: number, y: number, z: number];
+
+// точка сфери (широта, довгота) з нахилом навколо осі X
+function spherePoint(phi: number, theta: number): Point3 {
 	const x = Math.cos(phi) * Math.sin(theta);
 	const y = Math.sin(phi);
 	const z = Math.cos(phi) * Math.cos(theta);
@@ -20,10 +25,18 @@ function spherePoint(phi, theta) {
 }
 
 // додає ламану лінію у front/back залежно від глибини сегмента
-function addCurve(front, back, r, pts) {
+function addCurve(
+	front: Path2D,
+	back: Path2D,
+	r: number,
+	pts: readonly Point3[],
+): void {
 	for (let i = 0; i < pts.length - 1; i++) {
-		const [x1, y1, z1] = pts[i];
-		const [x2, y2, z2] = pts[i + 1];
+		const a = pts[i];
+		const b = pts[i + 1];
+		if (!a || !b) continue;
+		const [x1, y1, z1] = a;
+		const [x2, y2, z2] = b;
 		const path = z1 + z2 >= 0 ? front : back;
 		path.moveTo(x1 * r, -y1 * r);
 		path.lineTo(x2 * r, -y2 * r);
@@ -31,7 +44,15 @@ function addCurve(front, back, r, pts) {
 }
 
 // remaining: секунд до кінця щита (наприкінці блимає)
-export function drawShield(ctx, cx, cy, rx, ry, time, remaining) {
+export function drawShield(
+	ctx: Ctx,
+	cx: number,
+	cy: number,
+	rx: number,
+	ry: number,
+	time: number,
+	remaining: number,
+): void {
 	if (remaining < 1.5 && Math.floor(time / 100) % 2 === 0) return;
 
 	const r = rx; // рахуємо для кола, потім розтягуємо в еліпс
@@ -60,7 +81,7 @@ export function drawShield(ctx, cx, cy, rx, ry, time, remaining) {
 	// меридіани
 	for (let m = 0; m < MERIDIANS; m++) {
 		const theta = spin + (m * Math.PI) / MERIDIANS;
-		const pts = [];
+		const pts: Point3[] = [];
 		for (let i = 0; i <= SEG; i++) {
 			pts.push(spherePoint((i / SEG) * TAU, theta));
 		}
@@ -70,7 +91,7 @@ export function drawShield(ctx, cx, cy, rx, ry, time, remaining) {
 	// паралелі
 	for (const deg of LATITUDES) {
 		const phi = (deg * Math.PI) / 180;
-		const pts = [];
+		const pts: Point3[] = [];
 		for (let i = 0; i <= SEG; i++) {
 			pts.push(spherePoint(phi, (i / SEG) * TAU));
 		}
@@ -92,7 +113,7 @@ export function drawShield(ctx, cx, cy, rx, ry, time, remaining) {
 
 	// сканувальне кільце
 	const scanPhi = Math.sin(time * 0.0012) * 1.1;
-	const scan = [];
+	const scan: Point3[] = [];
 	for (let i = 0; i <= SEG; i++) {
 		scan.push(spherePoint(scanPhi, (i / SEG) * TAU));
 	}

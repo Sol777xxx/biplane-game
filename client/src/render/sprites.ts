@@ -1,8 +1,11 @@
-import { drawBiplane as drawBiplaneProc } from "./biplane.js";
-import { drawBullet as drawBulletProc } from "./bullets.js";
-import { drawPickup as drawPickupProc } from "./effects.js";
-import { HALF, paintBody, setBodySprites, VISUAL_SCALE } from "./obstacles.js";
-import { PILOTS } from "./pilots/index.js";
+import type { PickupType } from "biplane-shared/sim/objects.ts";
+import { z } from "zod";
+import { drawBiplane as drawBiplaneProc } from "./biplane.ts";
+import { type BulletLook, drawBullet as drawBulletProc } from "./bullets.ts";
+import { type Ctx, context2d } from "./canvas.ts";
+import { drawPickup as drawPickupProc, type PickupLook } from "./effects.ts";
+import { HALF, paintBody, setBodySprites, VISUAL_SCALE } from "./obstacles.ts";
+import { PILOT_IDS, type PilotId } from "./pilots/index.ts";
 
 // Спрайтшит: файл із маніфесту або запечений у пам'яті з процедурних функцій.
 // Усі draw* мають ті самі сигнатури, що й оригінали, тож renderer міняє лише імпорти.
@@ -14,17 +17,59 @@ const FRAMES = 4;
 // пропелер: |sin(time·0.03)| має період π/0.03, ділимо його на 4 кадри
 const FRAME_MS = Math.PI / (4 * 0.03);
 
-const PICKUP_KINDS = ["shield", "rapid", "homing"];
+const PICKUP_KINDS: readonly PickupType[] = ["shield", "rapid", "homing"];
 const CLOUD_RADII = [45, 70]; // як у game.js
 
-let sheet = null; // { image: ImageBitmap | HTMLCanvasElement, sprites: {...} }
+// де в аркуші лежить спрайт і де його якір (ox, oy), q це роздільність запікання
+const spriteSchema = z.object({
+	x: z.number(),
+	y: z.number(),
+	w: z.number(),
+	h: z.number(),
+	ox: z.number(),
+	oy: z.number(),
+	q: z.number().positive(),
+});
+type Sprite = z.infer<typeof spriteSchema>;
+
+// sprites.json: форма перевіряється, бо файл прийшов з мережі
+export const atlasSchema = z.object({
+	version: z.number(),
+	image: z.string(),
+	sprites: z.record(z.string(), spriteSchema),
+});
+
+interface Sheet {
+	readonly image: CanvasImageSource;
+	readonly sprites: Readonly<Record<string, Sprite>>;
+}
+
+let sheet: Sheet | null = null;
 
 // ---------- опис того, що пакуємо ----------
 // draw(g, q): g уже обрізаний по комірці й зсунутий в точку-якір, у пікселях
-function definitions() {
-	const list = [];
+interface Item {
+	readonly name: string;
+	readonly w: number;
+	readonly h: number;
+	readonly ox: number;
+	readonly oy: number;
+	readonly q: number;
+	draw(g: Ctx, q: number): void;
+}
 
-	for (const id of Object.keys(PILOTS)) {
+// Item, якому призначено місце в аркуші (піксельні розміри pw, ph)
+interface Placed extends Item {
+	readonly x: number;
+	readonly y: number;
+	readonly pw: number;
+	readonly ph: number;
+}
+
+function definitions(): Item[] {
+	const list: Item[] = [];
+
+	for (const id of PILOT_IDS) {
 		for (let k = 0; k < FRAMES; k++) {
 			list.push({
 				name: `biplane:${id}:${k}`,
@@ -88,39 +133,38 @@ function definitions() {
 	return list;
 }
 
-// «поличкове» пакування: рядки за спаданням висоти; повертає висоту аркуша
-function layout(items) {
+// «поличкове» пакування: рядки за спаданням висоти; повертає розміщені елементи й висоту аркуша
+function layout(items: readonly Item[]): { placed: Placed[]; height: number } {
 	let x = 0;
 	let y = 0;
 	let rowH = 0;
+	const placed: Placed[] = [];
 	const sorted = [...items].sort((a, b) => b.h * b.q - a.h * a.q);
 	for (const it of sorted) {
-		it.pw = Math.ceil(it.w * it.q);
-		it.ph = Math.ceil(it.h * it.q);
-		if (x + it.pw + PAD > SHEET_W) {
+		const pw = Math.ceil(it.w * it.q);
+		const ph = Math.ceil(it.h * it.q);
+		if (x + pw + PAD > SHEET_W) {
 			x = 0;
 			y += rowH + PAD;
 			rowH = 0;
 		}
-		it.x = x;
-		it.y = y;
-		x += it.pw + PAD;
-		rowH = Math.max(rowH, it.ph);
+		placed.push({ ...it, x, y, pw, ph });
+		x += pw + PAD;
+		rowH = Math.max(rowH, ph);
 	}
-	return y + rowH + PAD;
+	return { placed, height: y + rowH + PAD };
 }
 
-function bake() {
-	const items = definitions();
-	const height = layout(items);
+function bake(): { image: HTMLCanvasElement; sprites: Record<string, Sprite> } {
+	const { placed, height } = layout(definitions());
 
 	const canvas = document.createElement("canvas");
 	canvas.width = SHEET_W;
 	canvas.height = height;
-	const g = canvas.getContext("2d");
+	const g = context2d(canvas);
 
-	const sprites = {};
-	for (const it of items) {
+	const sprites: Record<string, Sprite> = {};
+	for (const it of placed) {
 		g.save();
 		g.beginPath();
 		g.rect(it.x, it.y, it.pw, it.ph);
@@ -142,11 +186,15 @@ function bake() {
 }
 
 // ---------- ініціалізація ----------
-// assets: результат loadAll; spritesheet (ImageBitmap) і atlas (JSON) можуть бути null
-export function initSprites(assets) {
+// assets: результат loadAll; spritesheet (ImageBitmap) і atlas (JSON) можуть бути відсутні
+export function initSprites(assets: Readonly<Record<string, unknown>>): {
+	source: string;
+	count: number;
+} {
 	let source = "файл";
-	if (assets.spritesheet && assets.atlas?.sprites) {
-		sheet = { image: assets.spritesheet, sprites: assets.atlas.sprites };
+	const atlas = atlasSchema.safeParse(assets.atlas);
+	if (assets.spritesheet instanceof ImageBitmap && atlas.success) {
+		sheet = { image: assets.spritesheet, sprites: atlas.data.sprites };
 	} else {
 		sheet = bake();
 		source = "запечений у пам'яті (файлів немає)";
@@ -156,9 +204,11 @@ export function initSprites(assets) {
 }
 
 // ?bake: завантажує sprites.png і sprites.json, їх кладемо в public/assets/
-export function downloadSheet() {
+export function downloadSheet(): void {
 	const b = bake();
-	b.image.toBlob((blob) => save(blob, "sprites.png"));
+	b.image.toBlob((blob) => {
+		if (blob) save(blob, "sprites.png");
+	});
 	setTimeout(() => {
 		const json = JSON.stringify(
 			{ version: FORMAT, image: "sprites.png", sprites: b.sprites },
@@ -169,7 +219,7 @@ export function downloadSheet() {
 	}, 300);
 }
 
-function save(blob, name) {
+function save(blob: Blob, name: string): void {
 	const a = document.createElement("a");
 	a.href = URL.createObjectURL(blob);
 	a.download = name;
@@ -178,12 +228,13 @@ function save(blob, name) {
 }
 
 // ---------- малювання ----------
-function get(name) {
+function get(name: string): Sprite | undefined {
 	return sheet?.sprites[name];
 }
 
 // малює у (0, 0) поточної системи координат
-function blit(ctx, s) {
+function blit(ctx: Ctx, s: Sprite): void {
+	if (!sheet) return;
 	ctx.drawImage(
 		sheet.image,
 		s.x,
@@ -197,23 +248,34 @@ function blit(ctx, s) {
 	);
 }
 
-function drawCloudBody(ctx, radius) {
+function drawCloudBody(ctx: Ctx, radius: number): boolean {
 	const s = get(`cloud:${radius}`);
-	if (!s) return false; // невідомий розмір: obstacles.js малює сам
+	if (!s) return false; // невідомий розмір: obstacles.ts малює сам
 	blit(ctx, s);
 	return true;
 }
 
-export function drawBiplane(ctx, time, pilotId) {
+export function drawBiplane(ctx: Ctx, time: number, pilotId: PilotId): void {
 	const k = Math.floor(time / FRAME_MS) % FRAMES;
 	const s = get(`biplane:${pilotId}:${k}`);
-	if (!s) return drawBiplaneProc(ctx, time, pilotId);
+	if (!s) {
+		drawBiplaneProc(ctx, time, pilotId);
+		return;
+	}
 	blit(ctx, s);
 }
 
-export function drawBullet(ctx, b, x, y) {
+export function drawBullet(
+	ctx: Ctx,
+	b: BulletLook,
+	x: number,
+	y: number,
+): void {
 	const s = get("bullet");
-	if (!s) return drawBulletProc(ctx, b, x, y);
+	if (!s) {
+		drawBulletProc(ctx, b, x, y);
+		return;
+	}
 
 	const beat = 1 + 0.08 * Math.sin(b.ttl * 24);
 	const tilt = Math.sin(b.ttl * 12) * 0.18;
@@ -238,9 +300,18 @@ export function drawBullet(ctx, b, x, y) {
 	ctx.restore();
 }
 
-export function drawPickup(ctx, e, x, y, time) {
+export function drawPickup(
+	ctx: Ctx,
+	e: PickupLook,
+	x: number,
+	y: number,
+	time: number,
+): void {
 	const s = get(`pickup:${e.type}`);
-	if (!s) return drawPickupProc(ctx, e, x, y, time);
+	if (!s) {
+		drawPickupProc(ctx, e, x, y, time);
+		return;
+	}
 	if (e.life < 0.25 && Math.floor(time / 120) % 2 === 0) return;
 
 	ctx.save();

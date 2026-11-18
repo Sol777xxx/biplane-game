@@ -18,7 +18,7 @@ interface ExplosionOptions {
 }
 
 // короткий візуальний ефект (кільце + спалах); нічого не колізить (radius 0)
-class Explosion extends Entity<"explosion"> {
+export class Explosion extends Entity<"explosion"> {
 	readonly size: number;
 	readonly color: ExplosionColor;
 
@@ -40,7 +40,7 @@ interface ParticleOptions {
 }
 
 // частинка: звичайний Entity + дві поведінки
-class Particle extends Entity<"particle"> {
+export class Particle extends Entity<"particle"> {
 	readonly color: ExplosionColor;
 
 	constructor({ x, y, vx, vy, color, ttl }: ParticleOptions) {
@@ -108,9 +108,12 @@ export function createFx(bus: Subscribable<FxEvents>) {
 		view<T>(game: HasWorld<T>) {
 			return {
 				world: {
-					*ofKind(kind: string): Generator<T | Entity> {
+					*ofKind(kind: string): Generator<T | Particle | Explosion> {
 						yield* game.world.ofKind(kind);
-						yield* world.ofKind(kind);
+						for (const e of world.ofKind(kind)) {
+							// у світі ефектів лише частинки й вибухи; instanceof звужує тип без приведення
+							if (e instanceof Particle || e instanceof Explosion) yield e;
+						}
 					},
 				},
 			};

@@ -18,13 +18,13 @@ import { createPredictor } from "./net/predictor.ts";
 import { joinRoom } from "./net/roomSession.ts";
 import { createSnapshotView } from "./net/snapshotView.ts";
 import { createNetStats, summarize } from "./netStats.ts";
-import { DEFAULT_PILOT, PILOTS } from "./render/pilots/index.js";
-import { createRenderer } from "./render/renderer.js";
-import { downloadSheet, initSprites } from "./render/sprites.js";
+import { DEFAULT_PILOT, PILOTS } from "./render/pilots/index.ts";
+import { createRenderer } from "./render/renderer.ts";
+import { downloadSheet, initSprites } from "./render/sprites.ts";
 import { mountChat } from "./ui/chatPanel.ts";
 import { showLobby } from "./ui/lobbyView.ts";
 import { mountNetgraph } from "./ui/netgraph.ts";
-import { createPilotPicker } from "./ui/pilotPicker.js";
+import { createPilotPicker } from "./ui/pilotPicker.ts";
 
 const STORAGE_KEY = "biplane-pilot";
 const PROBE_SECONDS = 5;

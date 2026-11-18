@@ -1,17 +1,18 @@
-import { drawBiplane } from "../render/biplane.js";
-import { PILOTS } from "../render/pilots/index.js";
+import { drawBiplane } from "../render/biplane.ts";
+import { context2d } from "../render/canvas.ts";
+import { PILOTS, type Pilot, type PilotId } from "../render/pilots/index.ts";
 
 const W = 40;
 const H = 32;
 
-function drawIcon(canvas, pilot) {
+function drawIcon(canvas: HTMLCanvasElement, pilot: Pilot): void {
 	const dpr = window.devicePixelRatio || 1;
 	canvas.width = W * dpr;
 	canvas.height = H * dpr;
 	canvas.style.width = `${W}px`;
 	canvas.style.height = `${H}px`;
 
-	const ctx = canvas.getContext("2d");
+	const ctx = context2d(canvas);
 	ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
 	if (pilot.id === "empty") {
@@ -27,10 +28,18 @@ function drawIcon(canvas, pilot) {
 	}
 }
 
-export function createPilotPicker(container, { current, onSelect }) {
-	const buttons = new Map();
+export interface PilotPickerOptions {
+	readonly current: PilotId;
+	readonly onSelect: (id: PilotId) => void;
+}
 
-	function setActive(id) {
+export function createPilotPicker(
+	container: HTMLElement,
+	{ current, onSelect }: PilotPickerOptions,
+): void {
+	const buttons = new Map<PilotId, HTMLButtonElement>();
+
+	function setActive(id: PilotId): void {
 		for (const [pilotId, btn] of buttons) {
 			btn.classList.toggle("active", pilotId === id);
 			btn.setAttribute("aria-pressed", String(pilotId === id));

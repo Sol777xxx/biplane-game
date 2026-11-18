@@ -1,10 +1,16 @@
+import { type Ctx, context2d } from "./canvas.ts";
+
 const TAU = Math.PI * 2;
 
 // Візуальний розмір хмарки відносно хітбокса
 export const VISUAL_SCALE = 1.3;
 
-// Основні пухкі форми: [dx, dy, r] у частках радіуса
-const PUFFS = [
+// точка [x, y] і прямокутник [x, y, w, h]
+type Point = readonly [x: number, y: number];
+type Rect = readonly [x: number, y: number, w: number, h: number];
+
+// Основні пухкі форми: [dx, dy, k] у частках радіуса
+const RAW_PUFFS: readonly (readonly [dx: number, dy: number, k: number])[] = [
 	[-0.05, 0.0, 0.52],
 	[-0.55, 0.1, 0.4],
 	[0.45, 0.08, 0.44],
@@ -15,7 +21,10 @@ const PUFFS = [
 	[0.98, 0.15, 0.3],
 	[0.1, 0.24, 0.42],
 	[-0.4, 0.28, 0.32],
-].map(([dx, dy, k]) => [dx - 0.1, dy, k]);
+];
+const PUFFS = RAW_PUFFS.map(
+	([dx, dy, k]): readonly [number, number, number] => [dx - 0.1, dy, k],
+);
 
 const C = {
 	// Сірі грозові кольори
@@ -36,7 +45,7 @@ const C = {
 };
 
 // Інтервали виникнення блискавок
-const CHANNELS = [
+const CHANNELS: readonly (readonly [slot: number, offset: number])[] = [
 	[520, 0],
 	[690, 211],
 	[850, 433],
@@ -49,12 +58,12 @@ const BIG_CHANCE = 0.15;
 const SMALL_POWER = 0.3;
 
 // Стабільне псевдовипадкове число
-function hash(n) {
+function hash(n: number): number {
 	const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
 	return x - Math.floor(x);
 }
 
-function makeRng(seed) {
+function makeRng(seed: number): () => number {
 	let s = (Math.floor(Math.abs(seed)) % 2147483646) + 1;
 
 	return () => {
@@ -64,8 +73,16 @@ function makeRng(seed) {
 }
 
 // Визначення моменту спалаху
-function strikeAt(time, id, k) {
-	const [slot, off] = CHANNELS[k];
+interface Strike {
+	readonly e: number;
+	readonly power: number;
+	readonly seed: number;
+}
+
+function strikeAt(time: number, id: number, k: number): Strike | null {
+	const channel = CHANNELS[k];
+	if (!channel) return null;
+	const [slot, off] = channel;
 	const tt = time + id * 531 + off;
 	const n = Math.floor(tt / slot);
 
@@ -92,7 +109,13 @@ function strikeAt(time, id, k) {
 }
 
 // Геометрія основної блискавки та її відгалужень
-function strikeGeometry(seed, r) {
+interface Geometry {
+	readonly main: readonly Point[];
+	readonly branches: readonly (readonly Point[])[];
+	readonly mid: Point;
+}
+
+function strikeGeometry(seed: number, r: number): Geometry {
 	const rnd = makeRng(seed);
 
 	const a0 = rnd() * TAU;
@@ -113,7 +136,7 @@ function strikeGeometry(seed, r) {
 	const px = -dy / len;
 	const py = dx / len;
 
-	const main = [];
+	const main: Point[] = [];
 
 	for (let i = 0; i <= N; i++) {
 		const u = i / N;
@@ -122,16 +145,18 @@ function strikeGeometry(seed, r) {
 		main.push([x0 + dx * u + px * j, y0 + dy * u + py * j]);
 	}
 
-	const branches = [];
+	const branches: Point[][] = [];
 	const nb = 1 + Math.floor(rnd() * 2);
 
 	for (let b = 0; b < nb; b++) {
 		const index = 2 + Math.floor(rnd() * (N - 3));
-		const [sx, sy] = main[index];
+		const start = main[index];
+		if (!start) continue;
+		const [sx, sy] = start;
 
 		let ang = Math.atan2(dy, dx) + (rnd() < 0.5 ? -1 : 1) * (0.5 + rnd() * 0.5);
 
-		const branch = [[sx, sy]];
+		const branch: Point[] = [[sx, sy]];
 		let cx = sx;
 		let cy = sy;
 
@@ -150,12 +175,12 @@ function strikeGeometry(seed, r) {
 	return {
 		main,
 		branches,
-		mid: main[Math.floor(N / 2)],
+		mid: main[Math.floor(N / 2)] ?? [x0, y0],
 	};
 }
 
 // Єдиний шлях силуету з великих пухких форм
-function puffPath(ctx, r, mul = 1, ox = 0, oy = 0) {
+function puffPath(ctx: Ctx, r: number, mul = 1, ox = 0, oy = 0): void {
 	ctx.beginPath();
 
 	for (const [dx, dy, k] of PUFFS) {
@@ -169,7 +194,7 @@ function puffPath(ctx, r, mul = 1, ox = 0, oy = 0) {
 }
 
 // Малювання лінії блискавки
-function strokeLine(ctx, pts) {
+function strokeLine(ctx: Ctx, pts: readonly Point[]): void {
 	ctx.beginPath();
 
 	pts.forEach(([x, y], i) => {
@@ -185,18 +210,24 @@ function strokeLine(ctx, pts) {
 
 // Створення статичного тіла хмари
 export const HALF = 1.8;
-const bodyCache = new Map();
+const bodyCache = new Map<number, HTMLCanvasElement>();
 
-// Внутрішня тін    : заливаємо все кольором, потім вирізаємо розмитий
+// Внутрішня тінь: заливаємо все кольором, потім вирізаємо розмитий
 // зсунутий силует (тінь малюється через зсув, самого силуету на полотні немає)
-function insetShade(r, color, ox, oy, blur) {
+function insetShade(
+	r: number,
+	color: string,
+	ox: number,
+	oy: number,
+	blur: number,
+): HTMLCanvasElement {
 	const px = Math.ceil(2 * HALF * r);
 	const FAR = px * 4;
 
 	const t = document.createElement("canvas");
 	t.width = t.height = px;
 
-	const tg = t.getContext("2d");
+	const tg = context2d(t);
 	tg.translate(px / 2, px / 2);
 
 	tg.fillStyle = color;
@@ -215,7 +246,7 @@ function insetShade(r, color, ox, oy, blur) {
 	return t;
 }
 
-export function paintBody(g, r) {
+export function paintBody(g: Ctx, r: number): void {
 	// 1. Темний край силуету
 	g.save();
 
@@ -232,7 +263,7 @@ export function paintBody(g, r) {
 	puffPath(g, r);
 	g.clip();
 
-	const full = [-HALF * r, -HALF * r, 2 * HALF * r, 2 * HALF * r];
+	const full: Rect = [-HALF * r, -HALF * r, 2 * HALF * r, 2 * HALF * r];
 
 	// 2. Базова сіра заливка
 	const base = g.createLinearGradient(0, -0.7 * r, 0, 0.75 * r);
@@ -313,7 +344,7 @@ export function paintBody(g, r) {
 }
 
 // Кешування готового тіла, щоб не перемальовувати його щокадру
-function getBody(r, scale) {
+function getBody(r: number, scale: number): HTMLCanvasElement {
 	const key = Math.max(8, Math.round(r * scale));
 
 	let c = bodyCache.get(key);
@@ -328,7 +359,7 @@ function getBody(r, scale) {
 		c = document.createElement("canvas");
 		c.width = c.height = px;
 
-		const g = c.getContext("2d");
+		const g = context2d(c);
 		g.translate(px / 2, px / 2);
 
 		paintBody(g, key);
@@ -338,18 +369,35 @@ function getBody(r, scale) {
 
 	return c;
 }
-let bodySprites = null;
-// sprites.js підставляє сюди функцію (ctx, radius) => true, якщо тіло намальоване зі спрайтшита
-export function setBodySprites(fn) {
+
+// малює тіло зі спрайтшита (true) або повідомляє, що спрайта немає (false)
+type BodySprites = (ctx: Ctx, radius: number) => boolean;
+let bodySprites: BodySprites | null = null;
+
+// sprites.ts підставляє сюди функцію (ctx, radius) => true, якщо тіло намальоване зі спрайтшита
+export function setBodySprites(fn: BodySprites | null): void {
 	bodySprites = fn;
 }
+
+// що потрібно хмарці для малювання (підходить і Obstacle з sim, і хмарка зі знімка)
+export interface ObstacleLook {
+	readonly id: number;
+	readonly radius: number;
+}
+
 // Малювання грозової хмарки
-export function drawObstacle(ctx, o, x, y, time) {
+export function drawObstacle(
+	ctx: Ctx,
+	o: ObstacleLook,
+	x: number,
+	y: number,
+	time: number,
+): void {
 	const r = o.radius * VISUAL_SCALE;
 
 	const bob = Math.sin(time * 0.002 + o.id) * r * 0.05;
 
-	const strikes = [];
+	const strikes: (Strike & { readonly geo: Geometry })[] = [];
 	let lit = 0;
 
 	for (let k = 0; k < CHANNELS.length; k++) {
@@ -359,8 +407,7 @@ export function drawObstacle(ctx, o, x, y, time) {
 			continue;
 		}
 
-		s.geo = strikeGeometry(s.seed, r);
-		strikes.push(s);
+		strikes.push({ ...s, geo: strikeGeometry(s.seed, r) });
 
 		lit = Math.max(lit, s.e * s.power);
 	}
@@ -413,7 +460,7 @@ export function drawObstacle(ctx, o, x, y, time) {
 
 	ctx.globalCompositeOperation = "lighter";
 
-	const full = [-HALF * r, -HALF * r, 2 * HALF * r, 2 * HALF * r];
+	const full: Rect = [-HALF * r, -HALF * r, 2 * HALF * r, 2 * HALF * r];
 
 	const idle = ctx.createRadialGradient(0, 0.25 * r, 0, 0, 0.25 * r, 1.1 * r);
 
@@ -497,7 +544,9 @@ export function drawObstacle(ctx, o, x, y, time) {
 		}
 
 		// Яскраві точки на кінцях
-		for (const [px, py] of [s.geo.main[0], s.geo.main[s.geo.main.length - 1]]) {
+		for (const end of [s.geo.main[0], s.geo.main[s.geo.main.length - 1]]) {
+			if (!end) continue;
+			const [px, py] = end;
 			const pr = Math.max(1.5, r * 0.035);
 
 			const dot = ctx.createRadialGradient(px, py, 0, px, py, pr);

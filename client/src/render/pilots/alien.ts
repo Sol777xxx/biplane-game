@@ -1,5 +1,15 @@
+import type { Pilot } from "./types.ts";
+
 // (0, 0) — центр кабіни, герой дивиться праворуч
-export const alien = {
+// цяточки на маківці: [x, y, радіус]
+const SPOTS: readonly (readonly [x: number, y: number, r: number])[] = [
+	[-3, -17.5, 0.6],
+	[0, -18.3, 0.8],
+	[3.5, -17.8, 0.6],
+	[6, -16.5, 0.5],
+];
+
+export const alien: Pilot = {
 	id: "alien",
 	name: "Зелений чоловічок",
 	draw(ctx, time) {
@@ -84,12 +94,7 @@ export const alien = {
 
 		// цяточки на маківці
 		ctx.fillStyle = "rgba(47, 107, 74, 0.35)";
-		for (const [px, py, pr] of [
-			[-3, -17.5, 0.6],
-			[0, -18.3, 0.8],
-			[3.5, -17.8, 0.6],
-			[6, -16.5, 0.5],
-		]) {
+		for (const [px, py, pr] of SPOTS) {
 			ctx.beginPath();
 			ctx.arc(px, py, pr, 0, Math.PI * 2);
 			ctx.fill();

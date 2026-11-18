@@ -1,4 +1,12 @@
-export const CLOUDS = [
+import { type Ctx, context2d } from "./canvas.ts";
+
+export interface Cloud {
+	readonly x: number;
+	readonly y: number;
+	readonly s: number;
+}
+
+export const CLOUDS: readonly Cloud[] = [
 	{ x: 250, y: 160, s: 1.2 },
 	{ x: 900, y: 110, s: 1.6 },
 	{ x: 1350, y: 300, s: 1 },
@@ -7,7 +15,7 @@ export const CLOUDS = [
 ];
 
 // Бульбашки хмарки в локальних координатах (центр = 0,0): [cx, cy, r]
-const PUFFS = [
+const PUFFS: readonly (readonly [cx: number, cy: number, r: number])[] = [
 	[-28, -26, 52],
 	[46, -14, 42],
 	[100, 10, 25],
@@ -29,9 +37,9 @@ const SPRITE_W = 300;
 const SPRITE_H = 200;
 const QUALITY = 2;
 
-let sprite = null;
+let sprite: HTMLCanvasElement | null = null;
 
-function puffPath(ctx) {
+function puffPath(ctx: Ctx): void {
 	ctx.beginPath();
 	for (const [cx, cy, r] of PUFFS) {
 		ctx.moveTo(cx + r, cy);
@@ -39,11 +47,11 @@ function puffPath(ctx) {
 	}
 }
 
-function buildSprite() {
+function buildSprite(): HTMLCanvasElement {
 	const c = document.createElement("canvas");
 	c.width = SPRITE_W * QUALITY;
 	c.height = SPRITE_H * QUALITY;
-	const g = c.getContext("2d");
+	const g = context2d(c);
 	g.scale(QUALITY, QUALITY);
 	g.translate(SPRITE_W / 2, SPRITE_H / 2);
 
@@ -90,7 +98,7 @@ function buildSprite() {
 	return c;
 }
 
-export function drawCloud(ctx, { x, y, s }, alpha = 0.7) {
+export function drawCloud(ctx: Ctx, { x, y, s }: Cloud, alpha = 0.7): void {
 	if (!sprite) sprite = buildSprite();
 	ctx.save();
 	ctx.globalAlpha = alpha;

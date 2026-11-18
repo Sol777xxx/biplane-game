@@ -1,11 +1,12 @@
-import { drawStrut, drawWing } from "./parts.js";
-import { getPilot } from "./pilots/index.js";
+import type { Ctx } from "./canvas.ts";
+import { drawStrut, drawWing } from "./parts.ts";
+import { getPilot, type PilotId } from "./pilots/index.ts";
 
 // точка сидіння пілота в координатах літака
 const SEAT = { x: 8, y: -10 };
 
 // ---------- хвіст ----------
-function drawTail(ctx) {
+function drawTail(ctx: Ctx): void {
 	ctx.lineCap = "round";
 	ctx.lineJoin = "round";
 
@@ -156,7 +157,7 @@ function drawTail(ctx) {
 }
 
 // ---------- ніс: капот, радіатор, пропелер ----------
-function drawNose(ctx, time) {
+function drawNose(ctx: Ctx, time: number): void {
 	ctx.lineCap = "round";
 	ctx.lineJoin = "round";
 
@@ -292,7 +293,7 @@ function drawNose(ctx, time) {
 }
 
 // ---------- кабіна ----------
-function drawCockpit(ctx, time, pilotId) {
+function drawCockpit(ctx: Ctx, time: number, pilotId: PilotId): void {
 	// чаша закриває обводку фюзеляжу в отворі
 	ctx.fillStyle = "#9b86c9";
 	ctx.beginPath();
@@ -355,7 +356,7 @@ function drawCockpit(ctx, time, pilotId) {
 }
 
 // ---------- літак ----------
-export function drawBiplane(ctx, time, pilotId) {
+export function drawBiplane(ctx: Ctx, time: number, pilotId: PilotId): void {
 	ctx.lineCap = "round";
 	ctx.lineJoin = "round";
 

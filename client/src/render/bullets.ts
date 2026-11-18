@@ -1,7 +1,10 @@
+import type { Vec2 } from "biplane-shared/sim/vector.ts";
+import type { Ctx } from "./canvas.ts";
+
 const TAU = Math.PI * 2;
 
 // серце з центром (0, 0), s — масштаб (ширина ≈ 1.8·s, висота ≈ 1.25·s)
-function heartPath(ctx, s) {
+function heartPath(ctx: Ctx, s: number): void {
 	ctx.beginPath();
 	ctx.moveTo(0, 0.9 * s);
 	ctx.bezierCurveTo(-1.3 * s, 0.1 * s, -0.9 * s, -0.9 * s, 0, -0.35 * s);
@@ -9,8 +12,19 @@ function heartPath(ctx, s) {
 	ctx.closePath();
 }
 
+// що потрібно кулі для малювання (підходить і Bullet з sim, і куля зі знімка)
+export interface BulletLook {
+	readonly ttl: number;
+	readonly vel: Vec2;
+}
+
 // куля-серденько: рожеве серце з хвостом із маленьких сердечок проти польоту
-export function drawBullet(ctx, b, x, y) {
+export function drawBullet(
+	ctx: Ctx,
+	b: BulletLook,
+	x: number,
+	y: number,
+): void {
 	// ttl зменшується з часом, тож дає і пульсацію, і погойдування без нового стану
 	const beat = 1 + 0.08 * Math.sin(b.ttl * 24);
 	const tilt = Math.sin(b.ttl * 12) * 0.18;

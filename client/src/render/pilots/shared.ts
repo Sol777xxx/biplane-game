@@ -1,5 +1,7 @@
+import type { Ctx } from "../canvas.ts";
+
 // авіаційні окуляри; (x, y) це центр лінзи
-export function drawGoggles(ctx, x, y) {
+export function drawGoggles(ctx: Ctx, x: number, y: number): void {
 	// ремінець
 	ctx.strokeStyle = "#7d68b0";
 	ctx.lineWidth = 1.6;
@@ -25,7 +27,13 @@ export function drawGoggles(ctx, x, y) {
 }
 
 // шарф, що майорить назад; (x, y) це місце на шиї
-export function drawScarf(ctx, time, x, y, color) {
+export function drawScarf(
+	ctx: Ctx,
+	time: number,
+	x: number,
+	y: number,
+	color: string,
+): void {
 	ctx.strokeStyle = color;
 	ctx.lineWidth = 3.2;
 	ctx.lineCap = "round";

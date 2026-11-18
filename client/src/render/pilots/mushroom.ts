@@ -1,5 +1,13 @@
+import type { Pilot } from "./types.ts";
+
 // (0, 0) — центр кабіни, герой дивиться праворуч
-export const mushroom = {
+// зірочки, що мерехтять: [x, y, фаза]
+const STARS: readonly (readonly [x: number, y: number, phase: number])[] = [
+	[-6, -12, 0],
+	[8, -17, 2],
+];
+
+export const mushroom: Pilot = {
 	id: "mushroom",
 	name: "Грибок",
 	draw(ctx, time) {
@@ -89,10 +97,7 @@ export const mushroom = {
 		ctx.stroke();
 
 		// зірочки, що мерехтять
-		for (const [sx, sy, phase] of [
-			[-6, -12, 0],
-			[8, -17, 2],
-		]) {
+		for (const [sx, sy, phase] of STARS) {
 			const a = 0.5 + 0.5 * Math.sin(time * 0.006 + phase);
 			ctx.fillStyle = `rgba(255, 255, 255, ${a})`;
 			ctx.beginPath();

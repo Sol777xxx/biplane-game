@@ -1,4 +1,15 @@
-export function drawWing(ctx, x, y, w, h, base, light, dark) {
+import type { Ctx } from "./canvas.ts";
+
+export function drawWing(
+	ctx: Ctx,
+	x: number,
+	y: number,
+	w: number,
+	h: number,
+	base: string,
+	light: string,
+	dark: string,
+): void {
 	ctx.save();
 	ctx.beginPath();
 	ctx.moveTo(x, y + h * 0.6);
@@ -48,7 +59,14 @@ export function drawWing(ctx, x, y, w, h, base, light, dark) {
 	ctx.stroke();
 }
 
-export function drawStrut(ctx, x1, y1, x2, y2, width) {
+export function drawStrut(
+	ctx: Ctx,
+	x1: number,
+	y1: number,
+	x2: number,
+	y2: number,
+	width: number,
+): void {
 	ctx.strokeStyle = "#7d68b0";
 	ctx.lineWidth = width;
 	ctx.beginPath();
