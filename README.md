@@ -63,16 +63,53 @@ npm run dev                            # термінал 2: клієнт (Vite)
 ## Архітектура
 
 ```
-client/                  усе, що було в лабах 1–3 (Vite, canvas, ассети)
-  src/net/
-    connection.ts        обгортка над WebSocket: черга, reconnect з backoff, бінарні кадри
-    roomSession.ts       join кімнати поверх connection, seq/ack, ping, netsim
-    predictor.ts         передбачення свого корабля, звірка, згладжування поправки
-    interpolator.ts      буфер знімків, чужі сутності малюються на now − delay
-    snapshotView.ts, events.ts   знімок → стан для малювання, події
-  src/ui/netgraph.ts     панель мережі; src/netStats.ts вимірювання
-  src/ui/chatPanel.ts    чат (textContent, без innerHTML)
-  tools/                 dogfight.mjs (боти), random-drift.mjs (дослід з Math.random)
+client/
+  index.html             сторінка з canvas і панелями, підключає src/main.ts
+  vite.config.ts         конфіг Vite: збірка, dev-сервер, заглушки /api
+  tsconfig.json          налаштування tsc для браузера (DOM, bundler)
+  tsconfig.node.json     те саме для vite.config.ts (Node)
+  public/                статика, яку Vite не обробляє
+    assets/              manifest.json, sprites.json, arena.json, звуки .wav, broken.json (для ?chaos)
+    api/rooms.json       список кімнат для режиму без сервера
+  src/
+    main.ts              точка входу: ассети, лобі, з'єднання, цикл; режими ?debug, ?hash, ?chaos
+    loop.ts              ігровий цикл: окремо кроки й кадри, лічильники steps/s і frames/s
+    input.ts             клавіатура → п'ять ключів вводу для сервера + службові дії H і N
+    fx.ts                частинки та вибухи, підписані на шину подій
+    hud.ts               спливаючі «+N» над збитою хмаркою
+    loadingScreen.ts     екран завантаження, текст помилок
+    lobby.ts             список кімнат і вибір кімнати
+    netStats.ts          метрики для netgraph (без DOM і годинника)
+    assets/
+      loader.ts          fetch з retry і backoff, loadAll з прогресом, перевірка Zod
+      audio/audio.ts     звуки; підписка на шину, sim про звук нічого не знає
+    render/              уся канвас-графіка
+      renderer.ts        малює кадр: switch за kind сутності, assertNever
+      canvas.ts          тип Ctx і context2d() зі зрозумілою помилкою
+      sprites.ts         спрайти з атласу, без нього процедурне малювання
+      biplane.ts         біплан, крила й стійки (parts.ts)
+      bullets.ts         кулі
+      shield.ts          щит
+      clouds.ts          фонові хмарки
+      obstacles.ts       хмарки-перешкоди
+      effects.ts         pickup'и й вибухи
+      pilots/            герої в кабіні: mushroom, alien, empty
+    net/                 мережа клієнта
+      connection.ts      WebSocket: черга, reconnect з backoff, бінарні кадри
+      roomSession.ts     join кімнати поверх connection, seq/ack, ping, netsim
+      predictor.ts       передбачення свого корабля, звірка, згладжування
+      interpolator.ts    буфер знімків, чужі сутності на now − delay
+      snapshotView.ts    знімок → стан для малювання
+      events.ts          події мережі (Zod) і типізована шина
+      typedTarget.ts     EventTarget із типізованими подіями
+    ui/                  DOM-панелі
+      dom.ts             el() і query(): текст лише через textContent
+      chatPanel.ts       чат (без innerHTML)
+      lobbyView.ts       екран лобі
+      netgraph.ts        панель мережі (RTT, вік знімка, байти/с, поправка)
+      pilotPicker.ts     вибір героя
+  test/                  node --test: клієнтська логіка без браузера
+  tools/                 dogfight.mjs (боти), random-drift.mjs (дослід з Math.random), make-sounds.mjs (звуки)
 shared/                  код, спільний для клієнта й сервера
   sim/                   симуляція (random.ts, hash.ts, snapshot.ts, scenario.ts, …)
   protocol/, codec/      типи повідомлень, binary.ts (специфікація в коментарі), json.ts
@@ -95,7 +132,6 @@ server/
     log/replay.ts        читання NDJSON потоком
   tools/                 chat-client, flood, bigframe, lag-demo
   test/                  node --test
-docs/                    demo.gif, скріншоти netgraph
 ```
 
 ## Конфігурація
@@ -276,6 +312,34 @@ room "event" → NdjsonTransform (objectMode) → createWriteStream(<LOG_DIR>/<r
 Рішення за замовчуванням: фреймворк не потрібен. Гра це canvas, власний цикл з фіксованим кроком і кілька DOM-панелей (лобі, чат, netgraph), і весь стан керується відповідно до того, що приходить із сервера. Фреймворк тут додав би залежність і шар між нашим циклом малювання і DOM, а проблем, які він розв'язує, у нас майже немає. Безпеку дають типи й схеми на межах, а не бібліотека для інтерфейсу. Рішення варто переглянути, якщо інтерфейс (лобі, налаштування, таблиця результатів) вирости в багато екранів із складним станом.
 Звичайне число перетворюється на `Seq` лише через `toSeq`, який перевіряє значення.
 
+## Невеликі досліди з типами
+
+Налаштування як у проєкті: `strict`, `noUncheckedIndexedAccess`, `erasableSyntaxOnly`, `verbatimModuleSyntax`. Вивід реальний (`tsc`).
+
+1. **Зайве поле: змінна проти літерала.** Присвоєння через змінну з зайвим `y` проходить, бо структурна типізація дивиться лише на потрібні поля. А свіжий літерал із зайвим полем відхиляється (перевірка «excess property»):
+   ```
+   error TS2741: Property 'z' is missing in type '{ x: number; y: number; }' but required in type 'A'.
+   error TS2353: Object literal may only specify known properties, and 'y' does not exist in type 'B'.
+   ```
+   Тут `A = { x: number; z: number }`, `B = { x: number }`, `p = { x: 1, y: 2 }`. Присвоєння `q: B = p` помилки не дає, а літерал `r: B = { x: 1, y: 2 }` дає TS2353.
+2. **`Map.get` під `strict`.** `const s: string = m.get(1)` дає `error TS2322: Type 'string | undefined' is not assignable to type 'string'.` Три виправлення: `!` (ми обіцяємо компілятору), `?? ""` (значення за замовчуванням) і `if (s !== undefined)` (звуження, найчесніше). У проєкті використано друге й третє, а `!` немає взагалі.
+3. **Вичерпний `switch`.** Додали `{ type: "chat"; text: string }` в об'єднання без нової гілки:
+   ```
+   error TS2322: Type '{ type: "chat"; text: string; }' is not assignable to type 'never'.
+   ```
+   Так працюють усі наші `switch` по `type` і `kind`.
+4. **`JSON.parse` і `unknown`.** `const raw: unknown = JSON.parse(...)`, далі `raw.type` дає `error TS18046: 'raw' is of type 'unknown'.` Доступ відкриває лише схема Zod (`safeParse`) або перевірка типу.
+5. **`enum` у режимі стирання типів.** Node 24 лише стирає типи, тому `enum` і параметри-властивості (`constructor(public v: number)`) заборонені:
+   ```
+   error TS1294: This syntax is not allowed when 'erasableSyntaxOnly' is enabled.
+   ```
+   Замість `enum` у проєкті об'єднання рядкових літералів (`"mushroom" | "alien" | "empty"`).
+6. **Branded-тип.** `Seq` і `Tick` це числа, але не взаємозамінні:
+   ```
+   error TS2345: Argument of type 'Tick' is not assignable to parameter of type 'Seq'.
+   error TS2345: Argument of type 'number' is not assignable to parameter of type 'Seq'.
+   ```
+   Звичайне число перетворюється на `Seq` лише через `toSeq`, який перевіряє значення.
 ## Reflection
 
 1. **Структурна типізація.** Тип визначає форма (поля), а не ім'я класу чи оголошення `implements`. У проєкті `drawBullet(ctx, b: BulletLook, ...)` приймає і клас `Bullet` із симуляції, і звичайний об'єкт `ViewBullet` зі знімка мережі: вони не мають спільного предка й не оголошують спільний інтерфейс, їм достатньо полів `ttl` і `vel`. Так само `TypedBus` і будь-який тестовий підставний об'єкт підходять під `Subscribable<E>`. У C# чи Java довелося б явно оголосити спільний інтерфейс і реалізувати його в обох класах.
