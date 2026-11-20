@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { binary } from "../codec/binary.ts";
 import { json } from "../codec/json.ts";
 import { TICK_RATE } from "../sim/time.ts";

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
-import { after, afterEach, before, describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
+import { afterAll, afterEach, beforeAll, describe, it } from "vitest";
 import WebSocket from "ws";
 import { createApp } from "../src/app.ts";
 import { silentLogger } from "../src/logger.ts";
@@ -14,7 +14,7 @@ let url;
 let counter = 0;
 const open = [];
 
-before(async () => {
+beforeAll(async () => {
 	rooms = new RoomManager();
 	room = rooms.create({ name: "T", max: 8, permanent: true });
 	app = createApp(
@@ -27,7 +27,7 @@ before(async () => {
 afterEach(() => {
 	for (const c of open.splice(0)) c.ws.terminate();
 });
-after(() => app.close());
+afterAll(() => app.close());
 
 const KEYS = { up: false, down: false, left: false, right: false, fire: false };
 const input = (seq, extra = {}) => ({

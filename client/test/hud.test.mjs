@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
 import { TypedBus } from "biplane-shared/sim/bus.ts";
+import { describe, it } from "vitest";
 import { createHud } from "../src/hud.ts";
 
 // ctx-заглушка: запам'ятовує виклики методів, присвоєння властивостей ігнорує

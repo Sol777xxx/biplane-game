@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
-import { after, before, describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
 import { DEFAULT_ARENA } from "biplane-shared/sim/game.ts";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import { createApp } from "../../server/src/app.ts";
 import { silentLogger } from "../../server/src/logger.ts";
 import { RoomManager } from "../../server/src/rooms.ts";
@@ -14,7 +14,7 @@ let app;
 let rooms;
 let url;
 
-before(async () => {
+beforeAll(async () => {
 	rooms = new RoomManager();
 	const config = {
 		port: 0,
@@ -31,7 +31,7 @@ before(async () => {
 	const { port } = await app.listen();
 	url = `ws://127.0.0.1:${port}/ws`;
 });
-after(() => app.close());
+afterAll(() => app.close());
 
 const newRoom = () =>
 	rooms.create({ name: "T", max: 4, permanent: true, arena: DEFAULT_ARENA }).id;

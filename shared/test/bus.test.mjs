@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { Game } from "../sim/game.ts";
 import { Bullet } from "../sim/objects.ts";
 import { TICK_DT } from "../sim/time.ts";

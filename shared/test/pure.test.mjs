@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 
 // усе, що імпортують і клієнт, і сервер, має бути чистим
 const DIRS = ["sim", "protocol", "codec"].map(

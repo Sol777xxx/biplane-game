@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
-import { after, before, describe, it, mock } from "node:test";
 import { encodeSnapshot } from "biplane-shared/codec/binary.ts";
 import { make } from "biplane-shared/protocol/index.ts";
 import { DEFAULT_ARENA } from "biplane-shared/sim/game.ts";
 import { createScenario } from "biplane-shared/sim/scenario.ts";
 import { takeSnapshot } from "biplane-shared/sim/snapshot.ts";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import { WebSocketServer } from "ws";
 import { createApp } from "../../server/src/app.ts";
 import { silentLogger } from "../../server/src/logger.ts";
@@ -60,7 +60,11 @@ describe("Connection: бінарні кадри", { timeout: 15_000 }, () => {
 	});
 
 	it("зламані й чужі бінарні кадри ігноруються, з'єднання живе", async () => {
-		const warn = mock.method(console, "warn", () => {});
+		const originalWarn = console.warn;
+		let warned = 0;
+		console.warn = () => {
+			warned++;
+		};
 		try {
 			const frame = encodeSnapshot(sampleMessage());
 			const { url } = await wsServer((ws) => {
@@ -79,9 +83,9 @@ describe("Connection: бінарні кадри", { timeout: 15_000 }, () => {
 			await waitFor(() => chats.length === 1);
 			assert.equal(snaps.length, 0);
 			assert.equal(c.state, "open");
-			assert.equal(warn.mock.callCount(), 4);
+			assert.equal(warned, 4);
 		} finally {
-			warn.mock.restore();
+			console.warn = originalWarn;
 		}
 	});
 
@@ -106,7 +110,7 @@ let app;
 let rooms;
 let url;
 
-before(async () => {
+beforeAll(async () => {
 	rooms = new RoomManager();
 	app = createApp(
 		{ port: 0, host: "127.0.0.1", clientDir: tmpdir(), logDir: tmpdir() },
@@ -115,7 +119,7 @@ before(async () => {
 	const { port } = await app.listen();
 	url = `ws://127.0.0.1:${port}/ws`;
 });
-after(async () => {
+afterAll(async () => {
 	for (const c of conns) c.close();
 	for (const wss of servers) {
 		for (const ws of wss.clients) ws.terminate();

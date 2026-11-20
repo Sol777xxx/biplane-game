@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import http from "node:http";
-import { after, before, describe, it } from "node:test";
 import { DEFAULT_ARENA } from "biplane-shared/sim/game.ts";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import { sleep } from "../src/assets/loader.ts";
 import { Lobby } from "../src/lobby.ts";
 
@@ -15,7 +15,7 @@ const ROOMS = {
 let server;
 let base;
 
-before(async () => {
+beforeAll(async () => {
 	server = http.createServer((req, res) => {
 		const u = new URL(req.url, "http://x");
 		const delay = Number(u.searchParams.get("delay") ?? 0);
@@ -28,7 +28,7 @@ before(async () => {
 	await new Promise((r) => server.listen(0, r));
 	base = `http://127.0.0.1:${server.address().port}`;
 });
-after(() => server.close());
+afterAll(() => server.close());
 
 function collect(lobby, type) {
 	const seen = [];

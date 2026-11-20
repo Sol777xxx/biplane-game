@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { createInterpolator, TICK_MS } from "../src/net/interpolator.ts";
 import { createSnapshotView } from "../src/net/snapshotView.ts";
 

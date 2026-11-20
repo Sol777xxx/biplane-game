@@ -4,7 +4,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"test": "node --test \"test/*.test.mjs\"",
+		"test": "vitest run",
 		"bench": "node tools/bench-codec.mjs",
 		"typecheck": "tsc -p tsconfig.json"
 	},

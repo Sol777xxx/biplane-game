@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { Game } from "../sim/game.ts";
 import { takeSnapshot } from "../sim/snapshot.ts";
 import { TICK_DT } from "../sim/time.ts";

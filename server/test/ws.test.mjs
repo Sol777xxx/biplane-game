@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
-import { after, describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
+import { afterAll, describe, it } from "vitest";
 import WebSocket from "ws";
 import { createApp } from "../src/app.ts";
 import { silentLogger } from "../src/logger.ts";
@@ -28,7 +28,7 @@ async function start(wsOptions = {}) {
 	apps.push(app);
 	return { app, rooms, port, url: `ws://127.0.0.1:${port}/ws` };
 }
-after(() => Promise.all(apps.map((a) => a.close())));
+afterAll(() => Promise.all(apps.map((a) => a.close())));
 
 const within = (promise, ms = 1500) =>
 	Promise.race([

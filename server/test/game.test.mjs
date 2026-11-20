@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
-import { after, before, describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import WebSocket from "ws";
 import { createApp } from "../src/app.ts";
 import { silentLogger } from "../src/logger.ts";
@@ -13,7 +13,7 @@ let wsUrl;
 let httpUrl;
 const open = [];
 
-before(async () => {
+beforeAll(async () => {
 	rooms = new RoomManager();
 	app = createApp(
 		{ port: 0, host: "127.0.0.1", clientDir: tmpdir(), logDir: tmpdir() },
@@ -23,7 +23,7 @@ before(async () => {
 	wsUrl = `ws://127.0.0.1:${port}/ws`;
 	httpUrl = `http://127.0.0.1:${port}`;
 });
-after(async () => {
+afterAll(async () => {
 	for (const ws of open) ws.terminate();
 	await app.close();
 });

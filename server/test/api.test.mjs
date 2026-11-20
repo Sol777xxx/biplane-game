@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
-import { after, before, describe, it } from "node:test";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import { createApp } from "../src/app.ts";
 import { RoomManager } from "../src/rooms.ts";
 
 let app;
 let url;
 
-before(async () => {
+beforeAll(async () => {
 	const rooms = new RoomManager();
 	app = createApp(
 		{ port: 0, host: "127.0.0.1", clientDir: tmpdir(), logDir: tmpdir() },
@@ -16,7 +16,7 @@ before(async () => {
 	const { port } = await app.listen();
 	url = `http://127.0.0.1:${port}/api/rooms`;
 });
-after(() => app.close());
+afterAll(() => app.close());
 
 const post = (body, type = "application/json") =>
 	fetch(url, {

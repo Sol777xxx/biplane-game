@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { after, describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
+import { afterAll, describe, it } from "vitest";
 import { WebSocketServer } from "ws";
 import { backoffDelay, Connection } from "../src/net/connection.ts";
 import { chatMsg, waitFor } from "./helpers.mjs";
@@ -27,7 +27,7 @@ function client(url, options) {
 	return c;
 }
 
-after(() => {
+afterAll(() => {
 	for (const c of conns) c.close();
 	for (const w of servers) {
 		for (const ws of w.clients) ws.terminate();

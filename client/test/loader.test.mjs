@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import http from "node:http";
-import { after, before, describe, it } from "node:test";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import {
 	fetchJson,
 	HttpError,
@@ -14,7 +14,7 @@ let server;
 let base;
 const hits = {};
 
-before(async () => {
+beforeAll(async () => {
 	server = http.createServer((req, res) => {
 		const u = new URL(req.url, "http://x");
 		hits[u.pathname] = (hits[u.pathname] ?? 0) + 1;
@@ -41,7 +41,7 @@ before(async () => {
 	await new Promise((r) => server.listen(0, r));
 	base = `http://127.0.0.1:${server.address().port}`;
 });
-after(() => server.close());
+afterAll(() => server.close());
 
 describe("fetchJson", () => {
 	it("віддає JSON", async () => {

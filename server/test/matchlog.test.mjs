@@ -4,17 +4,17 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { after, before, describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import { createMatchLogs, NdjsonTransform } from "../src/log/matchlog.ts";
 import { silentLogger } from "../src/logger.ts";
 import { Room } from "../src/rooms.ts";
 
 let base;
-before(async () => {
+beforeAll(async () => {
 	base = await mkdtemp(path.join(tmpdir(), "biplane-log-"));
 });
-after(() => rm(base, { recursive: true, force: true }));
+afterAll(() => rm(base, { recursive: true, force: true }));
 
 async function readEvents(file) {
 	const text = await readFile(file, "utf8");

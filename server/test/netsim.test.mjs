@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
-import { after, afterEach, describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
+import { afterAll, afterEach, describe, it } from "vitest";
 import WebSocket from "ws";
 import { createApp } from "../src/app.ts";
 import { silentLogger } from "../src/logger.ts";
@@ -292,7 +292,7 @@ async function startApp({ netsim, game = false }) {
 afterEach(() => {
 	for (const ws of open.splice(0)) ws.terminate();
 });
-after(() => Promise.all(apps.map((app) => app.close())));
+afterAll(() => Promise.all(apps.map((app) => app.close())));
 
 async function waitFor(condition, ms = 4000) {
 	const end = Date.now() + ms;

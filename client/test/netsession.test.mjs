@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
-import { after, before, describe, it } from "node:test";
 import { makeInput } from "biplane-shared/protocol/index.ts";
 import { DEFAULT_ARENA } from "biplane-shared/sim/game.ts";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import { createApp } from "../../server/src/app.ts";
 import { silentLogger } from "../../server/src/logger.ts";
 import { RoomManager } from "../../server/src/rooms.ts";
@@ -39,11 +39,11 @@ async function startApp(enableNetsim) {
 
 let on;
 let off;
-before(async () => {
+beforeAll(async () => {
 	on = await startApp(true);
 	off = await startApp(false);
 });
-after(async () => {
+afterAll(async () => {
 	for (const s of sessions) s.leave();
 	await Promise.all(apps.map((app) => app.close()));
 });

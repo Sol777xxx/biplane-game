@@ -2,17 +2,17 @@ import assert from "node:assert/strict";
 import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { after, before, describe, it } from "node:test";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import { createMatchLogs } from "../src/log/matchlog.ts";
 import { readEvents, replayStream } from "../src/log/replay.ts";
 import { silentLogger } from "../src/logger.ts";
 import { Room } from "../src/rooms.ts";
 
 let base;
-before(async () => {
+beforeAll(async () => {
 	base = await mkdtemp(path.join(tmpdir(), "biplane-replay-"));
 });
-after(() => rm(base, { recursive: true, force: true }));
+afterAll(() => rm(base, { recursive: true, force: true }));
 
 async function file(name, text) {
 	const f = path.join(base, name);

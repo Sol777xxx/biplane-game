@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
-import { after, afterEach, before, describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
 import { decodeSnapshot, encodeInput } from "biplane-shared/codec/binary.ts";
+import { afterAll, afterEach, beforeAll, describe, it } from "vitest";
 import WebSocket from "ws";
 import { createApp } from "../src/app.ts";
 import { silentLogger } from "../src/logger.ts";
@@ -13,7 +13,7 @@ let rooms;
 let url;
 const open = [];
 
-before(async () => {
+beforeAll(async () => {
 	rooms = new RoomManager();
 	app = createApp(
 		{ port: 0, host: "127.0.0.1", clientDir: tmpdir(), logDir: tmpdir() },
@@ -25,7 +25,7 @@ before(async () => {
 afterEach(() => {
 	for (const c of open.splice(0)) c.ws.terminate();
 });
-after(() => app.close());
+afterAll(() => app.close());
 
 const newRoom = () => rooms.create({ name: "B", max: 8, permanent: true }).id;
 

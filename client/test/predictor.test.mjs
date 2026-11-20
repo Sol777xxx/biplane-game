@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
 import { Game } from "biplane-shared/sim/game.ts";
 import { takeSnapshot } from "biplane-shared/sim/snapshot.ts";
 import { TICK_DT } from "biplane-shared/sim/time.ts";
+import { describe, it } from "vitest";
 import { createPredictor } from "../src/net/predictor.ts";
 import { createSnapshotView } from "../src/net/snapshotView.ts";
 

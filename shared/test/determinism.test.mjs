@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it, mock } from "node:test";
+import { describe, it } from "vitest";
 import { hashGame } from "../sim/hash.ts";
 import { mulberry32 } from "../sim/random.ts";
 import { createScenario, runScenario } from "../sim/scenario.ts";
@@ -39,15 +39,20 @@ describe("детермінізм", () => {
 		const boom = (name) => () => {
 			throw new Error(`${name} у sim`);
 		};
-		const mocks = [
-			mock.method(Math, "random", boom("Math.random")),
-			mock.method(Date, "now", boom("Date.now")),
-			mock.method(performance, "now", boom("performance.now")),
+		const targets = [
+			["Math.random", Math, "random"],
+			["Date.now", Date, "now"],
+			["performance.now", performance, "now"],
 		];
+		const saved = targets.map(([, obj, key]) => obj[key]);
+		for (const [name, obj, key] of targets) obj[key] = boom(name);
 		try {
 			runScenario({ ticks: 300 });
 		} finally {
-			for (const m of mocks) m.mock.restore();
+			for (let i = 0; i < targets.length; i++) {
+				const [, obj, key] = targets[i];
+				obj[key] = saved[i];
+			}
 		}
 	});
 });

@@ -3,15 +3,15 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import http from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { after, before, describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import { createApp } from "../src/app.ts";
 
 let base;
 let app;
 let port;
 
-before(async () => {
+beforeAll(async () => {
 	base = await mkdtemp(path.join(tmpdir(), "biplane-"));
 	const dist = path.join(base, "dist");
 	await mkdir(dist);
@@ -27,7 +27,7 @@ before(async () => {
 	({ port } = await app.listen());
 });
 
-after(async () => {
+afterAll(async () => {
 	await app.close();
 	await rm(base, { recursive: true, force: true });
 });

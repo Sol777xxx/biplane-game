@@ -3,8 +3,8 @@ import { mkdir, mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
 import http from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { after, before, describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
+import { afterAll, beforeAll, describe, it } from "vitest";
 import { createApp } from "../src/app.ts";
 import { silentLogger } from "../src/logger.ts";
 
@@ -26,7 +26,7 @@ async function startApp(dir) {
 	return { app, port };
 }
 
-before(async () => {
+beforeAll(async () => {
 	base = await mkdtemp(path.join(tmpdir(), "biplane-replays-"));
 	logDir = path.join(base, "logs");
 	await mkdir(logDir);
@@ -48,7 +48,7 @@ before(async () => {
 	main = await startApp(logDir);
 });
 
-after(async () => {
+afterAll(async () => {
 	await Promise.all(apps.map((app) => app.close()));
 	await rm(base, { recursive: true, force: true });
 });

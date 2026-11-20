@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import { printReport, runDogfight } from "../tools/dogfight.mjs";
 
 describe("dogfight: два боти на справжньому клієнтському коді", {

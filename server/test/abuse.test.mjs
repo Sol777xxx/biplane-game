@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
-import { after, describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
+import { afterAll, describe, it } from "vitest";
 import { createApp } from "../src/app.ts";
 import { silentLogger } from "../src/logger.ts";
 
@@ -19,7 +19,7 @@ async function start(extra = {}) {
 	apps.push(app);
 	return `http://127.0.0.1:${port}`;
 }
-after(() => Promise.all(apps.map((a) => a.close())));
+afterAll(() => Promise.all(apps.map((a) => a.close())));
 
 const createRoom = (base, name) =>
 	fetch(`${base}/api/rooms`, {
