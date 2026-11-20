@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { tmpdir } from "node:os";
 import { setTimeout as sleep } from "node:timers/promises";
-import { afterAll, describe, it } from "vitest";
+import { afterAll, describe, it, vi } from "vitest";
 import WebSocket from "ws";
 import { createApp } from "../src/app.ts";
 import { silentLogger } from "../src/logger.ts";
@@ -230,6 +230,49 @@ describe("WebSocket", () => {
 		await sleep(300); // ~10 ping
 		assert.equal(c.ws.readyState, WebSocket.OPEN);
 		c.ws.close();
+	});
+
+	it("heartbeat на фейкових таймерах: розрив після двох пропущених pong", async () => {
+		vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+		try {
+			const { app, rooms, url } = await start({
+				pingIntervalMs: 15_000,
+				maxMissedPongs: 2,
+			});
+			const room = rooms.create({ name: "А" });
+			const c = await joined(url, room.id, "Настя", { autoPong: false });
+			const [server] = app.sockets.wss.clients;
+			const missed = () => app.sockets.sessionOf(server).missedPongs;
+			assert.equal(missed(), 0);
+			vi.advanceTimersByTime(15_000);
+			assert.equal(missed(), 1);
+			vi.advanceTimersByTime(15_000);
+			assert.equal(missed(), 2);
+			assert.equal(c.ws.readyState, WebSocket.OPEN);
+			vi.advanceTimersByTime(15_000);
+			assert.equal((await within(c.closed)).code, 1006);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it("heartbeat: pong скидає лічильник пропусків", async () => {
+		vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+		try {
+			const { app, rooms, url } = await start({
+				pingIntervalMs: 15_000,
+				maxMissedPongs: 2,
+			});
+			const room = rooms.create({ name: "А" });
+			const c = await joined(url, room.id, "Настя");
+			const [server] = app.sockets.wss.clients;
+			vi.advanceTimersByTime(15_000);
+			await sleep(50); // pong іде реальною мережею
+			assert.equal(app.sockets.sessionOf(server).missedPongs, 0);
+			c.ws.close();
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	it("graceful shutdown закриває сокети кодом 1001", async () => {

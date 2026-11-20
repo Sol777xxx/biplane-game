@@ -10,6 +10,7 @@ export default defineConfig({
 			include: ["shared/{codec,protocol,sim}/**/*.ts"],
 			reporter: ["text", "html"],
 			reportsDirectory: "coverage",
+			thresholds: { statements: 85, branches: 85, functions: 85, lines: 85 },
 		},
 	},
 });
