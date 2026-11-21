@@ -85,7 +85,7 @@ export class Lobby extends TypedTarget<LobbyEvents> {
 				this.#timer = setTimeout(tick, this.#intervalMs);
 			}
 		};
-		tick();
+		void tick();
 	}
 
 	stop(): void {

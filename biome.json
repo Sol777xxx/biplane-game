@@ -16,9 +16,16 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"preset": "recommended"
+			"preset": "recommended",
+			"nursery": { "noFloatingPromises": "error" }
 		}
 	},
+	"overrides": [
+		{
+			"includes": ["shared/test/properties.test.mjs"],
+			"linter": { "rules": { "nursery": { "noFloatingPromises": "off" } } }
+		}
+	],
 	"javascript": {
 		"formatter": {
 			"quoteStyle": "double"

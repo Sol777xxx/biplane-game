@@ -17,10 +17,12 @@
 		"test:watch": "vitest",
 		"coverage": "vitest run --coverage",
 		"check": "biome check .",
-		"typecheck": "npm run typecheck --workspaces --if-present"
+		"typecheck": "npm run typecheck --workspaces --if-present && tsc -p e2e/tsconfig.json",
+		"e2e": "playwright test"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.15",
+		"@playwright/test": "^1.65.1",
 		"@types/node": "^26.6.6",
 		"@vitest/coverage-v8": "^5.1.1",
 		"fast-check": "^4.10.3",

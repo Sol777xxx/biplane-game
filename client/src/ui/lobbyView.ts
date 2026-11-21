@@ -168,7 +168,7 @@ export function showLobby<R extends object>(
 		nameInput.addEventListener(
 			"keydown",
 			(e) => {
-				if (e.key === "Enter") join();
+				if (e.key === "Enter") void join();
 			},
 			{ signal },
 		);

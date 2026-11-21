@@ -137,7 +137,7 @@ export function createMatchLogs({ dir, log }: MatchLogsOptions): MatchLogs {
 
 		active.set(room.id, entry);
 		pending.add(done);
-		done.finally(() => pending.delete(done));
+		void done.finally(() => pending.delete(done));
 	}
 
 	return {

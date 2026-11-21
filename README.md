@@ -1,6 +1,6 @@
 # Biplane Game
 
-Лабораторна робота 6: «TypeScript для протоколу і симуляції».
+Лабораторна робота 7: «V8, пам’ять і тести».
 
 Браузерна гра: пастельний біплан, яким літаєш по арені на canvas.
 - [lab-01](https://github.com/Sol777xxx/biplane-game/tree/lab-01): ігровий цикл, фіксований крок, експерименти з event loop.
@@ -8,6 +8,7 @@
 - [lab-03](https://github.com/Sol777xxx/biplane-game/tree/lab-03): пайплайн ассетів, екран завантаження, звук, шина подій, лобі.
 - [lab-04](https://github.com/Sol777xxx/biplane-game/tree/lab-04): Node.js сервер, EventEmitter, streams, WebSocket-сервер.
 - [lab-05](https://github.com/Sol777xxx/biplane-game/tree/lab-05): сервер рахує гру, передбачення й звірка, бінарний протокол.
+- [lab-06](https://github.com/Sol777xxx/biplane-game/tree/lab-06): міграція на TypeScript, типи як договір, Zod на межах.
 
 
 ## Запуск
