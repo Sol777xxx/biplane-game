@@ -26,11 +26,14 @@ const { values: args } = parseArgs({
 		url: { type: "string" }, // уже запущений сервер замість власного
 		marks: { type: "boolean", default: false }, // ?perf=marks
 		headed: { type: "boolean", default: false },
+		// уповільнення CPU у N разів (Emulation.setCPUThrottlingRate): слабший пристрій
+		throttle: { type: "string", default: "1" },
 	},
 });
 const SECONDS = Number(args.seconds);
 const BOTS = Number(args.bots);
 const BASE = args.url ?? `http://127.0.0.1:${args.port}`;
+const THROTTLE = Number(args.throttle);
 const OUT = "docs/perf";
 
 async function api(path, method = "GET", body) {
@@ -124,6 +127,11 @@ async function main() {
 			timeout: 5000,
 		});
 
+		if (THROTTLE > 1) {
+			const cdp = await context.newCDPSession(page);
+			await cdp.send("Emulation.setCPUThrottlingRate", { rate: THROTTLE });
+			console.log(`CPU уповільнено у ${THROTTLE} р.`);
+		}
 		console.log("розігрів 3 с…");
 		await drive(page, 3);
 		await page.evaluate(() => Reflect.get(window, "perfStats").reset());
@@ -153,6 +161,7 @@ async function main() {
 				bots: BOTS,
 				seconds: SECONDS,
 				marks: args.marks,
+				throttle: THROTTLE,
 			},
 			perf,
 			perfProfiled,

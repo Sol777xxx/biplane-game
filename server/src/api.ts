@@ -132,10 +132,16 @@ export function createApi(
 ) => Promise<void> {
 	// Завантаження циклу подій рахується лише там, де є гра: у тестах таймер не потрібен.
 	// Кожне читання /api/stats охоплює час від попереднього й скидає лічильники.
-	const loopDelay = matches ? monitorEventLoopDelay({ resolution: 10 }) : null;
+	const RESOLUTION_MS = 10;
+	const loopDelay = matches
+		? monitorEventLoopDelay({ resolution: RESOLUTION_MS })
+		: null;
 	loopDelay?.enable();
 	let lastElu = perfHooks.eventLoopUtilization();
-	const ms = (ns: number): number => Math.round(ns / 1e3) / 1e3;
+	// гістограма містить і сам інтервал опитування: у спокійного процесу вона показує ≈ resolution,
+	// тож справжня затримка це різниця
+	const ms = (ns: number): number =>
+		Math.max(0, Math.round(ns / 1e3) / 1e3 - RESOLUTION_MS);
 
 	return async function handleApi(req, res, pathname) {
 		const botsRoute = /^\/api\/rooms\/([^/]+)\/bots$/.exec(pathname);

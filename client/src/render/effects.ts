@@ -23,13 +23,22 @@ export interface Fading {
 	readonly life?: number; // 1 → 0, ставить поведінка lifetime
 }
 
+// Колір без прозорості, готовий заздалегідь; прозорість іде через globalAlpha.
+// Рядок `rgba(…, life)` на кожну частинку кожного кадру створював би тисячі рядків-сміття.
+const SOLID: Readonly<Record<ExplosionColor, string>> = {
+	pink: `rgb(${COLORS.pink.core})`,
+	storm: `rgb(${COLORS.storm.core})`,
+};
+
 export function drawParticle(ctx: Ctx, p: Fading, x: number, y: number): void {
-	const c = COLORS[p.color];
 	const life = p.life ?? 1;
-	ctx.fillStyle = `rgba(${c.core}, ${life})`;
+	ctx.fillStyle = SOLID[p.color];
+	// globalAlpha мовчки ігнорує значення поза 0..1, тож обмежуємо самі (як це робив rgba)
+	ctx.globalAlpha = Math.max(0, Math.min(1, life));
 	ctx.beginPath();
 	ctx.arc(x, y, 2 + 4 * life, 0, TAU);
 	ctx.fill();
+	ctx.globalAlpha = 1;
 }
 
 // вибух: спалах + кільце, що розширюється
