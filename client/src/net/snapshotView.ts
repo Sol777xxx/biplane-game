@@ -164,6 +164,7 @@ const emptyViews = (): Views => ({
 });
 
 type AnyView = ViewShip | ViewObstacle | ViewBullet | Bullet | ViewPickup;
+const NO_VIEWS: readonly AnyView[] = [];
 
 // Що клієнт знає про гру.
 //  you(): id цього гравця;
@@ -219,24 +220,29 @@ export function createSnapshotView({
 		}
 	};
 
-	// Перевантаження дають renderer точний тип за видом сутності.
-	function ofKind(kind: "biplane"): Generator<ViewShip>;
-	function ofKind(kind: "obstacle"): Generator<ViewObstacle>;
-	function ofKind(kind: "bullet"): Generator<ViewBullet | Bullet>;
-	function ofKind(kind: "pickup"): Generator<ViewPickup>;
-	function ofKind(kind: string): Generator<AnyView>;
-	function* ofKind(kind: string): Generator<AnyView> {
+	// Перевантаження дають renderer точний тип за видом сутності. Повертаємо масиви, а не
+	// генератори: генератор створював об'єкт результату на кожну сутність кожного кадру.
+	// Буфер для куль (знімок + власні передбачені) перевикористовується між викликами.
+	const bulletBuf: (ViewBullet | Bullet)[] = [];
+	function ofKind(kind: "biplane"): readonly ViewShip[];
+	function ofKind(kind: "obstacle"): readonly ViewObstacle[];
+	function ofKind(kind: "bullet"): readonly (ViewBullet | Bullet)[];
+	function ofKind(kind: "pickup"): readonly ViewPickup[];
+	function ofKind(kind: string): readonly AnyView[];
+	function ofKind(kind: string): readonly AnyView[] {
 		if (kind === "bullet") {
-			yield* views.bullet;
-			yield* shots?.() ?? [];
-		} else if (kind === "obstacle") {
-			yield* views.obstacle;
-		} else if (kind === "pickup") {
-			yield* views.pickup;
-		} else if (kind === "biplane") {
+			bulletBuf.length = 0;
+			for (const b of views.bullet) bulletBuf.push(b);
+			for (const b of shots?.() ?? []) bulletBuf.push(b);
+			return bulletBuf;
+		}
+		if (kind === "obstacle") return views.obstacle;
+		if (kind === "pickup") return views.pickup;
+		if (kind === "biplane") {
 			const p = local();
-			for (const e of views.biplane) {
-				if (e.mine && p) {
+			if (p) {
+				for (const e of views.biplane) {
+					if (!e.mine) continue;
 					e.pos = pt(p.pos.x, p.pos.y);
 					e.prevPos = pt(p.prevPos.x, p.prevPos.y);
 					e.vel = pt(p.vel.x, p.vel.y);
@@ -244,9 +250,10 @@ export function createSnapshotView({
 					e.prevPitch = p.prevPitch;
 					e.facing = p.facing;
 				}
-				yield e;
 			}
+			return views.biplane;
 		}
+		return NO_VIEWS;
 	}
 
 	return {

@@ -106,14 +106,24 @@ export function createFx(bus: Subscribable<FxEvents>) {
 		},
 		// renderer бачить ігровий світ і світ ефектів як один
 		view<T>(game: HasWorld<T>) {
+			// по одному буферу на вид, що перевикористовується: генератор тут створював
+			// об'єкт результату на кожну сутність кожного кадру
+			const merged = new Map<string, (T | Particle | Explosion)[]>();
 			return {
 				world: {
-					*ofKind(kind: string): Generator<T | Particle | Explosion> {
-						yield* game.world.ofKind(kind);
+					ofKind(kind: string): readonly (T | Particle | Explosion)[] {
+						let out = merged.get(kind);
+						if (!out) {
+							out = [];
+							merged.set(kind, out);
+						}
+						out.length = 0;
+						for (const e of game.world.ofKind(kind)) out.push(e);
 						for (const e of world.ofKind(kind)) {
 							// у світі ефектів лише частинки й вибухи; instanceof звужує тип без приведення
-							if (e instanceof Particle || e instanceof Explosion) yield e;
+							if (e instanceof Particle || e instanceof Explosion) out.push(e);
 						}
+						return out;
 					},
 				},
 			};

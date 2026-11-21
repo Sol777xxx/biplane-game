@@ -18,11 +18,6 @@ type OfKind<K extends string> = string extends K
 		? Entity<K>
 		: Extract<SimEntity, { kind: K }>;
 
-// Єдине місце, де рядок kind стає типом: клас сутності визначається її kind.
-function isKind<K extends string>(e: Entity, kind: K): e is OfKind<K> {
-	return e.kind === kind;
-}
-
 const SIM_KINDS: ReadonlySet<string> = new Set<SimKind>([
 	"biplane",
 	"bullet",
@@ -35,8 +30,27 @@ export function isSimEntity(e: Entity): e is SimEntity {
 	return SIM_KINDS.has(e.kind);
 }
 
+const NO_INPUTS: ReadonlyMap<EntityId, InputState | undefined> = new Map();
+const NONE: readonly never[] = [];
+
+// видалення мертвих зі збереженням порядку, без нового масиву
+function compact(list: Entity[]): void {
+	let w = 0;
+	for (let r = 0; r < list.length; r++) {
+		const e = list[r];
+		if (e?.alive) list[w++] = e;
+	}
+	list.length = w;
+}
+
 export class World implements EntityWorld, Iterable<Entity> {
 	#entities = new Map<EntityId, Entity>(); // id -> Entity
+	// Порядок створення тримаємо в масивах: усі сутності й окремо за видами. Раніше ofKind і
+	// ітерація світу були генераторами, і кожен next() створював об'єкт результату:
+	// найбільший алокатор клієнта після щита (лаб 7, профіль «after1»). Порядок у масивах
+	// збігається з порядком вставки в Map, тож хеш симуляції не змінюється.
+	#list: Entity[] = [];
+	#byKind = new Map<string, Entity[]>();
 	#nextId = 1; // id видає світ: клієнт і сервер рахують однаково
 	readonly events: SimEvent[] = []; // події кроку; їх читає Game
 	// шина для відв'язаних підписників (audio, HUD): сим їх не імпортує
@@ -50,6 +64,10 @@ export class World implements EntityWorld, Iterable<Entity> {
 		entity.world = this;
 		entity.id = toEntityId(this.#nextId++);
 		this.#entities.set(entity.id, entity);
+		this.#list.push(entity);
+		const bucket = this.#byKind.get(entity.kind);
+		if (bucket) bucket.push(entity);
+		else this.#byKind.set(entity.kind, [entity]);
 		return entity;
 	}
 
@@ -75,25 +93,30 @@ export class World implements EntityWorld, Iterable<Entity> {
 		return n;
 	}
 
-	*[Symbol.iterator](): Generator<Entity> {
-		yield* this.#entities.values();
+	[Symbol.iterator](): Iterator<Entity> {
+		return this.#list[Symbol.iterator]();
 	}
 
-	// генератор: віддає сутності одного виду по одній
-	*ofKind<K extends string>(kind: K): Generator<OfKind<K>> {
-		for (const e of this) {
-			if (isKind(e, kind)) yield e;
-		}
+	// Сутності одного виду в порядку створення. Це живий масив світу, а не копія: читати
+	// можна, міняти ні, а щоб вижити після step(), його треба скопіювати ([...world.ofKind(k)]).
+	// Сутності, створені під час обходу, у кінці масиву й потраплять у цей же обхід.
+	ofKind<K extends string>(kind: K): readonly OfKind<K>[] {
+		// у кошику лежать лише сутності цього виду (spawn кладе за entity.kind),
+		// тож звуження типу тут безпечне; поелементна перевірка коштувала б O(n) на виклик
+		return (this.#byKind.get(kind) ?? NONE) as readonly OfKind<K>[];
 	}
 
 	// inputs: Map<id сутності, стан вводу>
 	step(
 		dt: number,
-		inputs: ReadonlyMap<EntityId, InputState | undefined> = new Map(),
+		inputs: ReadonlyMap<EntityId, InputState | undefined> = NO_INPUTS,
 	): void {
-		// знімок: сутності, додані під час кроку, оновляться з наступного
-		for (const e of [...this]) {
-			if (e.alive) e.update(dt, inputs.get(e.id));
+		// n зафіксовано до циклу: сутності, додані під час кроку, лежать далі й оновляться
+		// з наступного кроку. Копія масиву для цього не потрібна.
+		const list = this.#list;
+		for (let i = 0, n = list.length; i < n; i++) {
+			const e = list[i];
+			if (e?.alive) e.update(dt, inputs.get(e.id));
 		}
 
 		for (const [a, b] of findCollisions(this)) {
@@ -107,8 +130,15 @@ export class World implements EntityWorld, Iterable<Entity> {
 	}
 
 	#sweep(): void {
-		for (const [id, e] of this.#entities) {
-			if (!e.alive) this.#entities.delete(id);
+		let dead = false;
+		for (const e of this.#list) {
+			if (!e.alive) {
+				dead = true;
+				this.#entities.delete(e.id);
+			}
 		}
+		if (!dead) return;
+		compact(this.#list);
+		for (const bucket of this.#byKind.values()) compact(bucket);
 	}
 }

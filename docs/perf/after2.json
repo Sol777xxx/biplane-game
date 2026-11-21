@@ -1,0 +1,303 @@
+{
+	"label": "after2",
+	"when": "2026-11-21T08:31:22.211Z",
+	"env": {
+		"chrome": "159.0.8154.6",
+		"node": "v24.13.0",
+		"cpu": "12th Gen Intel(R) Core(TM) i7-12700H",
+		"cores": 20,
+		"bots": 8,
+		"seconds": 30,
+		"marks": false,
+		"throttle": 4
+	},
+	"perf": {
+		"frame": {
+			"n": 493,
+			"avg": 5.667,
+			"p50": 5.3,
+			"p95": 9.2,
+			"p99": 12,
+			"max": 46.7
+		},
+		"slowFrames": 1,
+		"spans": {
+			"simulate": {
+				"n": 924,
+				"avg": 0.449,
+				"p50": 0.3,
+				"p95": 1,
+				"p99": 1.7,
+				"max": 8.6
+			},
+			"render": {
+				"n": 493,
+				"avg": 4.782,
+				"p50": 4.5,
+				"p95": 7.9,
+				"p99": 10.4,
+				"max": 46.3
+			},
+			"decode": {
+				"n": 955,
+				"avg": 0.224,
+				"p50": 0.2,
+				"p95": 0.6,
+				"p99": 1.4,
+				"max": 2.4
+			},
+			"reconcile": {
+				"n": 924,
+				"avg": 0.094,
+				"p50": 0,
+				"p95": 0.3,
+				"p99": 0.7,
+				"max": 1.4
+			}
+		},
+		"heapUsed": 10000000
+	},
+	"perfProfiled": {
+		"frame": {
+			"n": 509,
+			"avg": 5.442,
+			"p50": 5,
+			"p95": 9.7,
+			"p99": 12.4,
+			"max": 17
+		},
+		"slowFrames": 1,
+		"spans": {
+			"simulate": {
+				"n": 938,
+				"avg": 0.401,
+				"p50": 0.4,
+				"p95": 0.8,
+				"p99": 1.2,
+				"max": 7.7
+			},
+			"render": {
+				"n": 509,
+				"avg": 4.666,
+				"p50": 4.3,
+				"p95": 8.5,
+				"p99": 10.7,
+				"max": 14.1
+			},
+			"decode": {
+				"n": 974,
+				"avg": 0.242,
+				"p50": 0.2,
+				"p95": 0.6,
+				"p99": 1.2,
+				"max": 2.6
+			},
+			"reconcile": {
+				"n": 943,
+				"avg": 0.087,
+				"p50": 0,
+				"p95": 0.3,
+				"p99": 0.6,
+				"max": 2.1
+			}
+		},
+		"heapUsed": 10000000
+	},
+	"gc": {
+		"minor": {
+			"count": 11,
+			"totalMs": 23.8,
+			"maxMs": 4.5
+		},
+		"major": {
+			"count": 2,
+			"totalMs": 32,
+			"maxMs": 24.6
+		}
+	},
+	"cpu": {
+		"totalMs": 30446.7,
+		"activeMs": 30134.4,
+		"gcMs": 59,
+		"rows": [
+			{
+				"name": "drawImage",
+				"selfMs": 269.9,
+				"pct": 0.9
+			},
+			{
+				"name": "curve index-DVSpvM2K.js:10481",
+				"selfMs": 257.6,
+				"pct": 0.9
+			},
+			{
+				"name": "strokeText",
+				"selfMs": 184.8,
+				"pct": 0.6
+			},
+			{
+				"name": "drawObstacle index-DVSpvM2K.js:10349",
+				"selfMs": 119.3,
+				"pct": 0.4
+			},
+			{
+				"name": "draw index-DVSpvM2K.js:7009",
+				"selfMs": 106.8,
+				"pct": 0.4
+			},
+			{
+				"name": "send",
+				"selfMs": 86.5,
+				"pct": 0.3
+			},
+			{
+				"name": "createBufferSource",
+				"selfMs": 85.1,
+				"pct": 0.3
+			},
+			{
+				"name": "draw index-DVSpvM2K.js:11430",
+				"selfMs": 84.5,
+				"pct": 0.3
+			},
+			{
+				"name": "fill",
+				"selfMs": 80.3,
+				"pct": 0.3
+			},
+			{
+				"name": "decodeSnapshot index-DVSpvM2K.js:8548",
+				"selfMs": 69.3,
+				"pct": 0.2
+			},
+			{
+				"name": "stroke",
+				"selfMs": 60,
+				"pct": 0.2
+			},
+			{
+				"name": "addColorStop",
+				"selfMs": 53.6,
+				"pct": 0.2
+			},
+			{
+				"name": "strikeGeometry index-DVSpvM2K.js:10192",
+				"selfMs": 51.4,
+				"pct": 0.2
+			},
+			{
+				"name": "#applyEdges index-DVSpvM2K.js:262",
+				"selfMs": 48.3,
+				"pct": 0.2
+			},
+			{
+				"name": "restore",
+				"selfMs": 44.4,
+				"pct": 0.1
+			}
+		]
+	},
+	"heap": {
+		"totalBytes": 57253828,
+		"rows": [
+			{
+				"name": "drawObstacle index-DVSpvM2K.js:10349",
+				"bytes": 4635396,
+				"pct": 8.1
+			},
+			{
+				"name": "puffPath index-DVSpvM2K.js:10237",
+				"bytes": 4100200,
+				"pct": 7.2
+			},
+			{
+				"name": "draw index-DVSpvM2K.js:11430",
+				"bytes": 3443832,
+				"pct": 6
+			},
+			{
+				"name": "update index-DVSpvM2K.js:168",
+				"bytes": 2574180,
+				"pct": 4.5
+			},
+			{
+				"name": "#applyEdges index-DVSpvM2K.js:262",
+				"bytes": 2344632,
+				"pct": 4.1
+			},
+			{
+				"name": "(anonymous) index-DVSpvM2K.js:10249",
+				"bytes": 2279052,
+				"pct": 4
+			},
+			{
+				"name": "update index-DVSpvM2K.js:158",
+				"bytes": 2262648,
+				"pct": 4
+			},
+			{
+				"name": "strikeGeometry index-DVSpvM2K.js:10192",
+				"bytes": 2251048,
+				"pct": 3.9
+			},
+			{
+				"name": "drawBullet index-DVSpvM2K.js:11343",
+				"bytes": 1615008,
+				"pct": 2.8
+			},
+			{
+				"name": "drawShield index-DVSpvM2K.js:10531",
+				"bytes": 1598616,
+				"pct": 2.8
+			},
+			{
+				"name": "Particle index-DVSpvM2K.js:6910",
+				"bytes": 1454312,
+				"pct": 2.5
+			},
+			{
+				"name": "update index-DVSpvM2K.js:248",
+				"bytes": 1442856,
+				"pct": 2.5
+			},
+			{
+				"name": "push index-DVSpvM2K.js:7870",
+				"bytes": 1417188,
+				"pct": 2.5
+			},
+			{
+				"name": "ofKind index-DVSpvM2K.js:6956",
+				"bytes": 1293180,
+				"pct": 2.3
+			},
+			{
+				"name": "(anonymous) index-DVSpvM2K.js:8628",
+				"bytes": 1206148,
+				"pct": 2.1
+			}
+		]
+	},
+	"server": {
+		"tickMs": {
+			"n": 300,
+			"avg": 0.342,
+			"p50": 0.335,
+			"p95": 0.436,
+			"p99": 0.503,
+			"max": 1.122,
+			"jitter": 0.073
+		},
+		"eventLoop": {
+			"utilization": 0.02,
+			"delayMs": {
+				"p50": 5.539999999999999,
+				"p99": 13.379999999999999,
+				"max": 15.870000000000001
+			}
+		},
+		"memory": {
+			"rss": 82264064,
+			"heapUsed": 20004728
+		}
+	}
+}
