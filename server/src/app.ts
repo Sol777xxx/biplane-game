@@ -1,6 +1,7 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { createApi } from "./api.ts";
+import { createBots } from "./bots.ts";
 import type { Config } from "./config.ts";
 import { createMatchLogs, type MatchLogs } from "./log/matchlog.ts";
 import { consoleLogger, type Logger } from "./logger.ts";
@@ -48,13 +49,18 @@ export function createApp(
 ): App {
 	const serveStatic = createStaticHandler(config.clientDir);
 	const matches = game ? createMatches({ rooms, log, ...matchOptions }) : null;
+	const bots = createBots();
 	const handleApi = createApi(rooms, {
 		logDir: config.logDir,
 		enableSlow: config.enableSlow,
 		matches,
+		bots,
 	});
 	const startedAt = Date.now();
-	const closers: (() => void | Promise<void>)[] = [() => rooms.dispose()];
+	const closers: (() => void | Promise<void>)[] = [
+		() => bots.dispose(),
+		() => rooms.dispose(),
+	];
 
 	async function route(
 		req: http.IncomingMessage,

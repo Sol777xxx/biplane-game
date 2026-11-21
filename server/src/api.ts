@@ -1,8 +1,13 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import {
+	monitorEventLoopDelay,
+	performance as perfHooks,
+} from "node:perf_hooks";
 import { setTimeout as sleep } from "node:timers/promises";
 import type { ArenaConfig } from "biplane-shared/sim/game.ts";
 import { z } from "zod";
 import { readJsonBody } from "./body.ts";
+import type { BotManager } from "./bots.ts";
 import { listReplays, sendReplay } from "./replayRoutes.ts";
 import { HttpError, sendJson } from "./respond.ts";
 import {
@@ -25,7 +30,7 @@ const newRoomSchema = z.strictObject({
 		.min(1)
 		.max(24)
 		.refine((s) => !/\p{Cc}/u.test(s)),
-	max: z.number().int().min(1).max(8).default(4),
+	max: z.number().int().min(1).max(16).default(4),
 	preset: z
 		.custom<PresetName>((v) => typeof v === "string" && isPresetName(v))
 		.default("classic"),
@@ -34,7 +39,7 @@ const newRoomSchema = z.strictObject({
 // що не так з полем, людською мовою (схема каже лише «не пройшло»)
 const HINT: Readonly<Record<string, string>> = {
 	name: "рядок від 1 до 24 символів без керівних",
-	max: "ціле від 1 до 8",
+	max: "ціле від 1 до 16",
 	preset: `один із ${Object.keys(PRESETS).join(", ")}`,
 };
 
@@ -63,6 +68,12 @@ export function validateNewRoom(body: unknown): NewRoomSpec {
 	const { name, max, preset } = parsed.data;
 	return { name, max, arena: PRESETS[preset] };
 }
+
+// Тіло POST /api/rooms/:id/bots: скільки ботів додати й чи стріляти без упину.
+const botsSchema = z.strictObject({
+	count: z.number().int().min(1).max(16).default(1),
+	spray: z.boolean().default(false),
+});
 
 const MAX_SLOW_MS = 2000;
 
@@ -108,17 +119,54 @@ export interface ApiOptions {
 	readonly logDir: string;
 	readonly enableSlow?: boolean;
 	readonly matches?: MatchStatsSource | null;
+	readonly bots?: BotManager | null;
 }
 
 export function createApi(
 	rooms: RoomManager,
-	{ logDir, enableSlow = false, matches = null }: ApiOptions,
+	{ logDir, enableSlow = false, matches = null, bots = null }: ApiOptions,
 ): (
 	req: IncomingMessage,
 	res: ServerResponse,
 	pathname: string,
 ) => Promise<void> {
+	// Завантаження циклу подій рахується лише там, де є гра: у тестах таймер не потрібен.
+	// Кожне читання /api/stats охоплює час від попереднього й скидає лічильники.
+	const loopDelay = matches ? monitorEventLoopDelay({ resolution: 10 }) : null;
+	loopDelay?.enable();
+	let lastElu = perfHooks.eventLoopUtilization();
+	const ms = (ns: number): number => Math.round(ns / 1e3) / 1e3;
+
 	return async function handleApi(req, res, pathname) {
+		const botsRoute = /^\/api\/rooms\/([^/]+)\/bots$/.exec(pathname);
+		if (botsRoute) {
+			const room = rooms.get(decodeURIComponent(botsRoute[1] ?? ""));
+			if (!bots) throw new HttpError(404, "not found");
+			if (!room) throw new HttpError(404, "кімнату не знайдено");
+			if (req.method === "POST") {
+				const parsed = botsSchema.safeParse(await readJsonBody(req, MAX_BODY));
+				if (!parsed.success) {
+					throw new HttpError(400, "count: ціле від 1 до 16, spray: boolean");
+				}
+				try {
+					const added = bots.add(room, parsed.data.count, {
+						spray: parsed.data.spray,
+					});
+					sendJson(res, 201, { added, bots: bots.count(room) });
+				} catch (error: unknown) {
+					if (error instanceof RoomError)
+						throw new HttpError(409, error.message);
+					throw error;
+				}
+				return;
+			}
+			if (req.method === "DELETE") {
+				sendJson(res, 200, { removed: bots.clear(room) });
+				return;
+			}
+			res.setHeader("Allow", "POST, DELETE");
+			throw new HttpError(405, "method not allowed");
+		}
 		if (pathname === "/api/rooms") {
 			if (req.method === "GET") {
 				sendJson(res, 200, { rooms: rooms.list() });
@@ -148,10 +196,25 @@ export function createApi(
 				res.setHeader("Allow", "GET");
 				throw new HttpError(405, "method not allowed");
 			}
+			const elu = perfHooks.eventLoopUtilization(lastElu);
+			lastElu = perfHooks.eventLoopUtilization();
+			const { rss, heapUsed } = process.memoryUsage();
 			sendJson(res, 200, {
 				uptime: Math.round(process.uptime()),
 				rooms: matches?.stats() ?? [],
+				memory: { rss, heapUsed },
+				eventLoop: loopDelay
+					? {
+							utilization: Math.round(elu.utilization * 1000) / 1000,
+							delayMs: {
+								p50: ms(loopDelay.percentile(50)),
+								p99: ms(loopDelay.percentile(99)),
+								max: ms(loopDelay.max),
+							},
+						}
+					: null,
 			});
+			loopDelay?.reset();
 			return;
 		}
 		if (pathname === "/api/replays" || pathname.startsWith("/api/replays/")) {
