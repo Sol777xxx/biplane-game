@@ -11,6 +11,7 @@ import {
 	FRAME,
 	frameType,
 	PICKUP_TYPES as WIRE_PICKUPS,
+	withAck,
 } from "../codec/binary.ts";
 import { CODECS, getCodec } from "../codec/index.ts";
 import { json } from "../codec/json.ts";
@@ -372,6 +373,54 @@ describe("бінарний знімок: round-trip", () => {
 			encodeSnapshot(empty({ players: players(...ids) })),
 		);
 		assert.equal(out.players.length, 255);
+	});
+});
+
+describe("withAck: спільний кадр знімка", () => {
+	it("збігається байт у байт з кодуванням напряму, на справжніх знімках гри", () => {
+		const sc = createScenario({ seed: 9, players: 4 });
+		for (let i = 0; i < 400; i++) {
+			sc.step();
+			const base = make("snapshot", {
+				...takeSnapshot(sc.game),
+				events: [],
+				ack: 0,
+			});
+			const shared = encodeSnapshot(base);
+			const ack = (i * 7919) % 100000;
+			assert.deepEqual(
+				[...withAck(shared, ack)],
+				[...encodeSnapshot({ ...base, ack })],
+				`тік ${base.tick}`,
+			);
+		}
+	});
+
+	it("не змінює спільний кадр і віддає незалежну копію", () => {
+		const shared = encodeSnapshot(layoutMsg());
+		const before = [...shared];
+		const a = withAck(shared, 5);
+		const b = withAck(shared, 6);
+		assert.deepEqual([...shared], before);
+		assert.notEqual(a.buffer, shared.buffer);
+		assert.notEqual(a.buffer, b.buffer);
+		assert.equal(decodeSnapshot(a).ack, 5);
+		assert.equal(decodeSnapshot(b).ack, 6);
+	});
+
+	it("ack поза межами обмежується так само, як у encodeSnapshot", () => {
+		const base = layoutMsg();
+		const shared = encodeSnapshot(base);
+		for (const ack of [-1, 2 ** 40, Number.NaN]) {
+			assert.deepEqual(
+				[...withAck(shared, ack)],
+				[...encodeSnapshot({ ...base, ack })],
+			);
+		}
+	});
+
+	it("binary-кодек експортує withAck", () => {
+		assert.equal(binary.withAck, withAck);
 	});
 });
 

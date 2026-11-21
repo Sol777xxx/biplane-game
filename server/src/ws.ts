@@ -14,6 +14,7 @@ import {
 	type JoinMessage,
 	parseClientMessage,
 	type ServerMessage,
+	type SnapshotMessage,
 } from "biplane-shared/protocol/index.ts";
 import { NO_SEQ } from "biplane-shared/sim/ids.ts";
 import { assertNever } from "biplane-shared/sim/never.ts";
@@ -146,11 +147,33 @@ export function attachWebSocket({
 	// втратити (chat, snapshot: наступний знімок застарить цей). Стан (roster, joined, error)
 	// не відкидається. Знімок кодується кодеком клієнта (json або binary), решта це JSON.
 	// Штучна мережа стоїть після перевірки буфера: на сам буфер вона не впливає.
+	// Кадр бінарного знімка кодується раз на тік: shared це об'єкт знімка кімнати (новий на кожен
+	// тік, тому застарілого в кеші не буде), а кожному сокету віддається копія з його ack.
+	const sharedFrames = new WeakMap<object, Uint8Array<ArrayBuffer>>();
+	function encodeSnapshotFor(
+		codec: Codec,
+		message: SnapshotMessage,
+		shared: object | undefined,
+	): string | Uint8Array<ArrayBuffer> {
+		if (!codec.isBinary || shared === undefined) {
+			return codec.encodeSnapshot(message);
+		}
+		let frame = sharedFrames.get(shared);
+		if (frame === undefined) {
+			frame = codec.encodeSnapshot({ ...message, ack: NO_SEQ });
+			sharedFrames.set(shared, frame);
+		}
+		return codec.withAck(frame, message.ack);
+	}
+
 	function send(
 		ws: WebSocket,
 		s: Session,
 		message: ServerMessage,
-		{ droppable = false }: { droppable?: boolean } = {},
+		{
+			droppable = false,
+			shared,
+		}: { droppable?: boolean; shared?: object } = {},
 	): void {
 		if (ws.readyState !== ws.OPEN) return;
 		const buffered = ws.bufferedAmount;
@@ -173,7 +196,7 @@ export function attachWebSocket({
 
 		const data =
 			message.type === "snapshot"
-				? s.codec.encodeSnapshot(message)
+				? encodeSnapshotFor(s.codec, message, shared)
 				: JSON.stringify(message);
 		s.sim.outbound(
 			() => {
@@ -224,6 +247,7 @@ export function attachWebSocket({
 			const ack = (id === undefined ? undefined : acks.get(id)) ?? NO_SEQ;
 			send(ws, s, makeServer("snapshot", { ...snapshot, ack }), {
 				droppable: true,
+				shared: snapshot,
 			});
 		};
 		room.on("chat", onChat);

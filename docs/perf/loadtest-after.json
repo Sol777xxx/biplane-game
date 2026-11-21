@@ -1,0 +1,159 @@
+{
+	"label": "after",
+	"when": "2026-11-21T16:03:30.146Z",
+	"perRoom": 8,
+	"seconds": 20,
+	"shards": 4,
+	"capacity": 256,
+	"failedAt": 512,
+	"reason": "пропущено 1476 тіків з 47213",
+	"levels": [
+		{
+			"clients": 8,
+			"rooms": 1,
+			"tickMs": {
+				"p50": 1.1,
+				"p99": 2.3,
+				"max": 2.5
+			},
+			"simLoad": 3.4,
+			"intervalP99": 48.2,
+			"lateP99": 16,
+			"skipped": 0,
+			"ticks": 690,
+			"overruns": 0,
+			"loopUtilization": 0.058,
+			"loopDelayP99": 14.9,
+			"rssMb": 78,
+			"snapshotsPerClientPerSec": 30,
+			"generatorLagMs": 15,
+			"shards": 1
+		},
+		{
+			"clients": 32,
+			"rooms": 4,
+			"tickMs": {
+				"p50": 0.9,
+				"p99": 6.4,
+				"max": 14.2
+			},
+			"simLoad": 10.3,
+			"intervalP99": 50.7,
+			"lateP99": 21.6,
+			"skipped": 0,
+			"ticks": 2762,
+			"overruns": 0,
+			"loopUtilization": 0.13,
+			"loopDelayP99": 15.2,
+			"rssMb": 86,
+			"snapshotsPerClientPerSec": 30,
+			"generatorLagMs": 15.1,
+			"shards": 4
+		},
+		{
+			"clients": 64,
+			"rooms": 8,
+			"tickMs": {
+				"p50": 0.8,
+				"p99": 1.6,
+				"max": 2.4
+			},
+			"simLoad": 15.9,
+			"intervalP99": 47.4,
+			"lateP99": 16.2,
+			"skipped": 0,
+			"ticks": 5532,
+			"overruns": 0,
+			"loopUtilization": 0.211,
+			"loopDelayP99": 11.3,
+			"rssMb": 95,
+			"snapshotsPerClientPerSec": 30,
+			"generatorLagMs": 12,
+			"shards": 4
+		},
+		{
+			"clients": 128,
+			"rooms": 16,
+			"tickMs": {
+				"p50": 0.8,
+				"p99": 1.6,
+				"max": 2.8
+			},
+			"simLoad": 30.5,
+			"intervalP99": 47.6,
+			"lateP99": 16.9,
+			"skipped": 0,
+			"ticks": 11081,
+			"overruns": 0,
+			"loopUtilization": 0.373,
+			"loopDelayP99": 16.3,
+			"rssMb": 112,
+			"snapshotsPerClientPerSec": 30,
+			"generatorLagMs": 13.9,
+			"shards": 4
+		},
+		{
+			"clients": 256,
+			"rooms": 32,
+			"tickMs": {
+				"p50": 0.6,
+				"p99": 4.5,
+				"max": 11.1
+			},
+			"simLoad": 59.5,
+			"intervalP99": 85.7,
+			"lateP99": 71.1,
+			"skipped": 0,
+			"ticks": 22337,
+			"overruns": 0,
+			"loopUtilization": 0.773,
+			"loopDelayP99": 51.1,
+			"rssMb": 148,
+			"snapshotsPerClientPerSec": 30,
+			"generatorLagMs": 15,
+			"shards": 4
+		},
+		{
+			"clients": 512,
+			"rooms": 64,
+			"tickMs": {
+				"p50": 0.5,
+				"p99": 1.4,
+				"max": 6.4
+			},
+			"simLoad": 94.7,
+			"intervalP99": 233.7,
+			"lateP99": 226.9,
+			"skipped": 1476,
+			"ticks": 47213,
+			"overruns": 0,
+			"loopUtilization": 1,
+			"loopDelayP99": 199.6,
+			"rssMb": 231,
+			"snapshotsPerClientPerSec": 28.7,
+			"generatorLagMs": 15.4,
+			"shards": 4
+		},
+		{
+			"clients": 1024,
+			"rooms": 47,
+			"tickMs": {
+				"p50": 0.5,
+				"p99": 1.3,
+				"max": 2.3
+			},
+			"simLoad": 37.4,
+			"intervalP99": 48.3,
+			"lateP99": 19.1,
+			"skipped": 6004,
+			"ticks": 49305,
+			"overruns": 0,
+			"loopUtilization": 0.514,
+			"loopDelayP99": 24,
+			"rssMb": 262,
+			"snapshotsPerClientPerSec": 4.8,
+			"generatorLagMs": 13.2,
+			"shards": 4
+		}
+	]
+}

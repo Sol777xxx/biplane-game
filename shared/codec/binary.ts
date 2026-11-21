@@ -360,6 +360,22 @@ function writeEvent(
 	}
 }
 
+const ACK_OFFSET = 6; // версія (1) + код кадру (1) + tick (4)
+
+// Копія кадру знімка з іншим ack: байти ті самі, що дав би encodeSnapshot з цим ack.
+export function withAck(
+	frame: Uint8Array<ArrayBuffer>,
+	ack: number,
+): Uint8Array<ArrayBuffer> {
+	const copy = frame.slice(); // власний буфер, оригінал спільний і не змінюється
+	new DataView(copy.buffer).setUint32(
+		ACK_OFFSET,
+		clampInt(ack, 0, MAX_U32),
+		true,
+	);
+	return copy;
+}
+
 // повертає Uint8Array; усе, що не вміщується у формат, обрізає або пропускає
 export function encodeSnapshot(msg: SnapshotMessage): Uint8Array<ArrayBuffer> {
 	const players = msg.players.slice(0, 255);
@@ -636,6 +652,7 @@ export function decodeSnapshot(input: Frame): SnapshotMessage {
 export const binary: BinaryCodec = Object.freeze<BinaryCodec>({
 	name: "binary",
 	isBinary: true,
+	withAck,
 	encodeSnapshot,
 	decodeSnapshot,
 	encodeInput,

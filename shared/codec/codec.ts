@@ -30,6 +30,9 @@ export interface TextCodec extends CodecBase<string> {
 
 export interface BinaryCodec extends CodecBase<Uint8Array<ArrayBuffer>> {
 	readonly isBinary: true;
+	// Копія готового кадру знімка з іншим ack. Знімок кімнати однаковий для всіх, різниться лише
+	// ack, тож кадр кодують раз, а кожному гравцеві копіюють і дописують його ack.
+	withAck(frame: Uint8Array<ArrayBuffer>, ack: number): Uint8Array<ArrayBuffer>;
 }
 
 // isBinary це дискримінант: перевірив його, і tsc знає, string чи Uint8Array в encode.
