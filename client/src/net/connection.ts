@@ -18,6 +18,7 @@ import {
 	type ServerType,
 } from "biplane-shared/protocol/index.ts";
 import { assertNever } from "biplane-shared/sim/never.ts";
+import { perf } from "../perf.ts";
 import { TypedTarget } from "./typedTarget.ts";
 
 // Перепідключаємось лише після тимчасових обривів. 4xxx (порушення протоколу,
@@ -222,10 +223,12 @@ export class Connection extends TypedTarget<ConnectionEvents> {
 	#onMessage(data: unknown): void {
 		this.#traffic.bytesIn += sizeOf(data);
 		this.#traffic.msgsIn++;
+		perf.begin("decode");
 		const msg =
 			typeof data === "string"
 				? this.#decodeText(data)
 				: this.#decodeBinary(data);
+		perf.end("decode");
 		if (msg) this.#dispatch(msg);
 	}
 

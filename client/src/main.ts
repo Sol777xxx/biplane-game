@@ -33,6 +33,7 @@ import { createPredictor } from "./net/predictor.ts";
 import { joinRoom, type RoomSession } from "./net/roomSession.ts";
 import { createSnapshotView } from "./net/snapshotView.ts";
 import { createNetStats, summarize } from "./netStats.ts";
+import { perf } from "./perf.ts";
 import {
 	DEFAULT_PILOT,
 	isPilotId,
@@ -254,7 +255,9 @@ function startGame(
 	// знімок: у буфер інтерполяції, потім звірка передбачення
 	const onSnapshot = (msg: SnapshotMessage): void => {
 		view.apply(msg);
+		perf.begin("reconcile");
 		const r = predictor.reconcile(msg, net.you?.id ?? null);
+		perf.end("reconcile");
 		if (r.correction === null) netStats.clearCorrection();
 		else {
 			netStats.correction(r.correction);
@@ -302,6 +305,9 @@ function startGame(
 		});
 	}
 
+	// ?perf: підсумок вимірювань для консолі й автоматичного прогону
+	if (perf.enabled) Reflect.set(window, "perfStats", perf);
+
 	createPilotPicker(query("#pilots", HTMLElement), {
 		current: pilotId,
 		onSelect(id) {
@@ -314,7 +320,9 @@ function startGame(
 		step: TICK_DT, // той самий крок, що й на сервері
 		mode: exp === "variable" ? "variable" : "fixed",
 		driver: exp === "interval" ? "interval" : "raf",
+		onFrame: perf.enabled ? perf.frame : undefined,
 		update(dt) {
+			perf.begin("simulate");
 			if (input.justPressed("hud")) hud.hidden = !hud.hidden;
 			predictor.tick(dt); // згасання видимого зсуву
 
@@ -345,8 +353,10 @@ function startGame(
 			}
 			fx.step(dt);
 			input.endStep();
+			perf.end("simulate");
 		},
 		render(alpha) {
+			perf.begin("render");
 			frameCount++;
 			// експеримент 1: блокування 100 мс кожен 60-й кадр
 			if (exp === "block" && frameCount % 60 === 0) busyWait(100);
@@ -371,6 +381,7 @@ function startGame(
 				status.textContent = text;
 				lastStatus = text;
 			}
+			perf.end("render");
 		},
 		onStats({ stepsPerSec, framesPerSec, frameMs, minMs, maxMs, jitterMs }) {
 			let text =

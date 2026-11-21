@@ -12,6 +12,8 @@ export interface LoopOptions {
 	// alpha: частка кроку для інтерполяції кадрів, 0..1
 	readonly render: (alpha: number) => void;
 	readonly onStats?: (stats: LoopStats) => void;
+	// скільки мс зайняла робота одного кадру (update + render), без очікування наступного
+	readonly onFrame?: (workMs: number) => void;
 	readonly step?: number; // крок симуляції/с
 	readonly maxFrame?: number; // ліміт кадру проти «спіралі смерті»
 	readonly mode?: "fixed" | "variable";
@@ -22,6 +24,7 @@ export function createLoop({
 	update,
 	render,
 	onStats,
+	onFrame,
 	step = 1 / 60,
 	maxFrame = 0.25,
 	mode = "fixed",
@@ -43,6 +46,7 @@ export function createLoop({
 
 	function frame(nowMs: number): void {
 		if (!running) return;
+		const work0 = onFrame ? performance.now() : 0;
 		const t = nowMs / 1000;
 		const realDelta = t - last;
 		last = t;
@@ -91,6 +95,7 @@ export function createLoop({
 			sumSqMs = 0;
 		}
 
+		onFrame?.(performance.now() - work0);
 		if (driver === "raf") handle = requestAnimationFrame(frame);
 	}
 

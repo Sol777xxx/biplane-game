@@ -18,7 +18,8 @@
 		"coverage": "vitest run --coverage",
 		"check": "biome check .",
 		"typecheck": "npm run typecheck --workspaces --if-present && tsc -p e2e/tsconfig.json",
-		"e2e": "playwright test"
+		"e2e": "playwright test",
+		"perf": "node perf/session.mjs"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.15",

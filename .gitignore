@@ -31,3 +31,5 @@ server/*.csv
 # Playwright
 playwright-report
 test-results
+docs/perf/*.cpuprofile
+docs/perf/*.heapprofile
