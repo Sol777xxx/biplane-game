@@ -35,3 +35,5 @@ docs/perf/*.cpuprofile
 docs/perf/*.heapprofile
 docs/perf/server-prof/
 docs/perf/server-prof-after/
+docs/perf/server-prof/
+docs/perf/server-prof-after/

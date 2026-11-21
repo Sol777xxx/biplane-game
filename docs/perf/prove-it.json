@@ -1,0 +1,41 @@
+{
+	"node": "v24.13.0",
+	"v8": "13.6.233.17-node.37",
+	"deopt": [
+		{
+			"step": "щойно створена",
+			"status": 129,
+			"binary": "10000001",
+			"bits": ["IsFunction", "Interpreted"]
+		},
+		{
+			"step": "після двох викликів із числами",
+			"status": 129,
+			"binary": "10000001",
+			"bits": ["IsFunction", "Interpreted"]
+		},
+		{
+			"step": "після %OptimizeFunctionOnNextCall",
+			"status": 81,
+			"binary": "1010001",
+			"bits": ["IsFunction", "Optimized", "TurboFanned"]
+		},
+		{
+			"step": "після виклику зі рядками",
+			"status": 129,
+			"binary": "10000001",
+			"bits": ["IsFunction", "Interpreted"]
+		},
+		{
+			"step": "знову з числами",
+			"status": 129,
+			"binary": "10000001",
+			"bits": ["IsFunction", "Interpreted"]
+		}
+	],
+	"sums": {
+		"plainObjectsMs": 2.56,
+		"everyTenthHasZMs": 2.82,
+		"float32ArrayMs": 0.73
+	}
+}

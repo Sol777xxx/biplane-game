@@ -1,0 +1,319 @@
+{
+	"label": "ab-new",
+	"when": "2026-11-21T18:31:47.473Z",
+	"env": {
+		"chrome": "159.0.8154.6",
+		"node": "v24.13.0",
+		"cpu": "12th Gen Intel(R) Core(TM) i7-12700H",
+		"cores": 20,
+		"bots": 8,
+		"seconds": 30,
+		"marks": false,
+		"throttle": 4
+	},
+	"perf": {
+		"frame": {
+			"n": 491,
+			"avg": 5.439,
+			"p50": 5.3,
+			"p95": 8.2,
+			"p99": 11.4,
+			"max": 27.6
+		},
+		"slowFrames": 1,
+		"spans": {
+			"simulate": {
+				"n": 931,
+				"avg": 0.4,
+				"p50": 0.4,
+				"p95": 0.8,
+				"p99": 1.3,
+				"max": 2.3
+			},
+			"render": {
+				"n": 491,
+				"avg": 4.64,
+				"p50": 4.4,
+				"p95": 7.3,
+				"p99": 9.6,
+				"max": 26.6
+			},
+			"decode": {
+				"n": 967,
+				"avg": 0.187,
+				"p50": 0.2,
+				"p95": 0.4,
+				"p99": 0.7,
+				"max": 9.4
+			},
+			"reconcile": {
+				"n": 936,
+				"avg": 0.073,
+				"p50": 0,
+				"p95": 0.2,
+				"p99": 0.4,
+				"max": 1.5
+			}
+		},
+		"heapUsed": 10000000
+	},
+	"perfProfiled": {
+		"frame": {
+			"n": 561,
+			"avg": 5.207,
+			"p50": 4.9,
+			"p95": 7.8,
+			"p99": 12.2,
+			"max": 18.5
+		},
+		"slowFrames": 2,
+		"spans": {
+			"simulate": {
+				"n": 950,
+				"avg": 0.478,
+				"p50": 0.4,
+				"p95": 0.9,
+				"p99": 1.4,
+				"max": 4.6
+			},
+			"render": {
+				"n": 561,
+				"avg": 4.367,
+				"p50": 4.1,
+				"p95": 6.7,
+				"p99": 9.9,
+				"max": 17.6
+			},
+			"decode": {
+				"n": 986,
+				"avg": 0.231,
+				"p50": 0.2,
+				"p95": 0.5,
+				"p99": 1,
+				"max": 4
+			},
+			"reconcile": {
+				"n": 954,
+				"avg": 0.109,
+				"p50": 0.1,
+				"p95": 0.3,
+				"p99": 0.6,
+				"max": 1.4
+			}
+		},
+		"heapUsed": 10000000
+	},
+	"gc": {
+		"minor": {
+			"count": 12,
+			"totalMs": 22.2,
+			"maxMs": 4.9
+		},
+		"major": {
+			"count": 2,
+			"totalMs": 15.9,
+			"maxMs": 8
+		},
+		"majorDetails": [
+			{
+				"atSec": 21.5,
+				"ms": 8.3,
+				"reason": "finalize incremental marking via stack guard",
+				"heapBeforeMb": 9.9,
+				"heapAfterMb": 4.5
+			},
+			{
+				"atSec": 33.8,
+				"ms": 8.3,
+				"reason": "finalize incremental marking via stack guard",
+				"heapBeforeMb": 11.8,
+				"heapAfterMb": 4.5
+			}
+		]
+	},
+	"cpu": {
+		"totalMs": 30930.9,
+		"activeMs": 30583.9,
+		"gcMs": 64.9,
+		"rows": [
+			{
+				"name": "curve index-EnKbSGBT.js:10566",
+				"selfMs": 279,
+				"pct": 0.9
+			},
+			{
+				"name": "drawImage",
+				"selfMs": 263.6,
+				"pct": 0.9
+			},
+			{
+				"name": "strokeText",
+				"selfMs": 188.8,
+				"pct": 0.6
+			},
+			{
+				"name": "draw index-EnKbSGBT.js:7087",
+				"selfMs": 127.2,
+				"pct": 0.4
+			},
+			{
+				"name": "draw index-EnKbSGBT.js:11515",
+				"selfMs": 112.8,
+				"pct": 0.4
+			},
+			{
+				"name": "send",
+				"selfMs": 107.3,
+				"pct": 0.4
+			},
+			{
+				"name": "drawObstacle index-EnKbSGBT.js:10434",
+				"selfMs": 89.4,
+				"pct": 0.3
+			},
+			{
+				"name": "fill",
+				"selfMs": 80.8,
+				"pct": 0.3
+			},
+			{
+				"name": "decodeSnapshot index-EnKbSGBT.js:8632",
+				"selfMs": 75.5,
+				"pct": 0.2
+			},
+			{
+				"name": "createBufferSource",
+				"selfMs": 74.4,
+				"pct": 0.2
+			},
+			{
+				"name": "update index-EnKbSGBT.js:6985",
+				"selfMs": 69.7,
+				"pct": 0.2
+			},
+			{
+				"name": "stroke",
+				"selfMs": 69.3,
+				"pct": 0.2
+			},
+			{
+				"name": "addColorStop",
+				"selfMs": 61.9,
+				"pct": 0.2
+			},
+			{
+				"name": "drawShield index-EnKbSGBT.js:10616",
+				"selfMs": 56.1,
+				"pct": 0.2
+			},
+			{
+				"name": "restore",
+				"selfMs": 48.4,
+				"pct": 0.2
+			}
+		]
+	},
+	"heap": {
+		"totalBytes": 56614684,
+		"rows": [
+			{
+				"name": "update index-EnKbSGBT.js:6985",
+				"bytes": 6009132,
+				"pct": 10.6
+			},
+			{
+				"name": "drawObstacle index-EnKbSGBT.js:10434",
+				"bytes": 4561068,
+				"pct": 8.1
+			},
+			{
+				"name": "draw index-EnKbSGBT.js:11515",
+				"bytes": 3681856,
+				"pct": 6.5
+			},
+			{
+				"name": "update index-EnKbSGBT.js:243",
+				"bytes": 2484812,
+				"pct": 4.4
+			},
+			{
+				"name": "strikeGeometry index-EnKbSGBT.js:10277",
+				"bytes": 2299864,
+				"pct": 4.1
+			},
+			{
+				"name": "drawShield index-EnKbSGBT.js:10616",
+				"bytes": 2139684,
+				"pct": 3.8
+			},
+			{
+				"name": "#applyEdges index-EnKbSGBT.js:258",
+				"bytes": 2082288,
+				"pct": 3.7
+			},
+			{
+				"name": "(anonymous) index-EnKbSGBT.js:10334",
+				"bytes": 1877340,
+				"pct": 3.3
+			},
+			{
+				"name": "drawBullet index-EnKbSGBT.js:11428",
+				"bytes": 1836468,
+				"pct": 3.2
+			},
+			{
+				"name": "ofKind index-EnKbSGBT.js:7034",
+				"bytes": 1459500,
+				"pct": 2.6
+			},
+			{
+				"name": "findCollisions index-EnKbSGBT.js:599",
+				"bytes": 1402544,
+				"pct": 2.5
+			},
+			{
+				"name": "(anonymous) index-EnKbSGBT.js:8712",
+				"bytes": 1337636,
+				"pct": 2.4
+			},
+			{
+				"name": "push index-EnKbSGBT.js:7948",
+				"bytes": 1327420,
+				"pct": 2.3
+			},
+			{
+				"name": "#sweep index-EnKbSGBT.js:689",
+				"bytes": 1304144,
+				"pct": 2.3
+			},
+			{
+				"name": "set",
+				"bytes": 1130172,
+				"pct": 2
+			}
+		]
+	},
+	"server": {
+		"tickMs": {
+			"n": 300,
+			"avg": 0.377,
+			"p50": 0.327,
+			"p95": 0.487,
+			"p99": 1.983,
+			"max": 3.724,
+			"jitter": 0.295
+		},
+		"eventLoop": {
+			"utilization": 0.02,
+			"delayMs": {
+				"p50": 5.491,
+				"p99": 13.969999999999999,
+				"max": 15.902999999999999
+			}
+		},
+		"memory": {
+			"rss": 81829888,
+			"heapUsed": 19889680
+		}
+	}
+}
