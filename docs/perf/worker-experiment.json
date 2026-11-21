@@ -1,0 +1,36 @@
+{
+	"node": "v24.13.0",
+	"sample": "8 кораблів, 20 куль, 1 перешкод, 0 бонусів, кадр 947 Б",
+	"decodeOnMainUs": {
+		"p50": 6.9,
+		"p99": 24,
+		"mean": 9.1
+	},
+	"decodeInWorkerUs": {
+		"p50": 10,
+		"p99": 40.4,
+		"mean": 12.4
+	},
+	"receiveCloneOnMainUs": {
+		"p50": 32.4,
+		"p99": 47.7,
+		"mean": 33.6
+	},
+	"roundTripUs": {
+		"p50": 68.8,
+		"p99": 156.4,
+		"mean": 75.1
+	},
+	"mainSavingPerSnapshotUs": -24.5,
+	"mainSavingPerSecondMs": -0.73,
+	"fiftyMb": {
+		"cloneSendMs": 16.38,
+		"cloneTotalMs": 29.61,
+		"transferSendMs": 0.03,
+		"transferTotalMs": 0.42,
+		"bufferDetachedAfterTransfer": true,
+		"bufferDetachedAfterClone": false
+	},
+	"decision": "NO-GO",
+	"reason": "Worker не економить main-потік: decodeSnapshot на main коштує 9.1 мкс, а лише отримання готового результату з Worker (структуроване клонування) 33.6 мкс. Різниця -24.5 мкс на знімок (-0.73 мс/с), до того ж круг main → worker → main додає 68.8 мкс затримки"
+}

@@ -1,0 +1,32 @@
+{
+	"hiddenClass": {
+		"lateAddedSameShape": false,
+		"declaredSameShape": true
+	},
+	"hiddenClass_sumMs": {
+		"twoShapes": 5.7,
+		"oneShape": 6.9,
+		"note": "різниця форм доведена нативом; чи видно її в часі, залежить від прогріву (дві форми це ще мономорфно-поліморфний inline cache), тож дивіться на обидва числа, а не лише на одне"
+	},
+	"millionObjects": {
+		"objects": {
+			"createMs": 77,
+			"sumMs": 15,
+			"heapMb": 46
+		},
+		"typedArrays": {
+			"createMs": 4,
+			"sumMs": 10,
+			"heapMb": 0,
+			"bufferMb": 15
+		},
+		"checksum": true,
+		"note": "gc() перед кожним виміром"
+	},
+	"fastCheck": {
+		"floatRepresentableInFloat32": 1,
+		"doubleRepresentableInFloat32": 0.0086,
+		"floatMaxAbs": null,
+		"doubleMaxAbs": null
+	}
+}
