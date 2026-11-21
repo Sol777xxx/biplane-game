@@ -1,0 +1,131 @@
+{
+	"label": "before",
+	"when": "2026-11-21T08:39:23.808Z",
+	"perRoom": 8,
+	"seconds": 20,
+	"capacity": 256,
+	"failedAt": 512,
+	"reason": "генератор навантаження відстає (23.5 мс), результат недостовірний",
+	"levels": [
+		{
+			"clients": 8,
+			"rooms": 1,
+			"tickMs": {
+				"p50": 1.4,
+				"p99": 3.3,
+				"max": 4.1
+			},
+			"simLoad": 4.4,
+			"intervalP99": 47.7,
+			"lateP99": 15.8,
+			"skipped": 0,
+			"ticks": 691,
+			"overruns": 0,
+			"loopUtilization": 0.063,
+			"loopDelayP99": 13,
+			"rssMb": 78,
+			"snapshotsPerClientPerSec": 30.1,
+			"generatorLagMs": 12.5
+		},
+		{
+			"clients": 32,
+			"rooms": 4,
+			"tickMs": {
+				"p50": 0.8,
+				"p99": 1.9,
+				"max": 3.7
+			},
+			"simLoad": 8.9,
+			"intervalP99": 48.2,
+			"lateP99": 16.2,
+			"skipped": 0,
+			"ticks": 2762,
+			"overruns": 0,
+			"loopUtilization": 0.123,
+			"loopDelayP99": 10.2,
+			"rssMb": 86,
+			"snapshotsPerClientPerSec": 30,
+			"generatorLagMs": 8.4
+		},
+		{
+			"clients": 64,
+			"rooms": 8,
+			"tickMs": {
+				"p50": 0.8,
+				"p99": 1.5,
+				"max": 3.3
+			},
+			"simLoad": 14.8,
+			"intervalP99": 48.5,
+			"lateP99": 16.6,
+			"skipped": 0,
+			"ticks": 5526,
+			"overruns": 0,
+			"loopUtilization": 0.202,
+			"loopDelayP99": 13.5,
+			"rssMb": 95,
+			"snapshotsPerClientPerSec": 30,
+			"generatorLagMs": 10.3
+		},
+		{
+			"clients": 128,
+			"rooms": 16,
+			"tickMs": {
+				"p50": 0.7,
+				"p99": 1.5,
+				"max": 3.8
+			},
+			"simLoad": 25.6,
+			"intervalP99": 48.8,
+			"lateP99": 19.6,
+			"skipped": 0,
+			"ticks": 11073,
+			"overruns": 0,
+			"loopUtilization": 0.326,
+			"loopDelayP99": 16.1,
+			"rssMb": 113,
+			"snapshotsPerClientPerSec": 30,
+			"generatorLagMs": 13.6
+		},
+		{
+			"clients": 256,
+			"rooms": 32,
+			"tickMs": {
+				"p50": 0.5,
+				"p99": 1.2,
+				"max": 1.8
+			},
+			"simLoad": 45.9,
+			"intervalP99": 48.6,
+			"lateP99": 17.8,
+			"skipped": 0,
+			"ticks": 22190,
+			"overruns": 0,
+			"loopUtilization": 0.562,
+			"loopDelayP99": 23.8,
+			"rssMb": 145,
+			"snapshotsPerClientPerSec": 30,
+			"generatorLagMs": 15.3
+		},
+		{
+			"clients": 512,
+			"rooms": 64,
+			"tickMs": {
+				"p50": 0.3,
+				"p99": 0.7,
+				"max": 1.1
+			},
+			"simLoad": 55.5,
+			"intervalP99": 51,
+			"lateP99": 21.5,
+			"skipped": 0,
+			"ticks": 44495,
+			"overruns": 0,
+			"loopUtilization": 0.691,
+			"loopDelayP99": 24.4,
+			"rssMb": 222,
+			"snapshotsPerClientPerSec": 30,
+			"generatorLagMs": 23.5
+		}
+	]
+}

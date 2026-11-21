@@ -19,7 +19,8 @@
 		"check": "biome check .",
 		"typecheck": "npm run typecheck --workspaces --if-present && tsc -p e2e/tsconfig.json",
 		"e2e": "playwright test",
-		"perf": "node perf/session.mjs"
+		"perf": "node perf/session.mjs",
+		"loadtest": "node perf/loadtest.mjs"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.15",
