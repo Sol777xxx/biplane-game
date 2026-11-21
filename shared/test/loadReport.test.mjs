@@ -171,11 +171,22 @@ describe("toMarkdown і renderChart", () => {
 	it("графік це валідний SVG із двома серіями й лінією бюджету", () => {
 		const svg = renderChart(levels, { title: "Тест <&>" });
 		assert.match(svg, /^<svg [^>]*viewBox/);
-		assert.equal((svg.match(/<polyline/g) ?? []).length, 2);
-		assert.equal((svg.match(/<circle/g) ?? []).length, 6);
+		assert.equal((svg.match(/<polyline/g) ?? []).length, 3); // p50, p99 і цикл подій
+		assert.equal((svg.match(/<circle/g) ?? []).length, 9);
+		assert.match(svg, /поріг 90%/);
 		assert.match(svg, /stroke-dasharray/);
 		assert.match(svg, /бюджет 33\.3 мс/);
 		assert.match(svg, /Тест &lt;&amp;>/); // заголовок екранується
+		assert.ok(!/NaN|undefined/.test(svg));
+	});
+
+	it("без даних про цикл подій малюється лише панель тіка", () => {
+		const svg = renderChart([
+			level(8, { loopUtilization: null }),
+			level(32, { loopUtilization: null }),
+		]);
+		assert.equal((svg.match(/<polyline/g) ?? []).length, 2);
+		assert.ok(!/поріг 90%/.test(svg));
 		assert.ok(!/NaN|undefined/.test(svg));
 	});
 

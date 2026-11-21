@@ -292,9 +292,7 @@ async function main() {
 		writeFileSync(`${base}.md`, toMarkdown(args.label, levels));
 		writeFileSync(
 			`${base}.svg`,
-			renderChart(levels, {
-				title: `Тік сервера під навантаженням (${args.label})`,
-			}),
+			renderChart(levels, { title: `Навантаження на сервер (${args.label})` }),
 		);
 		console.log(
 			`\n${toMarkdown(args.label, levels)}\nзбережено: ${base}.{json,md,svg}`,

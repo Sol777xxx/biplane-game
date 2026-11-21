@@ -1,0 +1,33 @@
+{
+	"label": "cpuprof",
+	"when": "2026-11-21T15:39:49.070Z",
+	"perRoom": 8,
+	"seconds": 60,
+	"shards": 4,
+	"capacity": 128,
+	"failedAt": null,
+	"reason": null,
+	"levels": [
+		{
+			"clients": 128,
+			"rooms": 16,
+			"tickMs": {
+				"p50": 0.7,
+				"p99": 1.4,
+				"max": 2.1
+			},
+			"simLoad": 30.4,
+			"intervalP99": 39.4,
+			"lateP99": 7.7,
+			"skipped": 3,
+			"ticks": 30294,
+			"overruns": 0,
+			"loopUtilization": 0.436,
+			"loopDelayP99": 6,
+			"rssMb": 154,
+			"snapshotsPerClientPerSec": 30,
+			"generatorLagMs": 14.2,
+			"shards": 4
+		}
+	]
+}

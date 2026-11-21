@@ -109,79 +109,119 @@ export function toMarkdown(label, levels) {
 
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
 
-// SVG-графік: тік p50 і p99 проти кількості клієнтів та лінія бюджету 33,3 мс.
-export function renderChart(
-	levels,
-	{ title = "Тік сервера під навантаженням" } = {},
-) {
-	const W = 720;
-	const H = 400;
-	const m = { l: 62, r: 24, t: 56, b: 62 };
-	const iw = W - m.l - m.r;
-	const ih = H - m.t - m.b;
-	const want = Math.max(
-		TICK_BUDGET_MS * 1.25,
-		...levels.map((l) => l.tickMs.p99 * 1.1),
-	);
-	// «гарна» верхня межа: крок осі 1, 2 або 5 × 10^k, п'ять поділок
+// «Гарна» верхня межа осі: крок 1, 2 або 5 × 10^k, п'ять поділок.
+function niceTop(want) {
 	const mag = 10 ** Math.floor(Math.log10(want / 5));
-	const step =
-		[1, 2, 5, 10].map((k) => k * mag).find((v) => v * 5 >= want) ?? mag * 10;
-	const top = step * 5;
+	return (
+		([1, 2, 5, 10].map((k) => k * mag).find((v) => v * 5 >= want) ?? mag * 10) *
+		5
+	);
+}
+
+// SVG-графік з двох панелей на спільній осі клієнтів: зверху тік p50/p99 з бюджетом 33,3 мс,
+// знизу завантаження циклу подій з порогом 90%. Тік міряє лише крок симуляції однієї кімнати і
+// тому від кількості клієнтів майже не залежить; насичення видно саме на нижній панелі.
+export function renderChart(levels, { title = "Навантаження на сервер" } = {}) {
+	const W = 720;
+	const m = { l: 62, r: 24, t: 56, b: 62, gap: 56 };
+	const ph = 230; // висота панелі
+	const withLoop = levels.some((l) => l.loopUtilization !== null);
+	const H = m.t + ph + (withLoop ? m.gap + ph : 0) + m.b;
+	const iw = W - m.l - m.r;
 	const x = (i) =>
 		m.l + (levels.length === 1 ? iw / 2 : (iw * i) / (levels.length - 1));
-	const y = (v) => m.t + ih - (ih * v) / top;
-	const line = (pick) =>
-		levels
-			.map((l, i) => `${x(i).toFixed(1)},${y(pick(l)).toFixed(1)}`)
-			.join(" ");
-	const ticks = 5;
-	const grid = Array.from({ length: ticks + 1 }, (_, k) => {
-		const v = (top * k) / ticks;
-		return `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="#e5e7eb"/><text x="${m.l - 8}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end" font-size="12" fill="#4b5563">${r1(v)}</text>`;
-	}).join("");
-	const series = [
-		{ name: "p50", color: "#2563eb", pick: (l) => l.tickMs.p50 },
-		{ name: "p99", color: "#c2410c", pick: (l) => l.tickMs.p99 },
-	];
-	const body = series
-		.map(
-			(s) =>
-				`<polyline fill="none" stroke="${s.color}" stroke-width="2.5" points="${line(s.pick)}"/>` +
-				levels
-					.map(
-						(l, i) =>
-							`<circle cx="${x(i).toFixed(1)}" cy="${y(s.pick(l)).toFixed(1)}" r="4" fill="${s.color}"><title>${esc(s.name)}: ${s.pick(l)} мс при ${l.clients} клієнтах</title></circle>`,
-					)
-					.join(""),
-		)
-		.join("");
+
+	const panel = ({
+		top0,
+		top,
+		unit,
+		series,
+		threshold,
+		thresholdLabel,
+		fmt,
+	}) => {
+		const y = (v) => top0 + ph - (ph * v) / top;
+		const line = (pick) =>
+			levels
+				.map((l, i) => `${x(i).toFixed(1)},${y(pick(l)).toFixed(1)}`)
+				.join(" ");
+		const grid = Array.from({ length: 6 }, (_, k) => {
+			const v = (top * k) / 5;
+			return `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="#e5e7eb"/><text x="${m.l - 8}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end" font-size="12" fill="#4b5563">${r1(v)}</text>`;
+		}).join("");
+		const body = series
+			.map(
+				(s) =>
+					`<polyline fill="none" stroke="${s.color}" stroke-width="2.5" points="${line(s.pick)}"/>` +
+					levels
+						.map(
+							(l, i) =>
+								`<circle cx="${x(i).toFixed(1)}" cy="${y(s.pick(l)).toFixed(1)}" r="4" fill="${s.color}"><title>${esc(s.name)}: ${fmt(s.pick(l))} при ${l.clients} клієнтах</title></circle>`,
+						)
+						.join(""),
+			)
+			.join("");
+		const ty = y(threshold).toFixed(1);
+		const legend = series
+			.map(
+				(s, i) =>
+					`<rect x="${m.l + i * 150}" y="${top0 - 22}" width="14" height="4" fill="${s.color}"/><text x="${m.l + i * 150 + 20}" y="${top0 - 16}" font-size="13" fill="#111827">${esc(s.name)}</text>`,
+			)
+			.join("");
+		return `${legend}${grid}
+<line x1="${m.l}" x2="${W - m.r}" y1="${ty}" y2="${ty}" stroke="#b91c1c" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="${m.l + 8}" y="${(Number(ty) - 6).toFixed(1)}" font-size="12" fill="#b91c1c">${esc(thresholdLabel)}</text>
+${body}
+<text transform="translate(16 ${(top0 + ph / 2).toFixed(1)}) rotate(-90)" text-anchor="middle" font-size="13" fill="#111827">${unit}</text>`;
+	};
+
+	const tickPanel = panel({
+		top0: m.t,
+		top: niceTop(
+			Math.max(TICK_BUDGET_MS * 1.25, ...levels.map((l) => l.tickMs.p99 * 1.1)),
+		),
+		unit: "тік, мс",
+		series: [
+			{ name: "тік p50", color: "#2563eb", pick: (l) => l.tickMs.p50 },
+			{ name: "тік p99", color: "#c2410c", pick: (l) => l.tickMs.p99 },
+		],
+		threshold: TICK_BUDGET_MS,
+		thresholdLabel: `бюджет ${r1(TICK_BUDGET_MS)} мс`,
+		fmt: (v) => `${v} мс`,
+	});
+	const loopPanel = withLoop
+		? panel({
+				top0: m.t + ph + m.gap,
+				top: 100,
+				unit: "цикл подій, %",
+				series: [
+					{
+						name: "завантаження циклу подій",
+						color: "#047857",
+						pick: (l) => Math.round((l.loopUtilization ?? 0) * 100),
+					},
+				],
+				threshold: MAX_LOOP_UTILIZATION * 100,
+				thresholdLabel: `поріг ${MAX_LOOP_UTILIZATION * 100}%`,
+				fmt: (v) => `${v}%`,
+			})
+		: "";
+	const axisY = H - m.b + 22;
 	const labels = levels
 		.map(
 			(l, i) =>
-				`<text x="${x(i).toFixed(1)}" y="${H - m.b + 22}" text-anchor="middle" font-size="12" fill="#4b5563">${l.clients}</text>`,
-		)
-		.join("");
-	const budgetY = y(TICK_BUDGET_MS).toFixed(1);
-	const legend = series
-		.map(
-			(s, i) =>
-				`<rect x="${m.l + i * 70}" y="34" width="14" height="4" fill="${s.color}"/><text x="${m.l + i * 70 + 20}" y="40" font-size="13" fill="#111827">${s.name}</text>`,
+				`<text x="${x(i).toFixed(1)}" y="${axisY}" text-anchor="middle" font-size="12" fill="#4b5563">${l.clients}</text>`,
 		)
 		.join("");
 	return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="system-ui, sans-serif" role="img" aria-labelledby="t d">
 <title id="t">${esc(title)}</title>
-<desc id="d">Тривалість тіка сервера (p50 і p99, мс) для ${levels.map((l) => l.clients).join(", ")} клієнтів. Бюджет тіка ${r1(TICK_BUDGET_MS)} мс.</desc>
+<desc id="d">Тривалість тіка сервера (p50 і p99, мс) і завантаження його циклу подій (%) для ${levels.map((l) => l.clients).join(", ")} клієнтів. Бюджет тіка ${r1(TICK_BUDGET_MS)} мс, поріг циклу ${MAX_LOOP_UTILIZATION * 100}%.</desc>
 <rect width="${W}" height="${H}" fill="#ffffff"/>
 <text x="${m.l}" y="20" font-size="15" font-weight="600" fill="#111827">${esc(title)}</text>
-${legend}
-${grid}
-<line x1="${m.l}" x2="${W - m.r}" y1="${budgetY}" y2="${budgetY}" stroke="#b91c1c" stroke-width="1.5" stroke-dasharray="6 4"/>
-<text x="${m.l + 8}" y="${(Number(budgetY) - 6).toFixed(1)}" font-size="12" fill="#b91c1c">бюджет ${r1(TICK_BUDGET_MS)} мс</text>
-${body}
+${tickPanel}
+${loopPanel}
 ${labels}
 <text x="${(m.l + iw / 2).toFixed(1)}" y="${H - 14}" text-anchor="middle" font-size="13" fill="#111827">клієнтів</text>
-<text transform="translate(16 ${(m.t + ih / 2).toFixed(1)}) rotate(-90)" text-anchor="middle" font-size="13" fill="#111827">тік, мс</text>
 </svg>
 `;
 }
