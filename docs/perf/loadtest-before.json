@@ -1,131 +1,159 @@
 {
 	"label": "before",
-	"when": "2026-11-21T08:39:23.808Z",
+	"when": "2026-11-21T08:55:04.441Z",
 	"perRoom": 8,
 	"seconds": 20,
-	"capacity": 256,
-	"failedAt": 512,
-	"reason": "генератор навантаження відстає (23.5 мс), результат недостовірний",
+	"shards": 4,
+	"capacity": 512,
+	"failedAt": 1024,
+	"reason": "цикл подій сервера зайнятий на 100%",
 	"levels": [
 		{
 			"clients": 8,
 			"rooms": 1,
 			"tickMs": {
-				"p50": 1.4,
-				"p99": 3.3,
-				"max": 4.1
+				"p50": 1.1,
+				"p99": 2.4,
+				"max": 2.9
 			},
-			"simLoad": 4.4,
-			"intervalP99": 47.7,
-			"lateP99": 15.8,
+			"simLoad": 3.5,
+			"intervalP99": 48.7,
+			"lateP99": 16.7,
 			"skipped": 0,
 			"ticks": 691,
 			"overruns": 0,
-			"loopUtilization": 0.063,
-			"loopDelayP99": 13,
+			"loopUtilization": 0.06,
+			"loopDelayP99": 12.9,
 			"rssMb": 78,
-			"snapshotsPerClientPerSec": 30.1,
-			"generatorLagMs": 12.5
+			"snapshotsPerClientPerSec": 30,
+			"generatorLagMs": 13.1,
+			"shards": 1
 		},
 		{
 			"clients": 32,
 			"rooms": 4,
 			"tickMs": {
 				"p50": 0.8,
-				"p99": 1.9,
-				"max": 3.7
+				"p99": 1.6,
+				"max": 2.2
 			},
-			"simLoad": 8.9,
-			"intervalP99": 48.2,
-			"lateP99": 16.2,
+			"simLoad": 8.8,
+			"intervalP99": 48.3,
+			"lateP99": 16,
 			"skipped": 0,
-			"ticks": 2762,
+			"ticks": 2763,
 			"overruns": 0,
-			"loopUtilization": 0.123,
-			"loopDelayP99": 10.2,
+			"loopUtilization": 0.122,
+			"loopDelayP99": 14.2,
 			"rssMb": 86,
 			"snapshotsPerClientPerSec": 30,
-			"generatorLagMs": 8.4
+			"generatorLagMs": 14.5,
+			"shards": 4
 		},
 		{
 			"clients": 64,
 			"rooms": 8,
 			"tickMs": {
-				"p50": 0.8,
-				"p99": 1.5,
-				"max": 3.3
+				"p50": 0.7,
+				"p99": 6.5,
+				"max": 21.8
 			},
-			"simLoad": 14.8,
-			"intervalP99": 48.5,
-			"lateP99": 16.6,
+			"simLoad": 17.5,
+			"intervalP99": 47.4,
+			"lateP99": 22.1,
 			"skipped": 0,
-			"ticks": 5526,
+			"ticks": 5528,
 			"overruns": 0,
-			"loopUtilization": 0.202,
-			"loopDelayP99": 13.5,
-			"rssMb": 95,
+			"loopUtilization": 0.204,
+			"loopDelayP99": 15.4,
+			"rssMb": 96,
 			"snapshotsPerClientPerSec": 30,
-			"generatorLagMs": 10.3
+			"generatorLagMs": 11,
+			"shards": 4
 		},
 		{
 			"clients": 128,
 			"rooms": 16,
 			"tickMs": {
-				"p50": 0.7,
-				"p99": 1.5,
-				"max": 3.8
+				"p50": 0.6,
+				"p99": 1.6,
+				"max": 2.2
 			},
-			"simLoad": 25.6,
-			"intervalP99": 48.8,
-			"lateP99": 19.6,
+			"simLoad": 27.2,
+			"intervalP99": 48.3,
+			"lateP99": 18.5,
 			"skipped": 0,
-			"ticks": 11073,
+			"ticks": 11050,
 			"overruns": 0,
-			"loopUtilization": 0.326,
-			"loopDelayP99": 16.1,
-			"rssMb": 113,
+			"loopUtilization": 0.337,
+			"loopDelayP99": 18.1,
+			"rssMb": 110,
 			"snapshotsPerClientPerSec": 30,
-			"generatorLagMs": 13.6
+			"generatorLagMs": 12.8,
+			"shards": 4
 		},
 		{
 			"clients": 256,
 			"rooms": 32,
 			"tickMs": {
 				"p50": 0.5,
-				"p99": 1.2,
-				"max": 1.8
+				"p99": 1.3,
+				"max": 2.2
 			},
-			"simLoad": 45.9,
-			"intervalP99": 48.6,
-			"lateP99": 17.8,
+			"simLoad": 48.1,
+			"intervalP99": 48.3,
+			"lateP99": 19.3,
 			"skipped": 0,
-			"ticks": 22190,
+			"ticks": 22144,
 			"overruns": 0,
-			"loopUtilization": 0.562,
-			"loopDelayP99": 23.8,
-			"rssMb": 145,
+			"loopUtilization": 0.592,
+			"loopDelayP99": 23,
+			"rssMb": 146,
 			"snapshotsPerClientPerSec": 30,
-			"generatorLagMs": 15.3
+			"generatorLagMs": 12.8,
+			"shards": 4
 		},
 		{
 			"clients": 512,
 			"rooms": 64,
 			"tickMs": {
 				"p50": 0.3,
-				"p99": 0.7,
-				"max": 1.1
+				"p99": 2.1,
+				"max": 9
 			},
-			"simLoad": 55.5,
-			"intervalP99": 51,
-			"lateP99": 21.5,
+			"simLoad": 61.5,
+			"intervalP99": 65.4,
+			"lateP99": 48,
 			"skipped": 0,
-			"ticks": 44495,
+			"ticks": 44488,
 			"overruns": 0,
-			"loopUtilization": 0.691,
-			"loopDelayP99": 24.4,
-			"rssMb": 222,
+			"loopUtilization": 0.757,
+			"loopDelayP99": 27.8,
+			"rssMb": 229,
 			"snapshotsPerClientPerSec": 30,
-			"generatorLagMs": 23.5
+			"generatorLagMs": 17.2,
+			"shards": 4
+		},
+		{
+			"clients": 1024,
+			"rooms": 128,
+			"tickMs": {
+				"p50": 0.2,
+				"p99": 0.4,
+				"max": 1.6
+			},
+			"simLoad": 92.9,
+			"intervalP99": 170.6,
+			"lateP99": 151.7,
+			"skipped": 153,
+			"ticks": 107498,
+			"overruns": 0,
+			"loopUtilization": 1,
+			"loopDelayP99": 115,
+			"rssMb": 311,
+			"snapshotsPerClientPerSec": 30,
+			"generatorLagMs": 12.7,
+			"shards": 4
 		}
 	]
 }

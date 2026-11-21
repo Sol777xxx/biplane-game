@@ -43,6 +43,10 @@ export function summarizeLevel({
 	};
 }
 
+// Цикл подій сервера зайнятий на стільки і більше: він насичений, наступний тік уже запізниться.
+// Сам тривалість тіка (1 мс) цього не показує, бо вона міряє лише крок симуляції.
+export const MAX_LOOP_UTILIZATION = 0.9;
+
 // Допустима частка пропущених тіків: поодинокий пропуск (збірка сміття, розігрів) не вважається
 // перевантаженням, а систематичне відставання так.
 export const MAX_SKIPPED_RATIO = 0.01;
@@ -58,6 +62,12 @@ export function failure(level) {
 	}
 	if (level.ticks > 0 && level.skipped / level.ticks > MAX_SKIPPED_RATIO) {
 		return `пропущено ${level.skipped} тіків з ${level.ticks}`;
+	}
+	if (
+		level.loopUtilization !== null &&
+		level.loopUtilization >= MAX_LOOP_UTILIZATION
+	) {
+		return `цикл подій сервера зайнятий на ${Math.round(level.loopUtilization * 100)}%`;
 	}
 	return null;
 }

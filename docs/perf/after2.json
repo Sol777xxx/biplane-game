@@ -1,6 +1,6 @@
 {
 	"label": "after2",
-	"when": "2026-11-21T08:31:22.211Z",
+	"when": "2026-11-21T08:52:00.445Z",
 	"env": {
 		"chrome": "159.0.8154.6",
 		"node": "v24.13.0",
@@ -13,291 +13,307 @@
 	},
 	"perf": {
 		"frame": {
-			"n": 493,
-			"avg": 5.667,
-			"p50": 5.3,
-			"p95": 9.2,
-			"p99": 12,
-			"max": 46.7
+			"n": 497,
+			"avg": 5.356,
+			"p50": 4.9,
+			"p95": 8.7,
+			"p99": 17.1,
+			"max": 25.3
 		},
-		"slowFrames": 1,
+		"slowFrames": 5,
 		"spans": {
 			"simulate": {
-				"n": 924,
-				"avg": 0.449,
+				"n": 935,
+				"avg": 0.384,
 				"p50": 0.3,
-				"p95": 1,
-				"p99": 1.7,
-				"max": 8.6
+				"p95": 0.8,
+				"p99": 1.5,
+				"max": 7.6
 			},
 			"render": {
-				"n": 493,
-				"avg": 4.782,
-				"p50": 4.5,
-				"p95": 7.9,
-				"p99": 10.4,
-				"max": 46.3
+				"n": 497,
+				"avg": 4.588,
+				"p50": 4.2,
+				"p95": 7.5,
+				"p99": 14.7,
+				"max": 24
 			},
 			"decode": {
-				"n": 955,
-				"avg": 0.224,
+				"n": 969,
+				"avg": 0.191,
 				"p50": 0.2,
-				"p95": 0.6,
-				"p99": 1.4,
-				"max": 2.4
+				"p95": 0.4,
+				"p99": 0.8,
+				"max": 3.6
 			},
 			"reconcile": {
-				"n": 924,
-				"avg": 0.094,
+				"n": 938,
+				"avg": 0.067,
 				"p50": 0,
-				"p95": 0.3,
-				"p99": 0.7,
-				"max": 1.4
+				"p95": 0.2,
+				"p99": 0.4,
+				"max": 3.6
 			}
 		},
-		"heapUsed": 10000000
+		"heapUsed": 13400000
 	},
 	"perfProfiled": {
 		"frame": {
-			"n": 509,
-			"avg": 5.442,
-			"p50": 5,
-			"p95": 9.7,
-			"p99": 12.4,
-			"max": 17
+			"n": 588,
+			"avg": 4.824,
+			"p50": 4.7,
+			"p95": 7.4,
+			"p99": 9.1,
+			"max": 15.3
 		},
-		"slowFrames": 1,
+		"slowFrames": 0,
 		"spans": {
 			"simulate": {
-				"n": 938,
-				"avg": 0.401,
-				"p50": 0.4,
+				"n": 931,
+				"avg": 0.372,
+				"p50": 0.3,
 				"p95": 0.8,
-				"p99": 1.2,
-				"max": 7.7
+				"p99": 1.1,
+				"max": 2.1
 			},
 			"render": {
-				"n": 509,
-				"avg": 4.666,
-				"p50": 4.3,
-				"p95": 8.5,
-				"p99": 10.7,
+				"n": 588,
+				"avg": 4.208,
+				"p50": 4,
+				"p95": 6.6,
+				"p99": 8.8,
 				"max": 14.1
 			},
 			"decode": {
-				"n": 974,
-				"avg": 0.242,
+				"n": 966,
+				"avg": 0.217,
 				"p50": 0.2,
-				"p95": 0.6,
-				"p99": 1.2,
-				"max": 2.6
+				"p95": 0.5,
+				"p99": 0.7,
+				"max": 2.1
 			},
 			"reconcile": {
-				"n": 943,
-				"avg": 0.087,
+				"n": 934,
+				"avg": 0.074,
 				"p50": 0,
 				"p95": 0.3,
-				"p99": 0.6,
-				"max": 2.1
+				"p99": 0.4,
+				"max": 1.1
 			}
 		},
-		"heapUsed": 10000000
+		"heapUsed": 13400000
 	},
 	"gc": {
 		"minor": {
-			"count": 11,
-			"totalMs": 23.8,
-			"maxMs": 4.5
+			"count": 9,
+			"totalMs": 19.9,
+			"maxMs": 4.9
 		},
 		"major": {
 			"count": 2,
-			"totalMs": 32,
-			"maxMs": 24.6
-		}
+			"totalMs": 16.5,
+			"maxMs": 10
+		},
+		"majorDetails": [
+			{
+				"atSec": 21.9,
+				"ms": 10.4,
+				"reason": "finalize incremental marking via stack guard",
+				"heapBeforeMb": 15.6,
+				"heapAfterMb": 4.5
+			},
+			{
+				"atSec": 30.9,
+				"ms": 6.9,
+				"reason": "finalize incremental marking via stack guard",
+				"heapBeforeMb": 8.9,
+				"heapAfterMb": 4.5
+			}
+		]
 	},
 	"cpu": {
-		"totalMs": 30446.7,
-		"activeMs": 30134.4,
-		"gcMs": 59,
+		"totalMs": 30381.2,
+		"activeMs": 30094.4,
+		"gcMs": 64.8,
 		"rows": [
 			{
 				"name": "drawImage",
-				"selfMs": 269.9,
-				"pct": 0.9
+				"selfMs": 292.1,
+				"pct": 1
 			},
 			{
 				"name": "curve index-DVSpvM2K.js:10481",
-				"selfMs": 257.6,
+				"selfMs": 260.2,
 				"pct": 0.9
 			},
 			{
 				"name": "strokeText",
-				"selfMs": 184.8,
-				"pct": 0.6
-			},
-			{
-				"name": "drawObstacle index-DVSpvM2K.js:10349",
-				"selfMs": 119.3,
-				"pct": 0.4
+				"selfMs": 214,
+				"pct": 0.7
 			},
 			{
 				"name": "draw index-DVSpvM2K.js:7009",
-				"selfMs": 106.8,
+				"selfMs": 130.2,
 				"pct": 0.4
 			},
 			{
 				"name": "send",
-				"selfMs": 86.5,
+				"selfMs": 99.7,
 				"pct": 0.3
 			},
 			{
 				"name": "createBufferSource",
-				"selfMs": 85.1,
-				"pct": 0.3
-			},
-			{
-				"name": "draw index-DVSpvM2K.js:11430",
-				"selfMs": 84.5,
+				"selfMs": 84.2,
 				"pct": 0.3
 			},
 			{
 				"name": "fill",
-				"selfMs": 80.3,
+				"selfMs": 82.3,
+				"pct": 0.3
+			},
+			{
+				"name": "drawObstacle index-DVSpvM2K.js:10349",
+				"selfMs": 81.3,
 				"pct": 0.3
 			},
 			{
 				"name": "decodeSnapshot index-DVSpvM2K.js:8548",
-				"selfMs": 69.3,
+				"selfMs": 74.5,
+				"pct": 0.2
+			},
+			{
+				"name": "draw index-DVSpvM2K.js:11430",
+				"selfMs": 73.7,
 				"pct": 0.2
 			},
 			{
 				"name": "stroke",
-				"selfMs": 60,
+				"selfMs": 56.1,
 				"pct": 0.2
 			},
 			{
 				"name": "addColorStop",
-				"selfMs": 53.6,
+				"selfMs": 50.8,
 				"pct": 0.2
 			},
 			{
-				"name": "strikeGeometry index-DVSpvM2K.js:10192",
-				"selfMs": 51.4,
+				"name": "save",
+				"selfMs": 49.8,
 				"pct": 0.2
 			},
 			{
-				"name": "#applyEdges index-DVSpvM2K.js:262",
-				"selfMs": 48.3,
+				"name": "drawParticle index-DVSpvM2K.js:10016",
+				"selfMs": 49.4,
 				"pct": 0.2
 			},
 			{
 				"name": "restore",
-				"selfMs": 44.4,
-				"pct": 0.1
+				"selfMs": 48.1,
+				"pct": 0.2
 			}
 		]
 	},
 	"heap": {
-		"totalBytes": 57253828,
+		"totalBytes": 53702532,
 		"rows": [
 			{
 				"name": "drawObstacle index-DVSpvM2K.js:10349",
-				"bytes": 4635396,
-				"pct": 8.1
-			},
-			{
-				"name": "puffPath index-DVSpvM2K.js:10237",
-				"bytes": 4100200,
-				"pct": 7.2
+				"bytes": 4175796,
+				"pct": 7.8
 			},
 			{
 				"name": "draw index-DVSpvM2K.js:11430",
-				"bytes": 3443832,
-				"pct": 6
+				"bytes": 3345336,
+				"pct": 6.2
 			},
 			{
 				"name": "update index-DVSpvM2K.js:168",
-				"bytes": 2574180,
-				"pct": 4.5
+				"bytes": 2484000,
+				"pct": 4.6
 			},
 			{
 				"name": "#applyEdges index-DVSpvM2K.js:262",
-				"bytes": 2344632,
-				"pct": 4.1
-			},
-			{
-				"name": "(anonymous) index-DVSpvM2K.js:10249",
-				"bytes": 2279052,
-				"pct": 4
+				"bytes": 2361036,
+				"pct": 4.4
 			},
 			{
 				"name": "update index-DVSpvM2K.js:158",
-				"bytes": 2262648,
-				"pct": 4
+				"bytes": 2311836,
+				"pct": 4.3
 			},
 			{
 				"name": "strikeGeometry index-DVSpvM2K.js:10192",
-				"bytes": 2251048,
+				"bytes": 2119332,
 				"pct": 3.9
 			},
 			{
 				"name": "drawBullet index-DVSpvM2K.js:11343",
-				"bytes": 1615008,
-				"pct": 2.8
+				"bytes": 2090496,
+				"pct": 3.9
 			},
 			{
 				"name": "drawShield index-DVSpvM2K.js:10531",
-				"bytes": 1598616,
-				"pct": 2.8
+				"bytes": 1901928,
+				"pct": 3.5
+			},
+			{
+				"name": "(anonymous) index-DVSpvM2K.js:10249",
+				"bytes": 1778976,
+				"pct": 3.3
 			},
 			{
 				"name": "Particle index-DVSpvM2K.js:6910",
-				"bytes": 1454312,
-				"pct": 2.5
-			},
-			{
-				"name": "update index-DVSpvM2K.js:248",
-				"bytes": 1442856,
-				"pct": 2.5
-			},
-			{
-				"name": "push index-DVSpvM2K.js:7870",
-				"bytes": 1417188,
-				"pct": 2.5
+				"bytes": 1577696,
+				"pct": 2.9
 			},
 			{
 				"name": "ofKind index-DVSpvM2K.js:6956",
-				"bytes": 1293180,
+				"bytes": 1554332,
+				"pct": 2.9
+			},
+			{
+				"name": "bullet index-DVSpvM2K.js:9325",
+				"bytes": 1314464,
+				"pct": 2.4
+			},
+			{
+				"name": "push index-DVSpvM2K.js:7870",
+				"bytes": 1253680,
 				"pct": 2.3
 			},
 			{
-				"name": "(anonymous) index-DVSpvM2K.js:8628",
-				"bytes": 1206148,
-				"pct": 2.1
+				"name": "step index-DVSpvM2K.js:644",
+				"bytes": 1237912,
+				"pct": 2.3
+			},
+			{
+				"name": "f32 index-DVSpvM2K.js:8318",
+				"bytes": 1164120,
+				"pct": 2.2
 			}
 		]
 	},
 	"server": {
 		"tickMs": {
 			"n": 300,
-			"avg": 0.342,
-			"p50": 0.335,
-			"p95": 0.436,
-			"p99": 0.503,
-			"max": 1.122,
-			"jitter": 0.073
+			"avg": 0.329,
+			"p50": 0.318,
+			"p95": 0.446,
+			"p99": 0.523,
+			"max": 0.55,
+			"jitter": 0.058
 		},
 		"eventLoop": {
-			"utilization": 0.02,
+			"utilization": 0.021,
 			"delayMs": {
-				"p50": 5.539999999999999,
-				"p99": 13.379999999999999,
+				"p50": 5.532,
+				"p99": 12.151,
 				"max": 15.870000000000001
 			}
 		},
 		"memory": {
-			"rss": 82264064,
-			"heapUsed": 20004728
+			"rss": 83009536,
+			"heapUsed": 19854376
 		}
 	}
 }

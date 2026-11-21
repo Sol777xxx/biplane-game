@@ -110,6 +110,15 @@ describe("failure / holds / capacity", () => {
 		);
 	});
 
+	it("цикл подій сервера ≥ 90% це насичення, навіть якщо тік короткий", () => {
+		assert.match(
+			failure(level(512, { loopUtilization: 0.93 })),
+			/цикл подій сервера зайнятий на 93%/,
+		);
+		assert.equal(holds(level(512, { loopUtilization: 0.89 })), true);
+		assert.equal(holds(level(8, { loopUtilization: null })), true);
+	});
+
 	it("відстаючий генератор робить результат недостовірним", () => {
 		assert.match(failure(level(8, { generatorLagMs: 25 })), /генератор/);
 	});

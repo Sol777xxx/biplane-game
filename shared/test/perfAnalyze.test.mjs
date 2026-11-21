@@ -105,12 +105,51 @@ describe("gcStats", () => {
 		assert.deepEqual(gcStats(events), {
 			minor: { count: 2, totalMs: 4, maxMs: 3 },
 			major: { count: 1, totalMs: 12, maxMs: 12 },
+			majorDetails: [],
 		});
 	});
 
 	it("без подій GC: нулі", () => {
 		const zero = { count: 0, totalMs: 0, maxMs: 0 };
-		assert.deepEqual(gcStats([]), { minor: zero, major: zero });
+		assert.deepEqual(gcStats([]), {
+			minor: zero,
+			major: zero,
+			majorDetails: [],
+		});
+	});
+});
+
+describe("gcStats: докладно про major GC", () => {
+	it("час від початку, причина й розмір купи з подій MajorGC", () => {
+		const events = [
+			{ ph: "M", name: "process_name", pid: 2, args: { name: "Renderer" } },
+			{ ph: "X", name: "Other", pid: 2, ts: 1_000_000, dur: 1 },
+			{ ph: "X", name: "V8.GCFinalizeMC", pid: 2, ts: 3_500_000, dur: 9000 },
+			{
+				ph: "X",
+				name: "MajorGC",
+				pid: 2,
+				ts: 3_500_000,
+				dur: 9000,
+				args: {
+					type: "external memory pressure",
+					usedHeapSizeBefore: 20 * 1048576,
+					usedHeapSizeAfter: 8 * 1048576,
+				},
+			},
+			{ ph: "X", name: "MajorGC", pid: 9, ts: 9, dur: 1, args: {} },
+		];
+		const { major, majorDetails } = gcStats(events);
+		assert.equal(major.count, 1);
+		assert.deepEqual(majorDetails, [
+			{
+				atSec: 2.5,
+				ms: 9,
+				reason: "external memory pressure",
+				heapBeforeMb: 20,
+				heapAfterMb: 8,
+			},
+		]);
 	});
 });
 
@@ -126,6 +165,15 @@ describe("toMarkdown", () => {
 			gc: {
 				minor: { count: 5, totalMs: 10, maxMs: 4 },
 				major: { count: 1, totalMs: 12, maxMs: 12 },
+				majorDetails: [
+					{
+						atSec: 4.1,
+						ms: 12,
+						reason: "allocation limit",
+						heapBeforeMb: 30,
+						heapAfterMb: 9,
+					},
+				],
 			},
 			cpu: {
 				gcMs: 22,
@@ -138,6 +186,7 @@ describe("toMarkdown", () => {
 		assert.match(md, /### before/);
 		assert.match(md, /4 \/ 20 \/ 20 мс|4 \/ 20 \/ 20/);
 		assert.match(md, /Паузи major GC \| 1 шт\., разом 12 мс/);
+		assert.match(md, /- 4\.1 с, 12 мс, «allocation limit», 30 → 9 МБ/);
 		assert.match(md, /1\. draw r\.js:1: 80 мс \(26%\)/);
 		assert.match(md, /1\. fire b\.js:1: 2 КБ \(50%\)/);
 	});

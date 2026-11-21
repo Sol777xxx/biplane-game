@@ -111,7 +111,12 @@ export function gcStats(events) {
 		}
 	}
 	const empty = () => ({ count: 0, totalMs: 0, maxMs: 0 });
-	const out = { minor: empty(), major: empty() };
+	const out = { minor: empty(), major: empty(), majorDetails: [] };
+	// початок відліку: найраніша подія цього процесу в трасуванні
+	let t0 = Number.POSITIVE_INFINITY;
+	for (const e of events)
+		if (e.pid === pid && typeof e.ts === "number" && e.ts > 0)
+			t0 = Math.min(t0, e.ts);
 	for (const e of gc) {
 		if (e.pid !== pid) continue;
 		const bucket = MAJOR.has(e.name) ? out.major : out.minor;
@@ -119,6 +124,17 @@ export function gcStats(events) {
 		bucket.count++;
 		bucket.totalMs += ms;
 		bucket.maxMs = Math.max(bucket.maxMs, ms);
+	}
+	// Події MajorGC несуть причину й розмір купи до і після: з них видно, чому і коли було збирання
+	for (const e of events) {
+		if (e.pid !== pid || e.name !== "MajorGC" || e.ph !== "X") continue;
+		out.majorDetails.push({
+			atSec: Math.round(((e.ts - t0) / 1e6) * 10) / 10,
+			ms: r1((e.dur ?? 0) / 1000),
+			reason: e.args?.type ?? "?",
+			heapBeforeMb: r1((e.args?.usedHeapSizeBefore ?? 0) / 1048576),
+			heapAfterMb: r1((e.args?.usedHeapSizeAfter ?? 0) / 1048576),
+		});
 	}
 	for (const b of [out.minor, out.major]) {
 		b.totalMs = r1(b.totalMs);
@@ -144,6 +160,18 @@ export function toMarkdown(label, s) {
 		`| Паузи major GC | ${s.gc.major.count} шт., разом ${s.gc.major.totalMs} мс, макс ${s.gc.major.maxMs} мс |`,
 		`| Час у GC за профілем CPU | ${s.cpu.gcMs} мс з ${s.cpu.activeMs} мс активного |`,
 		"",
+		...(s.gc.majorDetails?.length
+			? [
+					"",
+					"Major GC докладно (час від початку, тривалість, причина, купа до → після):",
+					"",
+					...s.gc.majorDetails.map(
+						(d) =>
+							`- ${d.atSec} с, ${d.ms} мс, «${d.reason}», ${d.heapBeforeMb} → ${d.heapAfterMb} МБ`,
+					),
+					"",
+				]
+			: []),
 		"Топ-3 за власним часом:",
 		"",
 		...s.cpu.rows

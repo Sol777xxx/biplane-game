@@ -13,6 +13,12 @@ import { join } from "node:path";
 import { monitorEventLoopDelay } from "node:perf_hooks";
 import { setTimeout as sleep } from "node:timers/promises";
 import { parseArgs } from "node:util";
+import {
+	isMainThread,
+	parentPort,
+	Worker,
+	workerData,
+} from "node:worker_threads";
 import { getCodec } from "biplane-shared/codec/index.ts";
 import WebSocket from "ws";
 import {
@@ -33,8 +39,11 @@ const { values: args } = parseArgs({
 		url: { type: "string" },
 		"until-fail": { type: "boolean", default: false },
 		"max-clients": { type: "string", default: "2048" },
+		// скільки потоків створюють клієнтів: один потік сам стає вузьким місцем раніше за сервер
+		shards: { type: "string", default: "4" },
 	},
 });
+const SHARDS = Math.max(1, Number(args.shards));
 const SECONDS = Number(args.seconds);
 const PER_ROOM = Number(args["per-room"]);
 const BASE = args.url ?? `http://127.0.0.1:${args.port}`;
@@ -78,9 +87,9 @@ async function startServer() {
 }
 
 // Один клієнт: join, потім input 30/с з клавішами, що міняються, і вогнем.
-function connect(room, name) {
+function connect(wsUrl, room, name) {
 	return new Promise((resolve, reject) => {
-		const ws = new WebSocket(WS);
+		const ws = new WebSocket(wsUrl);
 		const client = { ws, snapshots: 0, timer: null };
 		const fail = (e) => reject(e instanceof Error ? e : new Error(String(e)));
 		ws.once("error", fail);
@@ -126,7 +135,70 @@ function connect(room, name) {
 	});
 }
 
-async function runLevel(clients) {
+// ---------- потік-виконавець: тримає свою частину клієнтів ----------
+async function runShard() {
+	const { wsUrl } = workerData;
+	let open = [];
+	let lag = null;
+	let base = 0;
+	const total = () => open.reduce((s, c) => s + c.snapshots, 0);
+	parentPort.on("message", async (m) => {
+		try {
+			if (m.cmd === "open") {
+				// партіями: join має встигнути за 5 с, а відро керування обмежене
+				for (let i = 0; i < m.clients.length; i += 16) {
+					const batch = m.clients
+						.slice(i, i + 16)
+						.map((c) => connect(wsUrl, c.room, c.name));
+					open.push(...(await Promise.all(batch)));
+				}
+				parentPort.postMessage({ id: m.id, n: open.length });
+			} else if (m.cmd === "start") {
+				base = total();
+				lag = monitorEventLoopDelay({ resolution: 10 });
+				lag.enable();
+				parentPort.postMessage({ id: m.id });
+			} else if (m.cmd === "stop") {
+				lag?.disable();
+				parentPort.postMessage({
+					id: m.id,
+					snapshots: total() - base,
+					// затримка власного циклу без базових 10 мс опитування
+					lagMs: Math.max(0, (lag?.percentile(99) ?? 0) / 1e6 - 10),
+				});
+			} else if (m.cmd === "close") {
+				for (const c of open) {
+					clearInterval(c.timer);
+					c.ws.terminate();
+				}
+				open = [];
+				parentPort.postMessage({ id: m.id });
+			}
+		} catch (error) {
+			parentPort.postMessage({ id: m.id, error: String(error) });
+		}
+	});
+}
+
+if (!isMainThread) await runShard();
+
+// ---------- головний потік ----------
+let nextId = 0;
+function call(worker, message) {
+	const id = ++nextId;
+	return new Promise((resolve, reject) => {
+		const onMessage = (reply) => {
+			if (reply.id !== id) return;
+			worker.off("message", onMessage);
+			if (reply.error) reject(new Error(reply.error));
+			else resolve(reply);
+		};
+		worker.on("message", onMessage);
+		worker.postMessage({ ...message, id });
+	});
+}
+
+async function runLevel(workers, clients) {
 	const roomCount = Math.ceil(clients / PER_ROOM);
 	const rooms = [];
 	for (let i = 0; i < roomCount; i++) {
@@ -136,44 +208,46 @@ async function runLevel(clients) {
 		});
 		rooms.push(room.id);
 	}
-	const open = [];
+	// кімната цілком в одному потоці: room % кількість потоків
+	const parts = workers.map(() => []);
+	for (let k = 0; k < clients; k++) {
+		const room = Math.floor(k / PER_ROOM);
+		parts[room % workers.length].push({ room: rooms[room], name: `c${k}` });
+	}
 	try {
-		// заходимо партіями: join має встигнути за 5 с, а відро керування обмежене
-		for (let i = 0; i < clients; i += 16) {
-			const batch = [];
-			for (let k = i; k < Math.min(clients, i + 16); k++) {
-				batch.push(connect(rooms[Math.floor(k / PER_ROOM)], `c${k}`));
-			}
-			open.push(...(await Promise.all(batch)));
-		}
+		await Promise.all(
+			workers.map((w, i) => call(w, { cmd: "open", clients: parts[i] })),
+		);
 		await sleep(3000); // розігрів
 		await api("/api/stats"); // скидає вікно циклу подій: далі міряємо лише сам тест
-		const base = open.reduce((s, c) => s + c.snapshots, 0);
-		const lag = monitorEventLoopDelay({ resolution: 10 });
-		lag.enable();
+		await Promise.all(workers.map((w) => call(w, { cmd: "start" })));
 		await sleep(SECONDS * 1000);
-		lag.disable();
+		const reports = await Promise.all(
+			workers.map((w) => call(w, { cmd: "stop" })),
+		);
 		const stats = await api("/api/stats");
-		const snapshots = open.reduce((s, c) => s + c.snapshots, 0) - base;
-		return summarizeLevel({
-			clients,
-			stats,
-			snapshots,
-			seconds: SECONDS,
-			// затримка власного циклу генератора без базових 10 мс опитування
-			generatorLagMs: Math.max(0, lag.percentile(99) / 1e6 - 10),
-		});
+		return {
+			...summarizeLevel({
+				clients,
+				stats,
+				snapshots: reports.reduce((s, r) => s + r.snapshots, 0),
+				seconds: SECONDS,
+				generatorLagMs: Math.max(...reports.map((r) => r.lagMs)),
+			}),
+			shards: workers.length,
+		};
 	} finally {
-		for (const c of open) {
-			clearInterval(c.timer);
-			c.ws.terminate();
-		}
+		await Promise.all(workers.map((w) => call(w, { cmd: "close" })));
 		await sleep(1500); // кімнати спорожніли, матчі зупинилися
 	}
 }
 
 async function main() {
 	const server = await startServer();
+	const workers = Array.from(
+		{ length: SHARDS },
+		() => new Worker(new URL(import.meta.url), { workerData: { wsUrl: WS } }),
+	);
 	const levels = [];
 	try {
 		const plan = args.levels.split(",").map(Number);
@@ -191,7 +265,13 @@ async function main() {
 		};
 		for (let n = next(); n !== null; n = next()) {
 			console.log(`рівень ${n} клієнтів, ${SECONDS} с…`);
-			const level = await runLevel(n);
+			const level = await runLevel(
+				workers.slice(
+					0,
+					Math.max(1, Math.min(SHARDS, Math.ceil(n / PER_ROOM))),
+				),
+				n,
+			);
 			levels.push(level);
 			console.log(
 				`  тік p50/p99/max ${level.tickMs.p50}/${level.tickMs.p99}/${level.tickMs.max} мс, цикл ${level.loopUtilization === null ? "–" : Math.round(level.loopUtilization * 100)}%, пропущено ${level.skipped}, ${holds(level) ? "тримає" : "НЕ тримає"}`,
@@ -202,6 +282,7 @@ async function main() {
 			when: new Date().toISOString(),
 			perRoom: PER_ROOM,
 			seconds: SECONDS,
+			shards: SHARDS,
 			...capacity(levels),
 			levels,
 		};
@@ -219,11 +300,14 @@ async function main() {
 			`\n${toMarkdown(args.label, levels)}\nзбережено: ${base}.{json,md,svg}`,
 		);
 	} finally {
+		await Promise.all(workers.map((w) => w.terminate()));
 		server?.kill();
 	}
 }
 
-main().catch((error) => {
-	console.error(error);
-	process.exit(1);
-});
+if (isMainThread) {
+	main().catch((error) => {
+		console.error(error);
+		process.exit(1);
+	});
+}
