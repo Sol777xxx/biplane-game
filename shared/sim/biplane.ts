@@ -67,26 +67,24 @@ export class Biplane extends Entity<"biplane"> {
 		this.cooldown = this.effects.rapid > 0 ? RAPID_COOLDOWN : FIRE_COOLDOWN;
 
 		// напрямок носа: дзеркалення (facing) і нахил (pitch), як у рендері
-		const dir = new Vector2(
-			this.facing * Math.cos(this.pitch),
-			Math.sin(this.pitch),
-		);
-		const muzzle = this.pos.add(dir.scale(NOSE));
-		const vel = dir.scale(BULLET_SPEED).add(this.vel); // успадкована швидкість
+		const dirX = this.facing * Math.cos(this.pitch);
+		const dirY = Math.sin(this.pitch);
+		const muzzleX = this.pos.x + dirX * NOSE;
+		const muzzleY = this.pos.y + dirY * NOSE;
 
-		const bullet = new Bullet({
+		const bullet = Bullet.obtain({
 			owner: this,
-			x: muzzle.x,
-			y: muzzle.y,
-			vx: vel.x,
-			vy: vel.y,
+			x: muzzleX,
+			y: muzzleY,
+			vx: dirX * BULLET_SPEED + this.vel.x, // успадкована швидкість
+			vy: dirY * BULLET_SPEED + this.vel.y,
 			seq: this.inputSeq,
 		});
 		if (this.effects.homing > 0) {
 			bullet.add(homing({ kinds: ["obstacle"], turnRate: 4, range: 700 }));
 		}
 		this.world.spawn(bullet);
-		this.world.emit("fired", { by: this, at: muzzle });
+		this.world.emit("fired", { by: this, at: new Vector2(muzzleX, muzzleY) });
 		return bullet;
 	}
 

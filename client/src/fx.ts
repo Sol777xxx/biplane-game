@@ -1,6 +1,7 @@
-import { drag, lifetime } from "biplane-shared/sim/behaviors.ts";
+import { lifetime } from "biplane-shared/sim/behaviors.ts";
 import type { Subscribable } from "biplane-shared/sim/bus.ts";
 import { Entity } from "biplane-shared/sim/entity.ts";
+import { NO_ENTITY } from "biplane-shared/sim/ids.ts";
 import type { ExplosionColor } from "biplane-shared/sim/types.ts";
 import { World } from "biplane-shared/sim/world.ts";
 import type { NetBusEvents } from "./net/events.ts";
@@ -39,14 +40,76 @@ interface ParticleOptions {
 	readonly ttl: number;
 }
 
-// частинка: звичайний Entity + дві поведінки
+const PARTICLE_DRAG = 2.5;
+const PARTICLE_POOL_MAX = 512;
+// Вільні частинки: вибух дає десятки штук за раз, і створювати їх (сутність, три вектори,
+// масив і дві поведінки) на кожне влучання означало б нове сміття щоразу. Мертва частинка
+// повертається сюди з World.sweep, а burst бере звідси.
+const spareParticles: Particle[] = [];
+
+// Частинка: життя 1 → 0 і гальмування drag. Раніше це робили поведінки lifetime і drag, але їхній
+// стан живе в замиканні, яке не скинути, тож тут ті самі дві формули прямо в update.
 export class Particle extends Entity<"particle"> {
-	readonly color: ExplosionColor;
+	color: ExplosionColor;
+	#ttl: number;
+	#left: number;
+	#pooled = false;
+	#spare = false;
 
 	constructor({ x, y, vx, vy, color, ttl }: ParticleOptions) {
 		super({ kind: "particle", x, y, vx, vy });
 		this.color = color;
-		this.add(lifetime(ttl)).add(drag(2.5));
+		this.#ttl = ttl;
+		this.#left = ttl;
+		this.life = 1;
+	}
+
+	// частинка з пулу або нова, якщо пул порожній
+	static obtain(options: ParticleOptions): Particle {
+		const spare = spareParticles.pop();
+		if (spare === undefined) {
+			const fresh = new Particle(options);
+			fresh.#pooled = true;
+			return fresh;
+		}
+		spare.#spare = false;
+		spare.#reset(options);
+		return spare;
+	}
+
+	#reset({ x, y, vx, vy, color, ttl }: ParticleOptions): void {
+		this.pos.set(x, y);
+		this.prevPos.set(x, y);
+		this.vel.set(vx, vy);
+		this.alive = true;
+		this.id = NO_ENTITY;
+		this.world = null;
+		this.color = color;
+		this.#ttl = ttl;
+		this.#left = ttl;
+		this.life = 1;
+	}
+
+	override update(dt: number): void {
+		this.#left -= dt;
+		this.life = Math.max(0, this.#left / this.#ttl);
+		if (this.#left <= 0) this.kill();
+		const f = Math.max(0, 1 - PARTICLE_DRAG * dt);
+		this.vel.x *= f;
+		this.vel.y *= f;
+		super.update(dt);
+	}
+
+	override recycle(): void {
+		if (
+			!this.#pooled ||
+			this.#spare ||
+			spareParticles.length >= PARTICLE_POOL_MAX
+		) {
+			return;
+		}
+		this.#spare = true;
+		spareParticles.push(this);
 	}
 }
 
@@ -69,7 +132,7 @@ export function createFx(bus: Subscribable<FxEvents>) {
 			const a = Math.random() * Math.PI * 2;
 			const s = speed[0] + Math.random() * speed[1];
 			world.spawn(
-				new Particle({
+				Particle.obtain({
 					x: pos.x,
 					y: pos.y,
 					vx: Math.cos(a) * s,

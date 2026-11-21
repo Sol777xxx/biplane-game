@@ -2,7 +2,7 @@ import { lifetime, pickup } from "./behaviors.ts";
 import type { Biplane } from "./biplane.ts";
 import { EFFECT_NAMES, type EffectName } from "./effects.ts";
 import { Entity } from "./entity.ts";
-import { NO_SEQ, type Seq } from "./ids.ts";
+import { NO_ENTITY, NO_SEQ, type Seq } from "./ids.ts";
 import type { SimEntity } from "./types.ts";
 
 const BULLET_RADIUS = 8;
@@ -21,11 +21,19 @@ export interface BulletOptions {
 	readonly seq?: Seq; // seq input, що випустив кулю (NO_SEQ: невідомо)
 }
 
+// Вільні кулі: стрільба бере звідси, а World.sweep повертає мертві. Так бій із десятками куль
+// на секунду не створює об'єкт і три вектори на кожен постріл. Межа не дає пулу розростись.
+const BULLET_POOL_MAX = 256;
+const spareBullets: Bullet[] = [];
+
 export class Bullet extends Entity<"bullet"> {
-	readonly owner: Biplane | null;
+	// не readonly: куля з пулу отримує нового власника й seq при повторному використанні
+	owner: Biplane | null;
 	damage: number;
 	ttl: number;
-	readonly seq: Seq;
+	seq: Seq;
+	#pooled = false; // створена через Bullet.obtain: після смерті повернеться в пул
+	#spare = false; // зараз лежить у пулі
 
 	constructor({
 		owner,
@@ -52,6 +60,56 @@ export class Bullet extends Entity<"bullet"> {
 		this.seq = seq;
 	}
 
+	// Куля з пулу або нова, якщо пул порожній. Стан після obtain такий самий, як після new Bullet.
+	static obtain(options: BulletOptions): Bullet {
+		const spare = spareBullets.pop();
+		if (spare === undefined) {
+			const fresh = new Bullet(options);
+			fresh.#pooled = true;
+			return fresh;
+		}
+		spare.#spare = false;
+		spare.#reset(options);
+		return spare;
+	}
+
+	#reset({
+		owner,
+		x,
+		y,
+		vx,
+		vy,
+		damage = BULLET_DAMAGE,
+		ttl = BULLET_TTL,
+		seq = NO_SEQ,
+	}: BulletOptions): void {
+		this.pos.set(x, y);
+		this.prevPos.set(x, y);
+		this.vel.set(vx, vy);
+		this.alive = true;
+		this.id = NO_ENTITY; // новий id призначить World.spawn
+		this.world = null;
+		this.behaviors.length = 0; // homing лишився б від попереднього пострілу
+		this.owner = owner;
+		this.damage = damage;
+		this.ttl = ttl;
+		this.seq = seq;
+	}
+
+	// Повертає себе в пул лише якщо створена через obtain: кулі з new (передбачення на клієнті,
+	// тести) тримає той, хто їх створив, і чужа посилання на них не повинна оживати.
+	override recycle(): void {
+		if (
+			!this.#pooled ||
+			this.#spare ||
+			spareBullets.length >= BULLET_POOL_MAX
+		) {
+			return;
+		}
+		this.#spare = true;
+		spareBullets.push(this);
+	}
+
 	override update(dt: number): void {
 		this.ttl -= dt;
 		if (this.ttl <= 0) {
@@ -66,12 +124,10 @@ export class Bullet extends Entity<"bullet"> {
 		if (other === this.owner) return;
 		if (other.kind === "obstacle" || other.kind === "biplane") {
 			other.takeDamage(this.damage, this.owner);
-			this.world?.events.push({
-				type: "hit",
-				at: this.pos.clone(),
-				target: other,
-			});
-			this.world?.emit("hit", { at: this.pos.clone(), target: other });
+			// одна незмінна копія на подію й на шину: Vector2 ззовні не змінюється
+			const at = this.pos.clone();
+			this.world?.events.push({ type: "hit", at, target: other });
+			this.world?.emit("hit", { at, target: other });
 			this.kill();
 		}
 	}

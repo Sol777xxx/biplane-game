@@ -105,6 +105,12 @@ export class Entity<K extends string = string> {
 		this.alive = false;
 	}
 
+	// World викликає це, коли мертву сутність прибрано зі світу. Звичайна сутність нічого не
+	// робить (її збере GC); сутність з пулу (Bullet, Particle) тут повертає себе в пул.
+	recycle(): void {
+		// нічого
+	}
+
 	#applyEdges(): void {
 		const { width, height } = ARENA;
 		if (this.edges === "die") {

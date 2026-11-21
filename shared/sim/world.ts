@@ -135,6 +135,7 @@ export class World implements EntityWorld, Iterable<Entity> {
 			if (!e.alive) {
 				dead = true;
 				this.#entities.delete(e.id);
+				e.recycle();
 			}
 		}
 		if (!dead) return;
