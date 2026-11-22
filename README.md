@@ -1,6 +1,6 @@
 # Biplane Game
 
-Лабораторна робота 7: «V8, пам’ять і тести».
+Лабораторна робота 8: «Публікуємо гру: Docker, метрики і жива адреса».
 
 Браузерна гра: пастельний біплан, яким літаєш по арені на canvas.
 - [lab-01](https://github.com/Sol777xxx/biplane-game/tree/lab-01): ігровий цикл, фіксований крок, експерименти з event loop.
@@ -9,6 +9,7 @@
 - [lab-04](https://github.com/Sol777xxx/biplane-game/tree/lab-04): Node.js сервер, EventEmitter, streams, WebSocket-сервер.
 - [lab-05](https://github.com/Sol777xxx/biplane-game/tree/lab-05): сервер рахує гру, передбачення й звірка, бінарний протокол.
 - [lab-06](https://github.com/Sol777xxx/biplane-game/tree/lab-06): міграція на TypeScript, типи як договір, Zod на межах.
+- [lab-07](https://github.com/Sol777xxx/biplane-game/tree/lab-07): тести (Vitest, fast-check, Playwright), CI, профілювання пам'яті й кадру, пул об'єктів, навантажувальний тест.
 
 [![CI](https://github.com/Sol777xxx/biplane-game/actions/workflows/ci.yml/badge.svg)](https://github.com/Sol777xxx/biplane-game/actions/workflows/ci.yml)
 

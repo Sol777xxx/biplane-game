@@ -272,6 +272,17 @@ function startGame(
 		predictor.reset();
 		view.reset();
 	});
+	// Сеанс закрито остаточно (сервер зупинився, перепідключення не допомогли): назад у лобі.
+	// Перезавантаження дає чистий стан, а лобі саме покаже, чи сервер знову доступний.
+	net.listen("status", (st) => {
+		if (st.state !== "closed") return;
+		ended = true;
+		status.textContent =
+			st.reason === "server shutting down"
+				? "Сервер перезапускається. Повертаємось у лобі…"
+				: `З'єднання втрачено (${st.code}). Повертаємось у лобі…`;
+		setTimeout(() => location.reload(), 1500);
+	});
 
 	mountChat(query("#chat", HTMLElement), net);
 	const netgraph = mountNetgraph(query("#netgraph", HTMLElement), {
@@ -289,6 +300,7 @@ function startGame(
 	let probe: { plane: Biplane; time: number; steps: number } | null = null; // вимірювання: окремий біплан поза світом
 	let frameCount = 0;
 	let lastStatus = "";
+	let ended = false; // сеанс закрито: рядок статусу більше не перезаписуємо
 	let sendClock = 0;
 
 	// доступ із консолі: ?debug
@@ -377,7 +389,7 @@ function startGame(
 				`HP: ${ship ? ship.hp : "—"}   рахунок: ${player?.score ?? 0}   ` +
 				`збито: ${player?.destroyed ?? 0}   зіткнень: ${player?.crashes ?? 0}` +
 				(active ? `   [${active}]` : "");
-			if (text !== lastStatus) {
+			if (text !== lastStatus && !ended) {
 				status.textContent = text;
 				lastStatus = text;
 			}

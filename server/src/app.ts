@@ -6,6 +6,7 @@ import type { Config } from "./config.ts";
 import { createMatchLogs, type MatchLogs } from "./log/matchlog.ts";
 import { consoleLogger, type Logger } from "./logger.ts";
 import { createMatches, type Matches, type MatchesOptions } from "./matches.ts";
+import { Metrics } from "./metrics.ts";
 import { HttpError, sendError, sendJson } from "./respond.ts";
 import { RoomManager } from "./rooms.ts";
 import { createStaticHandler } from "./static.ts";
@@ -29,6 +30,8 @@ export interface App {
 	readonly sockets: WebSocketHub;
 	readonly matches: Matches | null;
 	readonly matchLogs: MatchLogs | null;
+	// true з першої миті завершення: за цим /ready віддає 503
+	readonly closing: boolean;
 	listen(): Promise<AddressInfo>;
 	onClose(fn: () => void | Promise<void>): void;
 	close(): Promise<void>;
@@ -57,9 +60,16 @@ export function createApp(
 		bots,
 	});
 	const startedAt = Date.now();
+	const metrics = new Metrics();
+	metrics.start();
+	let shuttingDown = false;
+	const maxPlayers = config.maxPlayers ?? Number.POSITIVE_INFINITY;
+	const totalPlayers = (): number =>
+		rooms.all().reduce((sum, room) => sum + room.players.size, 0);
 	const closers: (() => void | Promise<void>)[] = [
 		() => bots.dispose(),
 		() => rooms.dispose(),
+		() => metrics.stop(),
 	];
 
 	async function route(
@@ -72,10 +82,43 @@ export function createApp(
 			const { rss, heapUsed } = process.memoryUsage();
 			return sendJson(res, 200, {
 				status: "ok",
+				sha: config.gitSha ?? "dev",
 				uptime: Math.round((Date.now() - startedAt) / 1000),
 				rss,
 				heapUsed,
 			});
+		}
+		// /health: процес живий. /ready: процес може пускати гравців (не завершується
+		// і не досяг MAX_PLAYERS). Хостинг за першим перезапускає, за другим знімає з балансування.
+		if (pathname === "/ready") {
+			const reason = shuttingDown
+				? "shutting_down"
+				: totalPlayers() >= maxPlayers
+					? "full"
+					: null;
+			return sendJson(
+				res,
+				reason ? 503 : 200,
+				reason ? { status: "unavailable", reason } : { status: "ready" },
+			);
+		}
+		if (pathname === "/metrics") {
+			const body = Buffer.from(
+				metrics.render({
+					players: totalPlayers,
+					rooms: () => rooms.size,
+					connections: () => sockets.wss.clients.size,
+					matches: () => matches?.stats() ?? [],
+					gitSha: config.gitSha ?? "dev",
+				}),
+			);
+			res.writeHead(200, {
+				"Content-Type": "text/plain; version=0.0.4; charset=utf-8",
+				"Content-Length": body.length,
+				"Cache-Control": "no-store",
+			});
+			res.end(body);
+			return;
 		}
 		if (pathname.startsWith("/api/")) return handleApi(req, res, pathname);
 		if (pathname === "/ws") return sendJson(res, 404, { error: "not found" }); // upgrade: у ws.ts
@@ -90,7 +133,7 @@ export function createApp(
 		} catch (error: unknown) {
 			if (error instanceof HttpError && !res.headersSent)
 				return sendError(req, res, error);
-			console.error(`${req.method} ${req.url}:`, error);
+			log.error({ method: req.method, url: req.url }, "помилка запиту", error);
 			if (res.headersSent) res.destroy();
 			else sendJson(res, 500, { error: "internal error" });
 		}
@@ -99,7 +142,12 @@ export function createApp(
 		server,
 		rooms,
 		log,
+		metrics,
 		netsim: config.enableNetsim === true,
+		allowedOrigins: config.allowedOrigins,
+		maxConnPerIp: config.maxConnPerIp,
+		maxPlayers: config.maxPlayers,
+		trustProxy: config.trustProxy,
 		...wsOptions,
 	});
 	closers.push(() => sockets.shutdown());
@@ -130,6 +178,10 @@ export function createApp(
 		matches,
 		matchLogs,
 
+		get closing() {
+			return shuttingDown;
+		},
+
 		listen() {
 			return new Promise<AddressInfo>((resolve, reject) => {
 				server.once("error", reject); // помилка listen (наприклад, порт зайнятий)
@@ -153,6 +205,7 @@ export function createApp(
 
 		// Graceful shutdown: нові з'єднання не приймаємо, поточним даємо завершитись.
 		close() {
+			shuttingDown = true; // /ready віддає 503 одразу, ще до закриття сокетів
 			closing ??= (async () => {
 				const closed = new Promise<void>((resolve) =>
 					server.close(() => resolve()),

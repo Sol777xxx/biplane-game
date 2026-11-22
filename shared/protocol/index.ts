@@ -14,7 +14,7 @@ import {
 // перевіряють дані в рантаймі, а типи TypeScript виводяться з тих самих схем.
 //
 // клієнт → сервер: join, chat, leave, input, ping, netsim
-// сервер → клієнт: joined, roster, chat, error, pong, snapshot, netsim
+// сервер → клієнт: joined, roster, chat, error, pong, snapshot, netsim, shutdown
 //
 // input: { seq, up, down, left, right, fire }
 //   seq росте на 1 з кожним input, починаючи з 1; підтвердження 0 = «нічого не оброблено».
@@ -22,6 +22,8 @@ import {
 // netsim (лише для розробки, потрібен ENABLE_NETSIM=1 на сервері):
 //   клієнт → сервер: { lag, jitter, loss }, межі в NETSIM_LIMITS;
 //   сервер → клієнт: { enabled, lag, jitter, loss } (поточні значення).
+// shutdown: { reason }. Сервер зупиняється (SIGTERM): одразу після нього йде закриття 1001.
+//   Клієнт не перепідключається до цього процесу, а повертається в лобі.
 export const PROTOCOL_VERSION = 1;
 
 export { MAX_SEQ };
@@ -38,6 +40,7 @@ export const MSG = Object.freeze({
 	ERROR: "error",
 	PONG: "pong",
 	SNAPSHOT: "snapshot",
+	SHUTDOWN: "shutdown",
 });
 
 // коди закриття WebSocket: стандартні (1xxx) і наші (4xxx)
@@ -315,6 +318,10 @@ export const netsimStateSchema = z.object({
 	jitter: num,
 	loss: num,
 });
+export const shutdownSchema = z.object({
+	...head("shutdown"),
+	reason: z.string(),
+});
 export const snapshotMessageSchema = z.object({
 	...head("snapshot"),
 	...snapshotSchema.shape,
@@ -330,6 +337,7 @@ export const serverMessageSchema = z.discriminatedUnion("type", [
 	pongSchema,
 	netsimStateSchema,
 	snapshotMessageSchema,
+	shutdownSchema,
 ]);
 
 // ---------- типи: виведені зі схем, окремо вручну нічого не описуємо ----------
@@ -390,6 +398,7 @@ const SERVER_TYPES = {
 	pong: pongSchema,
 	netsim: netsimStateSchema,
 	snapshot: snapshotMessageSchema,
+	shutdown: shutdownSchema,
 };
 
 // Причина для логу й close-кадру (там максимум 123 байти): перше проблемне поле.
@@ -461,6 +470,7 @@ const BUILD: {
 	error: (d) => ({ v: PROTOCOL_VERSION, type: "error", ...d }),
 	pong: (d) => ({ v: PROTOCOL_VERSION, type: "pong", ...d }),
 	snapshot: (d) => ({ v: PROTOCOL_VERSION, type: "snapshot", ...d }),
+	shutdown: (d) => ({ v: PROTOCOL_VERSION, type: "shutdown", ...d }),
 };
 
 export function make<T extends MessageType>(
@@ -488,6 +498,7 @@ const BUILD_SERVER: {
 	pong: (d) => ({ v: PROTOCOL_VERSION, type: "pong", ...d }),
 	netsim: (d) => ({ v: PROTOCOL_VERSION, type: "netsim", ...d }),
 	snapshot: (d) => ({ v: PROTOCOL_VERSION, type: "snapshot", ...d }),
+	shutdown: (d) => ({ v: PROTOCOL_VERSION, type: "shutdown", ...d }),
 };
 
 export function makeServer<T extends ServerType>(

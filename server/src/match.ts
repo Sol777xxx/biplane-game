@@ -5,7 +5,7 @@ import { NO_SEQ, type Seq } from "biplane-shared/sim/ids.ts";
 import { eventToWire, takeSnapshot } from "biplane-shared/sim/snapshot.ts";
 import { TICK_DT, TICK_RATE } from "biplane-shared/sim/time.ts";
 import type { BusEvents } from "biplane-shared/sim/types.ts";
-import type { Logger } from "./logger.ts";
+import { childLogger, type Logger } from "./logger.ts";
 import type { Room, RoomInput } from "./rooms.ts";
 import { RollingStats, type StatsSummary } from "./stats.ts";
 
@@ -108,7 +108,7 @@ export class Match {
 		seed = () => randomBytes(4).readUInt32LE(0),
 	}: MatchOptions) {
 		this.#room = room;
-		this.#log = log;
+		this.#log = childLogger(log, { room: room.id });
 		this.#now = now;
 		this.#setTimer = setTimer;
 		this.#clearTimer = clearTimer;
@@ -179,7 +179,7 @@ export class Match {
 		this.#game = game;
 		this.#events.length = 0;
 		for (const type of BUS_EVENTS) this.#forward(game, type);
-		this.#log.info(`[${this.#room.id}] матч стартував (seed ${seed})`);
+		this.#log.info(`матч стартував (seed ${seed})`);
 		this.#running = true;
 		this.#prevStart = null;
 		this.#nextTick = this.#now() + INTERVAL_MS;
@@ -195,7 +195,7 @@ export class Match {
 		this.#game = null;
 		this.#queues.clear();
 		this.#events.length = 0;
-		if (wasRunning) this.#log.info(`[${this.#room.id}] матч зупинено`);
+		if (wasRunning) this.#log.info("матч зупинено");
 	}
 
 	// ---------- цикл: абсолютна цільова мітка, а не ланцюжок setInterval ----------
@@ -231,7 +231,7 @@ export class Match {
 				this.#nextTick += INTERVAL_MS;
 			}
 		} catch (error: unknown) {
-			this.#log.error(`[${this.#room.id}] помилка тіку, матч зупинено:`, error);
+			this.#log.error("помилка тіку, матч зупинено:", error);
 			this.#stopGame();
 			return;
 		}

@@ -106,6 +106,12 @@ export interface RoomSessionOptions {
 	readonly codec?: "json" | "binary";
 }
 
+// Скільки разів поспіль пробуємо перепідключитись, перш ніж здатися. Із backoff до 4 с це
+// ≈ 12 с: короткий обрив мережі гравець не помітить, а коли сервер убито, застосунок
+// отримує "closed" і повертає гравця в лобі, а не крутить «спроба 13…» без кінця.
+const RECONNECT_ATTEMPTS = 6;
+const RECONNECT_MAX_DELAY_MS = 4000;
+
 // Сеанс у кімнаті. Події: "roster" (players), "chat" (повідомлення), "snapshot" (знімок гри),
 // "pong" ({ rtt, t }), "netsim" ({ enabled, lag, jitter, loss }),
 // "status" ({ state: "online" | "reconnecting" | "closed", ... }).
@@ -128,6 +134,8 @@ export class RoomSession extends TypedTarget<RoomSessionEvents> {
 		super();
 		this.#codec = codec === "binary" ? getCodec("binary") : getCodec("json");
 		const conn = new Connection(this.#codec.isBinary ? withBinary(url) : url, {
+			maxAttempts: RECONNECT_ATTEMPTS,
+			maxMs: RECONNECT_MAX_DELAY_MS,
 			...connection,
 			// Після обриву сервер ще може вважати нас у кімнаті (він помітить це за heartbeat).
 			// Тоді повторний join дає 4007 "ім'я зайняте": це теж тимчасово.
@@ -171,6 +179,18 @@ export class RoomSession extends TypedTarget<RoomSessionEvents> {
 				loss: m.loss,
 			};
 			this.emit("netsim", this.netsim);
+		});
+
+		// Сервер зупиняється: перепідключатися до цього процесу марно. Закриваємо сеанс
+		// остаточно, і застосунок повертає гравця в лобі (див. main.ts).
+		conn.on("shutdown", (m) => {
+			this.#conn.close(1000, "server shutdown");
+			this.emit("status", {
+				state: "closed",
+				code: 1001,
+				reason: m.reason,
+				willRetry: false,
+			});
 		});
 
 		conn.listen("reconnecting", (info) =>

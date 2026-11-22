@@ -1,4 +1,4 @@
-﻿{
+{
 	"name": "biplane-server",
 	"version": "0.0.0",
 	"private": true,
@@ -11,7 +11,9 @@
 	},
 	"dependencies": {
 		"biplane-shared": "*",
-		"ws": "^8.18.0"
+		"pino": "^10.4.0",
+		"ws": "^8.18.0",
+		"zod": "^4.6.7"
 	},
 	"devDependencies": {
 		"@types/ws": "^8.18.2"

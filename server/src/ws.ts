@@ -21,8 +21,10 @@ import { assertNever } from "biplane-shared/sim/never.ts";
 import type WebSocket from "ws";
 import { WebSocketServer } from "ws";
 import { TokenBucket } from "./limits.ts";
-import type { Logger } from "./logger.ts";
+import { childLogger, type Logger } from "./logger.ts";
+import type { Metrics } from "./metrics.ts";
 import { NetSim, parseNetsimUrl } from "./netsim.ts";
+import { clientIp, isOriginAllowed } from "./origin.ts";
 import { CLOSE, MAX_MESSAGE_BYTES, makeServer } from "./protocol.ts";
 import {
 	type ChatMessage,
@@ -48,6 +50,11 @@ export interface WsOptions {
 	readonly softBufferBytes: number;
 	readonly hardBufferBytes: number;
 	readonly netsim: boolean;
+	// Origin рукостискання: порожній список означає «лише той самий хост» (див. origin.ts)
+	readonly allowedOrigins: readonly string[];
+	readonly maxConnPerIp: number; // одночасних з'єднань з однієї IP
+	readonly maxPlayers: number; // гравців у всіх кімнатах разом
+	readonly trustProxy: boolean; // брати IP з X-Forwarded-For (за проксі хостингу)
 }
 
 export const WS_DEFAULTS: Readonly<WsOptions> = Object.freeze({
@@ -65,6 +72,10 @@ export const WS_DEFAULTS: Readonly<WsOptions> = Object.freeze({
 	softBufferBytes: 16 * 1024, // вище: chat і snapshot цьому клієнтові не шлемо
 	hardBufferBytes: 256 * 1024, // вище: розриваємо з'єднання
 	netsim: false, // штучна затримка/втрати (ENABLE_NETSIM=1), лише для розробки
+	allowedOrigins: Object.freeze<string[]>([]),
+	maxConnPerIp: Number.POSITIVE_INFINITY,
+	maxPlayers: Number.POSITIVE_INFINITY,
+	trustProxy: false,
 });
 
 // Не всі помилки кімнати стають кодом закриття: решта це збій сервера й летить далі.
@@ -90,6 +101,8 @@ interface Session {
 	dropping: boolean;
 	dropped: number;
 	slow: boolean;
+	// логер сеансу: після join несе id кімнати й гравця
+	log: Logger;
 }
 
 type NetsimRequest = Extract<ClientMessage, { type: "netsim" }>;
@@ -98,6 +111,7 @@ export interface AttachOptions extends Partial<WsOptions> {
 	readonly server: Server;
 	readonly rooms: RoomManager;
 	readonly log: Logger;
+	readonly metrics?: Metrics;
 }
 
 export interface WebSocketHub {
@@ -113,13 +127,30 @@ function toBuffer(data: WebSocket.RawData): Buffer {
 	return Buffer.from(data);
 }
 
+// undefined у параметрах (наприклад, поле конфігурації, якого немає) не затирає значення за замовчуванням
+function definedOnly<T extends object>(source: T): Partial<T> {
+	return Object.fromEntries(
+		Object.entries(source).filter(([, value]) => value !== undefined),
+	) as Partial<T>;
+}
+
+const rawBytes = (data: WebSocket.RawData): number =>
+	Array.isArray(data)
+		? data.reduce((sum, part) => sum + part.length, 0)
+		: data.byteLength;
+
 export function attachWebSocket({
 	server,
 	rooms,
 	log,
+	metrics,
 	...options
 }: AttachOptions): WebSocketHub {
-	const opts: WsOptions = { ...WS_DEFAULTS, ...options };
+	const opts: WsOptions = { ...WS_DEFAULTS, ...definedOnly(options) };
+	let draining = false; // shutdown розпочато: нових з'єднань не беремо
+	const connectionsByIp = new Map<string, number>();
+	const totalPlayers = (): number =>
+		rooms.all().reduce((sum, room) => sum + room.players.size, 0);
 	const sessions = new WeakMap<WebSocket, Session>();
 	// noServer: upgrade обробляємо самі, щоб приймати лише шлях /ws
 	const wss = new WebSocketServer({
@@ -128,6 +159,24 @@ export function attachWebSocket({
 	});
 	wss.on("error", (error) => log.error("wss:", error));
 
+	type Refusal = readonly [status: number, text: string, reason: string];
+	function refusalFor(req: IncomingMessage, ip: string): Refusal | null {
+		if (draining) return [503, "Service Unavailable", "draining"];
+		if (
+			!isOriginAllowed(
+				req.headers.origin,
+				req.headers.host,
+				opts.allowedOrigins,
+			)
+		) {
+			return [403, "Forbidden", "origin"];
+		}
+		if ((connectionsByIp.get(ip) ?? 0) >= opts.maxConnPerIp) {
+			return [429, "Too Many Requests", "ip_limit"];
+		}
+		return null;
+	}
+
 	server.on("upgrade", (req: IncomingMessage, socket: Duplex, head: Buffer) => {
 		const { pathname } = new URL(req.url ?? "/", "http://x");
 		if (pathname !== "/ws") {
@@ -135,9 +184,32 @@ export function attachWebSocket({
 			socket.end("HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n");
 			return;
 		}
-		wss.handleUpgrade(req, socket, head, (ws) =>
-			wss.emit("connection", ws, req),
-		);
+
+		// Три відмови ще до рукостискання: сервер зупиняється (503), чужий Origin (403),
+		// забагато з'єднань з однієї IP (429). Нічого з цього не доходить до розбору протоколу.
+		const ip = clientIp(req, opts.trustProxy);
+		const origin = req.headers.origin;
+		const refusal = refusalFor(req, ip);
+		if (refusal) {
+			const [status, text, reason] = refusal;
+			metrics?.upgradeRefused(reason);
+			log.warn({ ip, origin, reason }, "рукостискання WebSocket відхилено");
+			socket.on("error", () => {});
+			socket.end(
+				`HTTP/1.1 ${status} ${text}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`,
+			);
+			return;
+		}
+
+		wss.handleUpgrade(req, socket, head, (ws) => {
+			connectionsByIp.set(ip, (connectionsByIp.get(ip) ?? 0) + 1);
+			ws.once("close", () => {
+				const left = (connectionsByIp.get(ip) ?? 1) - 1;
+				if (left <= 0) connectionsByIp.delete(ip);
+				else connectionsByIp.set(ip, left);
+			});
+			wss.emit("connection", ws, req);
+		});
 	});
 
 	// ---------- надсилання й закриття ----------
@@ -185,8 +257,8 @@ export function attachWebSocket({
 		if (droppable && buffered > opts.softBufferBytes) {
 			if (!s.dropping) {
 				s.dropping = true;
-				log.warn(
-					`[${s.id}] повільний клієнт (${buffered} Б у буфері): відкидаємо chat і snapshot`,
+				s.log.warn(
+					`повільний клієнт (${buffered} Б у буфері): відкидаємо chat і snapshot`,
 				);
 			}
 			s.dropped++;
@@ -201,8 +273,11 @@ export function attachWebSocket({
 		s.sim.outbound(
 			() => {
 				if (ws.readyState !== ws.OPEN) return; // за час затримки сокет міг закритись
+				metrics?.sent(
+					typeof data === "string" ? Buffer.byteLength(data) : data.byteLength,
+				);
 				ws.send(data, (error) => {
-					if (error) log.warn(`[${s.id}] send: ${error.message}`);
+					if (error) s.log.warn(`send: ${error.message}`);
 				});
 			},
 			{ lossy: message.type === "snapshot" },
@@ -212,8 +287,8 @@ export function attachWebSocket({
 	function closeSlow(ws: WebSocket, s: Session, buffered: number): void {
 		if (s.slow) return;
 		s.slow = true;
-		log.warn(
-			`[${s.id}] повільний клієнт: ${buffered} Б у буфері (відкинуто: ${s.dropped}), розрив`,
+		s.log.warn(
+			`повільний клієнт: ${buffered} Б у буфері (відкинуто: ${s.dropped}), розрив`,
 		);
 		ws.close(CLOSE.SLOW_CLIENT, "slow client");
 		// close-кадр стоїть у черзі за буфером, а клієнт його не читає: через 1 с рубаємо
@@ -229,7 +304,8 @@ export function attachWebSocket({
 		code: number,
 		reason: string,
 	): void {
-		log.warn(`[${s.id}] закрито ${code}: ${reason}`);
+		metrics?.violation(code);
+		s.log.warn({ code }, `закрито ${code}: ${reason}`);
 		send(ws, s, makeServer("error", { code, message: reason }));
 		ws.close(code, reason); // reason у close-кадрі максимум 123 байти
 	}
@@ -266,7 +342,10 @@ export function attachWebSocket({
 		if (s.joinTimer !== null) clearTimeout(s.joinTimer);
 		s.unsubscribe?.();
 		s.unsubscribe = null;
-		if (s.room && s.player) s.room.leave(s.player.id); // інші отримають roster
+		if (s.room && s.player) {
+			s.log.info("вийшов із кімнати");
+			s.room.leave(s.player.id); // інші отримають roster
+		}
 		s.room = null;
 		s.player = null;
 	}
@@ -276,6 +355,11 @@ export function attachWebSocket({
 		const room = rooms.get(msg.room);
 		if (!room) {
 			reject(ws, s, CLOSE.ROOM_NOT_FOUND, "room not found");
+			return;
+		}
+		// ліміт гравців на весь процес (MAX_PLAYERS): той самий код, що й «кімната заповнена»
+		if (totalPlayers() >= opts.maxPlayers) {
+			reject(ws, s, CLOSE.ROOM_FULL, "server full");
 			return;
 		}
 
@@ -307,7 +391,9 @@ export function attachWebSocket({
 			send(ws, s, makeServer("netsim", { enabled: true, ...s.sim.settings }));
 		}
 		s.unsubscribe = subscribe(ws, s, room);
-		log.info(`[${s.id}] ${player.name} зайшов у ${room.id}`);
+		// відтепер кожен запис цього сеансу несе id кімнати й гравця
+		s.log = childLogger(log, { room: room.id, player: player.id });
+		s.log.info(`${player.name} зайшов у кімнату`);
 	}
 
 	// Зміна штучної мережі наживо. Вимкнено на сервері: відповідаємо enabled: false
@@ -367,6 +453,7 @@ export function attachWebSocket({
 	): void {
 		// після закриття з нашого боку решту повідомлень у черзі ігноруємо
 		if (ws.readyState !== ws.OPEN) return;
+		metrics?.received(rawBytes(data));
 		// ліміт кадрів стоїть ПЕРШИМ: порахувати повідомлення дешевше, ніж розібрати його
 		if (!s.frameBucket.take()) {
 			reject(ws, s, CLOSE.RATE_LIMIT, "rate limit");
@@ -398,7 +485,7 @@ export function attachWebSocket({
 		try {
 			fn();
 		} catch (error: unknown) {
-			log.error(`[${s.id}] помилка обробника:`, error);
+			s.log.error("помилка обробника:", error);
 			ws.close(CLOSE.INTERNAL, "internal error");
 		}
 	}
@@ -449,6 +536,7 @@ export function attachWebSocket({
 
 	wss.on("connection", (ws, req) => {
 		const id = randomBytes(4).toString("hex");
+		const clog = childLogger(log, { player: id });
 		const s: Session = {
 			id,
 			player: null,
@@ -475,19 +563,18 @@ export function attachWebSocket({
 			// штучна мережа: початкові значення з адреси, лише якщо дозволено на сервері
 			sim: new NetSim({
 				...(opts.netsim ? parseNetsimUrl(req.url) : {}),
-				onError: (error) => log.error(`[${id}] netsim:`, error),
+				onError: (error) => clog.error("netsim:", error),
 			}),
 			dropping: false,
 			dropped: 0,
 			slow: false,
+			log: clog,
 		};
 		sessions.set(ws, s);
 
 		// "error" першим рядком: без нього помилка сокета (наприклад, завеликий кадр)
 		// стала б необробленою подією і завалила б увесь процес
-		ws.on("error", (error) =>
-			log.warn(`[${id}] помилка сокета: ${error.message}`),
-		);
+		ws.on("error", (error) => clog.warn(`помилка сокета: ${error.message}`));
 
 		s.joinTimer = setTimeout(
 			() => reject(ws, s, CLOSE.JOIN_TIMEOUT, "join timeout"),
@@ -503,7 +590,7 @@ export function attachWebSocket({
 			try {
 				onMessage(ws, s, data, isBinary);
 			} catch (error: unknown) {
-				log.error(`[${id}] помилка обробника:`, error);
+				clog.error("помилка обробника:", error);
 				ws.close(CLOSE.INTERNAL, "internal error");
 			}
 		});
@@ -520,7 +607,7 @@ export function attachWebSocket({
 			const s = sessions.get(ws);
 			if (!s) continue;
 			if (s.missedPongs >= opts.maxMissedPongs) {
-				log.warn(`[${s.id}] немає pong, розрив`);
+				s.log.warn("немає pong, розрив");
 				ws.terminate();
 				continue;
 			}
@@ -531,12 +618,24 @@ export function attachWebSocket({
 	heartbeat.unref();
 
 	// ---------- завершення ----------
+	// Спершу кажемо клієнтам, що сервер іде (вони повернуться в лобі, а не чекатимуть
+	// перепідключення), потім закриваємо сокети кодом 1001.
 	async function shutdown(): Promise<void> {
+		draining = true;
 		clearInterval(heartbeat);
+		log.info({ clients: wss.clients.size }, "закриваю сокети");
 		const closing = [...wss.clients].map(
 			(ws) =>
 				new Promise<void>((resolve) => {
 					ws.once("close", () => resolve());
+					const s = sessions.get(ws);
+					if (s) {
+						send(
+							ws,
+							s,
+							makeServer("shutdown", { reason: "server shutting down" }),
+						);
+					}
 					ws.close(CLOSE.GOING_AWAY, "server shutting down");
 				}),
 		);

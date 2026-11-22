@@ -106,6 +106,7 @@ const newHandlers = (): HandlerTable => ({
 	pong: new Set(),
 	netsim: new Set(),
 	snapshot: new Set(),
+	shutdown: new Set(),
 });
 
 type Settings = Required<Omit<ConnectionOptions, "WebSocketImpl">> &
@@ -256,6 +257,9 @@ export class Connection extends TypedTarget<ConnectionEvents> {
 				return;
 			case "snapshot":
 				this.#deliver("snapshot", msg);
+				return;
+			case "shutdown":
+				this.#deliver("shutdown", msg);
 				return;
 			default:
 				assertNever(msg, "повідомлення сервера");

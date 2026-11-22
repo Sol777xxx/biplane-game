@@ -73,7 +73,9 @@ describe("joinRoom (наскрізно з сервером)", { timeout: 10_000 
 				signal: AbortSignal.timeout(300),
 				connection: { baseMs: 10, maxMs: 30 },
 			}),
-			(e) => e.name === "TimeoutError",
+			(e) =>
+				e.name === "TimeoutError" ||
+				(e.name === "JoinError" && e.code === 1006),
 		);
 	});
 
@@ -93,5 +95,41 @@ describe("joinRoom (наскрізно з сервером)", { timeout: 10_000 
 		assert.ok(states.includes("reconnecting"));
 		assert.equal(rooms.get(room).players.size, 1);
 		a.leave();
+	});
+});
+
+describe("shutdown сервера", { timeout: 10_000 }, () => {
+	it("сеанс закривається остаточно кодом 1001 і не перепідключається", async () => {
+		const local = createApp(
+			{
+				port: 0,
+				host: "127.0.0.1",
+				clientDir: tmpdir(),
+				logDir: tmpdir(),
+			},
+			{ rooms: new RoomManager(), log: silentLogger, matchLog: false },
+		);
+		const { port } = await local.listen();
+		const room = local.rooms.create({
+			name: "T",
+			permanent: true,
+			arena: DEFAULT_ARENA,
+		}).id;
+		const session = await joinRoom(`ws://127.0.0.1:${port}/ws`, {
+			room,
+			name: "Оля",
+		});
+		const states = [];
+		session.listen("status", (st) => states.push(st.state));
+
+		const closed = once(session, "status");
+		await local.close();
+		const status = await closed;
+
+		assert.equal(status.state, "closed");
+		assert.equal(status.code, 1001);
+		assert.equal(status.reason, "server shutting down");
+		assert.equal(status.willRetry, false);
+		assert.ok(!states.includes("reconnecting"));
 	});
 });

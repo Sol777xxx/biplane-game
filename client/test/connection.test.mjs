@@ -132,6 +132,39 @@ describe("Connection", () => {
 		assert.equal(n, before);
 	});
 
+	it("сервера немає: після maxAttempts спроб здається, а не крутиться вічно", async () => {
+		// сокет, що ніколи не відкривається (порт закрито): error і close 1006
+		let created = 0;
+		class RefusedSocket extends EventTarget {
+			constructor() {
+				super();
+				created++;
+				setTimeout(() => {
+					this.dispatchEvent(new Event("error"));
+					this.dispatchEvent(
+						Object.assign(new Event("close"), { code: 1006, reason: "" }),
+					);
+				}, 1);
+			}
+			send() {}
+			close() {}
+		}
+		const c = client("ws://127.0.0.1:1", {
+			WebSocketImpl: RefusedSocket,
+			baseMs: 5,
+			maxMs: 10,
+			maxAttempts: 3,
+		});
+		const closes = [];
+		c.addEventListener("close", (e) => closes.push(e.detail));
+		c.connect();
+		await waitFor(() => closes.at(-1)?.willRetry === false);
+		await sleep(50);
+		assert.equal(created, 4); // перша спроба й три повтори
+		assert.equal(closes.length, 4);
+		assert.equal(c.state, "closed");
+	});
+
 	it("backoff зростає, обмежений зверху, jitter у межах", () => {
 		const o = { baseMs: 100, maxMs: 1000 };
 		for (let attempt = 1; attempt <= 8; attempt++) {
