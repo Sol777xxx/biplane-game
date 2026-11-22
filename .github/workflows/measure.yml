@@ -1,0 +1,37 @@
+# Виміри на справжньому образі без Docker на вашому комп'ютері: ручний запуск
+# (Actions → Measure → Run workflow). Результат: артефакт measure з docs/perf і docs/chaos.
+name: Measure
+
+on:
+  workflow_dispatch:
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Docker image, вимоги лаби
+        run: node scripts/verify-docker.mjs
+
+      - name: Місткість і збої на образі
+        run: node perf/measure-docker.mjs
+
+      - name: Чемна зупинка (SIGTERM) і збої на Linux
+        run: node perf/chaos.mjs all --label linux-ci
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: measure
+          path: |
+            docs/perf
+            docs/chaos
+          retention-days: 14

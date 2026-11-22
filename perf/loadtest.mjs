@@ -70,6 +70,10 @@ async function startServer() {
 			PORT: args.port,
 			HOST: "127.0.0.1",
 			MAX_ROOMS: "1000",
+			// усі клієнти з 127.0.0.1: ліміти хостингу (лаб 8) тут лише заважали б міряти тік
+			MAX_CONN_PER_IP: "100000",
+			MAX_PLAYERS: "100000",
+			LOG_LEVEL: "error",
 			LOG_DIR: mkdtempSync(join(tmpdir(), "biplane-load-")),
 		},
 		stdio: ["ignore", "ignore", "inherit"],

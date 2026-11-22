@@ -1,0 +1,132 @@
+{
+	"label": "local",
+	"when": "2026-11-22T15:42:39.632Z",
+	"node": "v24.13.0",
+	"results": [
+		{
+			"scenario": "vanish",
+			"name": "у кімнаті 3 гравці",
+			"ok": true
+		},
+		{
+			"scenario": "vanish",
+			"name": "сервер прибирає зниклого гравця з кімнати",
+			"ok": true,
+			"detail": "за 5 мс"
+		},
+		{
+			"scenario": "vanish",
+			"name": "решта гравців далі отримують знімки",
+			"ok": true,
+			"detail": "B +45 знімків"
+		},
+		{
+			"scenario": "vanish",
+			"name": "решта гравців дізналася про вихід (roster)",
+			"ok": true
+		},
+		{
+			"scenario": "vanish",
+			"name": "сокети решти відкриті",
+			"ok": true
+		},
+		{
+			"scenario": "vanish",
+			"name": "зниклий може повернутися під тим самим іменем",
+			"ok": true,
+			"detail": ""
+		},
+		{
+			"scenario": "kill",
+			"name": "SIGTERM: чемна зупинка",
+			"ok": true,
+			"skipped": true,
+			"detail": "Windows не вміє SIGTERM; перевіряє `npm run docker:verify` (docker stop) і CI на Linux"
+		},
+		{
+			"scenario": "kill",
+			"name": "SIGKILL: усі клієнти помітили обрив",
+			"ok": true,
+			"detail": "6/6 сокетів закрито, коди 1006"
+		},
+		{
+			"scenario": "kill",
+			"name": "SIGKILL: нових з'єднань сервер не приймає (клієнт піде в лобі)",
+			"ok": true
+		},
+		{
+			"scenario": "flood",
+			"name": "атакувальники шлють ≥ 600 кадрів/с",
+			"ok": true,
+			"detail": "944 кадрів/с з 3 з'єднань"
+		},
+		{
+			"scenario": "flood",
+			"name": "сервер закриває порушників кодом 4000-4009",
+			"ok": true,
+			"detail": "516/516, медіана життя 18 мс"
+		},
+		{
+			"scenario": "flood",
+			"name": "тік інших кімнат у межах бюджету 33,3 мс",
+			"ok": true,
+			"detail": "p99 1.5 мс (без атаки 1.406 мс)"
+		},
+		{
+			"scenario": "flood",
+			"name": "інші кімнати не пропускають тіки",
+			"ok": true,
+			"detail": "0 проти 0 без атаки"
+		},
+		{
+			"scenario": "flood",
+			"name": "гравці в інших кімнатах не відключені",
+			"ok": true
+		},
+		{
+			"scenario": "flood",
+			"name": "знімки в інших кімнатах не просіли",
+			"ok": true,
+			"detail": "30.1/с проти 30.1/с"
+		},
+		{
+			"scenario": "flood",
+			"name": "_data",
+			"ok": true,
+			"data": {
+				"base": {
+					"rooms": 4,
+					"tickP99": 1.406,
+					"tickMax": 2.209,
+					"lateP99": 16.256,
+					"skipped": 0,
+					"loopUtilization": 0.111,
+					"loopDelayP99": 8.873999999999999,
+					"snapshotsPerClientPerSec": 30.1
+				},
+				"under": {
+					"rooms": 4,
+					"tickP99": 1.5,
+					"tickMax": 4.436,
+					"lateP99": 15.073,
+					"skipped": 0,
+					"loopUtilization": 0.238,
+					"loopDelayP99": 10.349,
+					"snapshotsPerClientPerSec": 30.1
+				},
+				"attackers": 3,
+				"rate": 1000,
+				"framesPerSec": 944,
+				"tally": {
+					"connections": 516,
+					"frames": 10380,
+					"codes": {
+						"4000": 458,
+						"4008": 58
+					},
+					"medianLifeMs": 18
+				}
+			}
+		}
+	]
+}

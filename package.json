@@ -22,7 +22,10 @@
 		"perf": "node perf/session.mjs",
 		"loadtest": "node perf/loadtest.mjs",
 		"docker:verify": "node scripts/verify-docker.mjs",
-		"smoke": "node scripts/smoke.mjs"
+		"smoke": "node scripts/smoke.mjs",
+		"chaos": "node perf/chaos.mjs",
+		"measure:docker": "node perf/measure-docker.mjs",
+		"lab8:report": "node perf/lab8-report.mjs"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.15",
