@@ -1,0 +1,14 @@
+{
+	"url": "wss://biplane-game-latest.onrender.com/ws",
+	"sha": "84ec79d17857a5d5aa15b4958f92e363ee4ad947",
+	"connectMs": 159,
+	"rttMs": {
+		"min": 41,
+		"p50": 42,
+		"p95": 51,
+		"max": 51,
+		"samples": 20
+	},
+	"who": "Анастасія, домашній Wi-Fi, провайдер",
+	"when": "2026-11-22T20:11:30.474Z"
+}

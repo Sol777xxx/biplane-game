@@ -1,0 +1,14 @@
+{
+	"url": "wss://biplane-game-latest.onrender.com/ws",
+	"sha": "84ec79d17857a5d5aa15b4958f92e363ee4ad947",
+	"connectMs": 289,
+	"rttMs": {
+		"min": 58,
+		"p50": 63,
+		"p95": 76,
+		"max": 76,
+		"samples": 20
+	},
+	"who": "Анастасія, мобільний інтернет Київстар",
+	"when": "2026-11-22T20:51:17.418Z"
+}

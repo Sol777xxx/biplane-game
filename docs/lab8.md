@@ -97,9 +97,12 @@
 | docker-cpu1 | **512** | 1024 | пропущено 5609 тіків з 143567 |
 | docker-render-free | **32** | 64 | пропущено 132 тіків з 4613 |
 
-Повні таблиці рівнів: [loadtest-docker-cpu1.md](perf/loadtest-docker-cpu1.md), [loadtest-docker-render-free.md](perf/loadtest-docker-render-free.md)
+Повні таблиці рівнів і графіки: [loadtest-docker-cpu1](docs/perf/loadtest-docker-cpu1.md), [loadtest-docker-render-free](docs/perf/loadtest-docker-render-free.md).
 
 ## RTT до живого сервера
 
-_Не міряли: `node scripts/rtt.mjs <адреса> "…" docs/rtt/<ім'я>.json`._
+| Хто й звідки | Підключення, мс | RTT min | p50 | p95 | max | Зразків |
+|---|---|---|---|---|---|---|
+| Анастасія, мобільний інтернет Київстар | 289 | 58 | 63 | 76 | 76 | 20 |
+| Анастасія, домашній Wi-Fi, провайдер | 159 | 41 | 42 | 51 | 51 | 20 |
 

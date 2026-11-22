@@ -230,6 +230,14 @@ function startGame(
 	session: { name: string; room: RoomSummary; roomSession: RoomSession },
 ): void {
 	const net = session.roomSession;
+
+	// вкладку закрито, натиснуто «Назад» або браузер приспав сторінку: закриваємо сокет самі,
+	// інакше сервер тримає гравця до heartbeat (~30 с), і інші бачать «привида»
+	window.addEventListener("pagehide", () => net.leave());
+	// сторінку відновлено з кеша «Назад/Вперед»: сокет уже закрито, повертаємось у лобі
+	window.addEventListener("pageshow", (event) => {
+		if (event.persisted) location.reload();
+	});
 	console.log(
 		`гравець ${session.name}, кімната ${session.room.id}, кодек ${net.codec}`,
 		session.room.arena,
