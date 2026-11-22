@@ -1,0 +1,40 @@
+{
+	"label": "docker",
+	"when": "2026-11-22T15:51:41.628Z",
+	"node": "v24.22.3",
+	"results": [
+		{
+			"scenario": "vanish",
+			"name": "у кімнаті 3 гравці",
+			"ok": true
+		},
+		{
+			"scenario": "vanish",
+			"name": "сервер прибирає зниклого гравця з кімнати",
+			"ok": true,
+			"detail": "за 4 мс"
+		},
+		{
+			"scenario": "vanish",
+			"name": "решта гравців далі отримують знімки",
+			"ok": true,
+			"detail": "B +45 знімків"
+		},
+		{
+			"scenario": "vanish",
+			"name": "решта гравців дізналася про вихід (roster)",
+			"ok": true
+		},
+		{
+			"scenario": "vanish",
+			"name": "сокети решти відкриті",
+			"ok": true
+		},
+		{
+			"scenario": "vanish",
+			"name": "зниклий може повернутися під тим самим іменем",
+			"ok": true,
+			"detail": ""
+		}
+	]
+}

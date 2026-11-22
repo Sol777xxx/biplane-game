@@ -1,0 +1,81 @@
+{
+	"label": "docker-flood",
+	"when": "2026-11-22T15:52:07.053Z",
+	"node": "v24.22.3",
+	"results": [
+		{
+			"scenario": "flood",
+			"name": "атакувальники шлють ≥ 600 кадрів/с",
+			"ok": true,
+			"detail": "1451 кадрів/с з 3 з'єднань"
+		},
+		{
+			"scenario": "flood",
+			"name": "сервер закриває порушників кодом 4000-4009",
+			"ok": true,
+			"detail": "786/786, медіана життя 12 мс"
+		},
+		{
+			"scenario": "flood",
+			"name": "тік інших кімнат у межах бюджету 33,3 мс",
+			"ok": true,
+			"detail": "p99 0.475 мс (без атаки 0.533 мс)"
+		},
+		{
+			"scenario": "flood",
+			"name": "інші кімнати не пропускають тіки",
+			"ok": true,
+			"detail": "1 проти 1 без атаки"
+		},
+		{
+			"scenario": "flood",
+			"name": "гравці в інших кімнатах не відключені",
+			"ok": true
+		},
+		{
+			"scenario": "flood",
+			"name": "знімки в інших кімнатах не просіли",
+			"ok": true,
+			"detail": "30/с проти 30/с"
+		},
+		{
+			"scenario": "flood",
+			"name": "_data",
+			"ok": true,
+			"data": {
+				"base": {
+					"rooms": 4,
+					"tickP99": 0.533,
+					"tickMax": 1.81,
+					"lateP99": 2.143,
+					"skipped": 1,
+					"loopUtilization": 0.067,
+					"loopDelayP99": 1.5510000000000002,
+					"snapshotsPerClientPerSec": 30
+				},
+				"under": {
+					"rooms": 4,
+					"tickP99": 0.475,
+					"tickMax": 0.706,
+					"lateP99": 2.12,
+					"skipped": 1,
+					"loopUtilization": 0.16,
+					"loopDelayP99": 1.6159999999999997,
+					"snapshotsPerClientPerSec": 30
+				},
+				"attackers": 3,
+				"rate": 1000,
+				"framesPerSec": 1451,
+				"tally": {
+					"connections": 786,
+					"frames": 15960,
+					"codes": {
+						"4000": 696,
+						"4008": 90
+					},
+					"medianLifeMs": 12
+				}
+			}
+		}
+	]
+}
