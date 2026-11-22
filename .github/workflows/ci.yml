@@ -57,3 +57,21 @@ jobs:
             playwright-report
             test-results
           retention-days: 7
+  # Образ збирається на кожен push, а не лише на тег: зламаний Dockerfile видно одразу.
+  # Скрипт перевіряє вимоги лаби: розмір, не root, без dev-залежностей, HEALTHCHECK,
+  # docker stop менше ніж за 10 с з кодом виходу 0, логи у форматі JSON.
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Docker image
+        run: node scripts/verify-docker.mjs

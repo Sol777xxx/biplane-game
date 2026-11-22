@@ -34,6 +34,7 @@ import { joinRoom, type RoomSession } from "./net/roomSession.ts";
 import { createSnapshotView } from "./net/snapshotView.ts";
 import { createNetStats, summarize } from "./netStats.ts";
 import { perf } from "./perf.ts";
+import { registerServiceWorker } from "./pwa.ts";
 import {
 	DEFAULT_PILOT,
 	isPilotId,
@@ -115,6 +116,7 @@ const canvas = query("#game", HTMLCanvasElement);
 const hud = query("#hud", HTMLElement);
 hud.hidden = true; // діагностика схована, поки гравець не натисне H
 const status = query("#status", HTMLElement);
+registerServiceWorker();
 const retryBtn = query("#retry", HTMLButtonElement);
 
 // збої для галереї (діють лише на першу спробу, Retry йде чисто)

@@ -1,0 +1,86 @@
+name: Deploy
+
+# Тег v* → образ у GHCR → хостинг (Render) → перевірка, що на живій адресі саме ця збірка.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      image: ${{ steps.name.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # GHCR вимагає нижній регістр, а github.repository може мати великі літери
+      - name: Image name
+        id: name
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.name.outputs.image }}:${{ github.ref_name }}
+            ${{ steps.name.outputs.image }}:latest
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      APP_URL: ${{ vars.APP_URL }}
+      RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Перевірка налаштувань
+        run: |
+          [ -n "$APP_URL" ] || { echo "::error::Не задано змінну репозиторію APP_URL (https://….onrender.com)"; exit 1; }
+          [ -n "$RENDER_DEPLOY_HOOK" ] || { echo "::error::Не задано секрет RENDER_DEPLOY_HOOK (Deploy Hook із Render)"; exit 1; }
+
+      # imgURL просить Render взяти саме цей тег; якщо сервіс налаштований на :latest,
+      # образ у GHCR із цим же вмістом отримає той самий результат.
+      - name: Trigger Render deploy
+        run: |
+          IMG="${{ needs.image.outputs.image }}:${{ github.ref_name }}"
+          curl -fsS -X POST "${RENDER_DEPLOY_HOOK}&imgURL=${IMG//\//%2F}" > /dev/null
+          echo "Deploy запрошено: $IMG"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # Чекаємо, поки /health віддасть SHA саме цього коміту, і проганяємо wss-перевірку
+      - name: Smoke test (health SHA + wss + RTT)
+        run: node scripts/smoke.mjs "$APP_URL" --expect-sha "${{ github.sha }}" --wait 600

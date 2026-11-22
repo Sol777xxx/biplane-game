@@ -12,6 +12,7 @@ const MIME: Readonly<Record<string, string>> = {
 	".mjs": "text/javascript; charset=utf-8",
 	".css": "text/css; charset=utf-8",
 	".json": "application/json; charset=utf-8",
+	".webmanifest": "application/manifest+json; charset=utf-8",
 	".png": "image/png",
 	".jpg": "image/jpeg",
 	".svg": "image/svg+xml",
@@ -95,7 +96,11 @@ export function createStaticHandler(
 		res.writeHead(200, {
 			"Content-Type": MIME[ext] ?? "application/octet-stream",
 			"Content-Length": info.size,
-			"Cache-Control": ext === ".html" ? "no-cache" : "public, max-age=300",
+			// HTML і service worker перевіряємо щоразу: від них залежить, яку версію побачить гравець
+			"Cache-Control":
+				ext === ".html" || path.basename(file) === "sw.js"
+					? "no-cache"
+					: "public, max-age=300",
 		});
 		if (req.method === "HEAD") {
 			res.end();
